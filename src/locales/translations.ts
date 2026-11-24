@@ -146,6 +146,35 @@ export interface TranslationDictionary {
   saving: string;
   errorOccurred: string;
   success: string;
+
+  // Recovery & PUK
+  forgotPin: string;
+  pukRecoveryTitle: string;
+  pukRecoverySubtitle: string;
+  pukLabel: string;
+  pukPlaceholder: string;
+  pukSaveNotice: string;
+  pukCopied: string;
+  newPinLabel: string;
+  resetPinBtn: string;
+  pinResetSuccess: string;
+
+  // Global Admin & Telemetry
+  globalAdminTitle: string;
+  globalAdminKeyLabel: string;
+  globalAdminKeyPlaceholder: string;
+  unlockAdminBtn: string;
+  totpCodeLabel: string;
+  totpCodePlaceholder: string;
+  totalMembers: string;
+  totalTrees: string;
+  totalHouseholds: string;
+  livingVsDeceased: string;
+  searchTreesPlaceholder: string;
+  resetTreePinBtn: string;
+  generateNewPukBtn: string;
+  pukGeneratedNotice: string;
+  liveStatsTooltip: string;
 }
 
 export const translations: Record<Language, TranslationDictionary> = {
@@ -286,6 +315,33 @@ export const translations: Record<Language, TranslationDictionary> = {
     saving: 'Saving changes...',
     errorOccurred: 'An error occurred. Please try again.',
     success: 'Saved successfully!',
+
+    forgotPin: 'Forgot PIN?',
+    pukRecoveryTitle: 'Reset Family PIN',
+    pukRecoverySubtitle: 'Enter your 8-character invite code and 10-character PUK recovery code to choose a new PIN.',
+    pukLabel: 'PUK Recovery Code',
+    pukPlaceholder: 'e.g. KV-8F92-4K1M',
+    pukSaveNotice: 'IMPORTANT: Save this PUK recovery code safely. If you ever forget your 6-digit PIN, this is the only code that can restore access to your tree.',
+    pukCopied: 'PUK code copied to clipboard!',
+    newPinLabel: 'New 6-Digit PIN',
+    resetPinBtn: 'Reset PIN & Sign In',
+    pinResetSuccess: 'PIN successfully updated! Signing in...',
+
+    globalAdminTitle: 'Global Webapp Admin',
+    globalAdminKeyLabel: 'Admin Secret Key',
+    globalAdminKeyPlaceholder: 'Enter master admin key',
+    unlockAdminBtn: 'Unlock Admin Portal',
+    totpCodeLabel: '2FA Authenticator Code',
+    totpCodePlaceholder: '6-digit code',
+    totalMembers: 'Total Registered Members',
+    totalTrees: 'Total Family Trees',
+    totalHouseholds: 'Total Households',
+    livingVsDeceased: 'Living vs Deceased',
+    searchTreesPlaceholder: 'Search trees by name or code...',
+    resetTreePinBtn: 'Reset Tree PIN',
+    generateNewPukBtn: 'Generate New PUK',
+    pukGeneratedNotice: 'New PUK generated and saved to tree:',
+    liveStatsTooltip: 'Live Platform Telemetry',
   },
 
   mz: {
@@ -425,6 +481,33 @@ export const translations: Record<Language, TranslationDictionary> = {
     saving: 'Save mek a ni...',
     errorOccurred: 'Thil a dik lo tlat. Khawngaihin han ti nawn leh rawh.',
     success: 'Hlawhtling takin save a ni e!',
+
+    forgotPin: 'PIN theihnghilh em?',
+    pukRecoveryTitle: 'Chhungkaw PIN Thlakna',
+    pukRecoverySubtitle: 'Invite code (hawrawp 8) leh PUK recovery code (hawrawp 10) hmangin PIN tharlam siam rawh.',
+    pukLabel: 'PUK Recovery Code',
+    pukPlaceholder: 'Entirnan: KV-8F92-4K1M',
+    pukSaveNotice: 'FIMKHUR RAWH: He PUK recovery code hi vawng tha tlat rawh. I chhungkaw PIN number 6 i theihnghilh palh pawhin he PUK code hmang chauh hian i lut leh thei dawn a ni.',
+    pukCopied: 'PUK code copy fel e!',
+    newPinLabel: 'PIN Number 6 Tharlam',
+    resetPinBtn: 'PIN Thlak la Lut Rawh',
+    pinResetSuccess: 'PIN thlak fel a ni ta! Luh mek a ni...',
+
+    globalAdminTitle: 'Webapp Global Admin',
+    globalAdminKeyLabel: 'Admin Secret Key',
+    globalAdminKeyPlaceholder: 'Master admin key chhutluhna',
+    unlockAdminBtn: 'Admin Portal Hawng Rawh',
+    totpCodeLabel: '2FA Authenticator Code',
+    totpCodePlaceholder: 'Number 6',
+    totalMembers: 'Chhungkhat Zawng Zawng',
+    totalTrees: 'Chhungkaw Inthlahchhawn Zawng Zawng',
+    totalHouseholds: 'Chhungkua Zawng Zawng',
+    livingVsDeceased: 'Dam Lai leh Boral Tawh',
+    searchTreesPlaceholder: 'Chhungkaw hming emaw code zawng rawh...',
+    resetTreePinBtn: 'Chhungkaw PIN Thlak Rawh',
+    generateNewPukBtn: 'PUK Thar Siam Rawh',
+    pukGeneratedNotice: 'PUK thar siam fel a ni e:',
+    liveStatsTooltip: 'Platform Data Enna',
   },
 
   es: {
@@ -564,6 +647,33 @@ export const translations: Record<Language, TranslationDictionary> = {
     saving: 'Guardando cambios...',
     errorOccurred: 'Ocurrió un error. Inténtalo de nuevo.',
     success: '¡Guardado correctamente!',
+
+    forgotPin: '¿Olvidaste tu PIN?',
+    pukRecoveryTitle: 'Restablecer PIN Familiar',
+    pukRecoverySubtitle: 'Introduce tu código de invitación y código PUK para elegir un nuevo PIN.',
+    pukLabel: 'Código PUK de Recuperación',
+    pukPlaceholder: 'p. ej. KV-8F92-4K1M',
+    pukSaveNotice: 'IMPORTANTE: Guarda este código PUK en un lugar seguro. Si olvidas tu PIN de 6 dígitos, este código te permitirá recuperar el acceso.',
+    pukCopied: '¡Código PUK copiado!',
+    newPinLabel: 'Nuevo PIN de 6 Dígitos',
+    resetPinBtn: 'Restablecer PIN e Iniciar',
+    pinResetSuccess: '¡PIN actualizado correctamente!',
+
+    globalAdminTitle: 'Admin Global de la Webapp',
+    globalAdminKeyLabel: 'Clave Secreta de Admin',
+    globalAdminKeyPlaceholder: 'Introduce la clave de admin',
+    unlockAdminBtn: 'Acceder al Portal de Admin',
+    totpCodeLabel: 'Código Autenticador 2FA',
+    totpCodePlaceholder: 'Código de 6 dígitos',
+    totalMembers: 'Total de Miembros Registrados',
+    totalTrees: 'Total de Árboles Familiares',
+    totalHouseholds: 'Total de Hogares',
+    livingVsDeceased: 'Vivos vs Fallecidos',
+    searchTreesPlaceholder: 'Buscar árboles por nombre o código...',
+    resetTreePinBtn: 'Restablecer PIN del Árbol',
+    generateNewPukBtn: 'Generar Nuevo PUK',
+    pukGeneratedNotice: 'Nuevo PUK generado correctamente:',
+    liveStatsTooltip: 'Telemetría de la Plataforma',
   },
 
   de: {
@@ -703,5 +813,32 @@ export const translations: Record<Language, TranslationDictionary> = {
     saving: 'Änderungen werden gespeichert...',
     errorOccurred: 'Ein Fehler ist aufgetreten.',
     success: 'Erfolgreich gespeichert!',
+
+    forgotPin: 'PIN vergessen?',
+    pukRecoveryTitle: 'Familien-PIN zurücksetzen',
+    pukRecoverySubtitle: 'Gib deinen Einladungscode und den PUK-Wiederherstellungscode ein, um eine neue PIN festzulegen.',
+    pukLabel: 'PUK-Wiederherstellungscode',
+    pukPlaceholder: 'z. B. KV-8F92-4K1M',
+    pukSaveNotice: 'WICHTIG: Bewahre diesen PUK sicher auf. Falls du deine 6-stellige PIN vergisst, ist dieser Code der einzige Weg zur Wiederherstellung.',
+    pukCopied: 'PUK-Code in die Zwischenablage kopiert!',
+    newPinLabel: 'Neue 6-stellige PIN',
+    resetPinBtn: 'PIN zurücksetzen & Anmelden',
+    pinResetSuccess: 'PIN erfolgreich aktualisiert!',
+
+    globalAdminTitle: 'Globaler Webapp-Admin',
+    globalAdminKeyLabel: 'Admin-Schlüssel',
+    globalAdminKeyPlaceholder: 'Admin-Hauptschlüssel eingeben',
+    unlockAdminBtn: 'Admin-Portal öffnen',
+    totpCodeLabel: '2FA-Authenticator-Code',
+    totpCodePlaceholder: '6-stelliger Code',
+    totalMembers: 'Registrierte Mitglieder',
+    totalTrees: 'Familienstammbäume',
+    totalHouseholds: 'Haushalte insgesamt',
+    livingVsDeceased: 'Lebend vs Verstorben',
+    searchTreesPlaceholder: 'Stammbäume nach Name oder Code suchen...',
+    resetTreePinBtn: 'Stammbaum-PIN zurücksetzen',
+    generateNewPukBtn: 'Neuen PUK generieren',
+    pukGeneratedNotice: 'Neuer PUK erfolgreich generiert:',
+    liveStatsTooltip: 'Plattform-Telemetrie',
   },
 };

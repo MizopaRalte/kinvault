@@ -4,6 +4,9 @@ CREATE TABLE IF NOT EXISTS trees (
   name TEXT NOT NULL,
   pin_hash TEXT NOT NULL,
   pin_salt TEXT NOT NULL,
+  puk_hash TEXT DEFAULT '',
+  puk_salt TEXT DEFAULT '',
+  puk_created_at INTEGER DEFAULT 0,
   created_at INTEGER NOT NULL
 );
 

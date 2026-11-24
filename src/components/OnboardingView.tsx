@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { KeyRound, PlusCircle, LogIn, Globe, Shield, Sparkles } from 'lucide-react';
+import { KeyRound, PlusCircle, LogIn, Globe, Shield, Sparkles, Copy, Check, ArrowRight } from 'lucide-react';
 import type { Language, TranslationDictionary } from '../locales/translations';
 import { translations } from '../locales/translations';
 import type { UserSession } from '../types/family';
+import { RecoveryModal } from './RecoveryModal';
 
 interface OnboardingViewProps {
   onSessionReady: (session: UserSession) => void;
@@ -41,6 +42,14 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({
   // UI state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // PUK recovery and creation notice states
+  const [createdPukData, setCreatedPukData] = useState<{
+    pukCode: string;
+    session: UserSession;
+  } | null>(null);
+  const [copiedPuk, setCopiedPuk] = useState(false);
+  const [isRecoveryOpen, setIsRecoveryOpen] = useState(false);
 
 
 
@@ -82,7 +91,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({
         throw new Error(data.error || 'Failed to create family tree');
       }
 
-      onSessionReady({
+      const newSession: UserSession = {
         token: data.token,
         treeId: data.treeId,
         inviteCode: data.inviteCode,
@@ -90,7 +99,13 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({
         deviceId,
         activePersonId: data.personId,
         role: 'super_admin',
-      });
+      };
+
+      if (data.pukCode) {
+        setCreatedPukData({ pukCode: data.pukCode, session: newSession });
+      } else {
+        onSessionReady(newSession);
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t.errorOccurred);
     } finally {
@@ -387,6 +402,15 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({
                   />
                   <KeyRound className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
                 </div>
+                <div className="flex justify-end pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setIsRecoveryOpen(true)}
+                    className="text-xs text-slate-500 hover:text-slate-800 hover:underline cursor-pointer"
+                  >
+                    {t.forgotPin}
+                  </button>
+                </div>
               </div>
 
               <button
@@ -413,6 +437,59 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({
         <Shield className="w-3.5 h-3.5 text-slate-400" />
         KinVault • Zero Third-Party Trackers • End-to-End Family Privacy
       </div>
+
+      {/* PUK Presentation Modal on Tree Creation */}
+      {createdPukData && (
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center gap-2 text-amber-600 font-bold text-base">
+              <KeyRound className="w-5 h-5 shrink-0" />
+              <h3>{t.pukLabel}</h3>
+            </div>
+
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 leading-relaxed">
+              <p className="font-semibold">{t.pukSaveNotice}</p>
+            </div>
+
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between gap-3">
+              <span className="font-mono text-xl font-bold tracking-widest text-slate-900 select-all">
+                {createdPukData.pukCode}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(createdPukData.pukCode);
+                  setCopiedPuk(true);
+                  setTimeout(() => setCopiedPuk(false), 2000);
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg text-xs font-semibold text-slate-700 transition-colors cursor-pointer"
+              >
+                {copiedPuk ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4 text-slate-500" />}
+                <span>{copiedPuk ? t.pukCopied : 'Copy'}</span>
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => onSessionReady(createdPukData.session)}
+              className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <span>Continue to Family Tree</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Recovery Modal */}
+      <RecoveryModal
+        isOpen={isRecoveryOpen}
+        onClose={() => setIsRecoveryOpen(false)}
+        t={t}
+        deviceId={deviceId}
+        initialInviteCode={inviteCode}
+        onSessionReady={onSessionReady}
+      />
     </div>
   );
 };

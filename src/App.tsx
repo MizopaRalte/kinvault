@@ -11,6 +11,7 @@ import {
   RefreshCw,
   UserCheck,
   Check,
+  ShieldAlert,
 } from 'lucide-react';
 
 import type { Language, TranslationDictionary } from './locales/translations';
@@ -32,6 +33,7 @@ import { DirectoryView } from './components/DirectoryView';
 import { MemberModal } from './components/MemberModal';
 import { ShareModal } from './components/ShareModal';
 import { BackupModal } from './components/BackupModal';
+import { GlobalAdminModal } from './components/GlobalAdminModal';
 
 export const App: React.FC = () => {
   // Language state
@@ -76,6 +78,22 @@ export const App: React.FC = () => {
   const [lockSettingsModalOpen, setLockSettingsModalOpen] = useState<boolean>(false);
   const [newLockPinInput, setNewLockPinInput] = useState<string>('');
   const [lockSuccessMsg, setLockSuccessMsg] = useState<string | null>(null);
+
+  // Global Admin and live telemetry state
+  const [adminModalOpen, setAdminModalOpen] = useState(false);
+  const [globalStats, setGlobalStats] = useState<{ totalTrees: number; totalPersons: number } | null>(null);
+
+  // Load telemetry stats on mount
+  useEffect(() => {
+    fetch('/api/admin/stats')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data) {
+          setGlobalStats({ totalTrees: data.totalTrees, totalPersons: data.totalPersons });
+        }
+      })
+      .catch((err) => console.warn('Could not fetch stats:', err));
+  }, []);
 
   // Modals state
   const [shareModalOpen, setShareModalOpen] = useState<boolean>(false);
@@ -411,6 +429,19 @@ export const App: React.FC = () => {
 
           {/* Right Action Icons & Controls */}
           <div className="flex items-center gap-1.5 sm:gap-2">
+            {/* Live Registration Telemetry Count */}
+            {globalStats && (
+              <button
+                type="button"
+                onClick={() => setAdminModalOpen(true)}
+                title={t.liveStatsTooltip}
+                className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg text-[11px] font-semibold text-slate-700 transition-colors cursor-pointer"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span>{globalStats.totalPersons} Members • {globalStats.totalTrees} Trees</span>
+              </button>
+            )}
+
             {/* Refresh button */}
             <button
               type="button"
@@ -463,6 +494,16 @@ export const App: React.FC = () => {
               }`}
             >
               <Lock className="w-4 h-4" />
+            </button>
+
+            {/* Global Admin Portal */}
+            <button
+              type="button"
+              onClick={() => setAdminModalOpen(true)}
+              title={t.globalAdminTitle}
+              className="p-2 text-amber-700 hover:text-amber-900 hover:bg-amber-50 rounded-xl transition-colors cursor-pointer"
+            >
+              <ShieldAlert className="w-4 h-4" />
             </button>
 
             {/* Language Selector Pill */}
@@ -687,6 +728,13 @@ export const App: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Global Admin Dashboard Modal */}
+      <GlobalAdminModal
+        isOpen={adminModalOpen}
+        onClose={() => setAdminModalOpen(false)}
+        t={t}
+      />
     </div>
   );
 };

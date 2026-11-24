@@ -34,6 +34,7 @@ async function run() {
   let childPersonId = '';
   let childHouseholdId = '';
   let memberToken = '';
+  let pukCode = '';
 
   try {
     // -------------------------------------------------------------
@@ -65,6 +66,7 @@ async function run() {
     inviteCode = createData.inviteCode;
     superAdminToken = createData.token;
     rootPersonId = createData.personId;
+    pukCode = createData.pukCode;
 
     // -------------------------------------------------------------
     // FLOW 2: Authentication & PIN Verification
@@ -458,10 +460,113 @@ async function run() {
     assert(!treeFinal.households.some((h) => h.id === childHouseholdId), 'Deleted household no longer exists');
     assert(!treeFinal.persons.some((p) => p.id === childPersonId), 'Cascade removes person belonging to deleted household');
 
+    // -------------------------------------------------------------
+    // FLOW 13: Self-Service PUK PIN Recovery
+    // -------------------------------------------------------------
+    console.log(`\n--- FLOW 13: PUK PIN Recovery ---`);
+    assert(!!pukCode, 'Tree creation response contains PUK code');
+
+    // Attempt recover with wrong PUK
+    const badPukRes = await fetch(`${BASE_URL}/api/auth/recover`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        inviteCode,
+        pukCode: 'KV-XXXX-XXXX',
+        newPin: '999888',
+        deviceId: `recovery-device-${runId}`,
+      }),
+    });
+    assert(badPukRes.status === 401, 'Invalid PUK rejected with HTTP 401');
+
+    // Recover with correct PUK and new PIN
+    const recoverRes = await fetch(`${BASE_URL}/api/auth/recover`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        inviteCode,
+        pukCode,
+        newPin: '654321',
+        deviceId: `recovery-device-${runId}`,
+      }),
+    });
+    const recoverData = await recoverRes.json();
+    assert(recoverRes.status === 200, 'Valid PUK resets PIN with HTTP 200');
+    assert(!!recoverData.token, 'Recovery returns new JWT token');
+
+    // Test logging in with the recovered PIN
+    const loginWithNewPin = await fetch(`${BASE_URL}/api/auth`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        inviteCode,
+        pin: '654321',
+        deviceId: `recovery-device-${runId}`,
+      }),
+    });
+    assert(loginWithNewPin.status === 200, 'Login with newly recovered PIN succeeds HTTP 200');
+
+    // -------------------------------------------------------------
+    // FLOW 14: Global Admin Telemetry & Tree Management
+    // -------------------------------------------------------------
+    console.log(`\n--- FLOW 14: Global Admin Telemetry & Tree Management ---`);
+    const statsRes = await fetch(`${BASE_URL}/api/admin/stats`);
+    const statsData = await statsRes.json();
+    assert(statsRes.status === 200, 'Global telemetry stats returns HTTP 200');
+    assert(typeof statsData.totalTrees === 'number' && statsData.totalTrees > 0, 'Telemetry reports total trees');
+    assert(typeof statsData.totalPersons === 'number' && statsData.totalPersons > 0, 'Telemetry reports total members');
+    assert(typeof statsData.totalHouseholds === 'number' && statsData.totalHouseholds > 0, 'Telemetry reports total households');
+
+    // Unauthorized Admin test
+    const unauthAdminRes = await fetch(`${BASE_URL}/api/admin/trees`, {
+      headers: { 'X-Admin-Secret': 'wrong-secret' },
+    });
+    assert(unauthAdminRes.status === 401, 'Invalid admin secret rejected with HTTP 401');
+
+    // Authorized Admin lookup
+    const adminSecret = 'kinvault-admin-2026';
+    const authAdminRes = await fetch(`${BASE_URL}/api/admin/trees?q=${inviteCode}`, {
+      headers: { 'X-Admin-Secret': adminSecret },
+    });
+    const adminData = await authAdminRes.json();
+    assert(authAdminRes.status === 200, 'Authorized admin lookup returns HTTP 200');
+    assert(adminData.trees.some((t) => t.id === treeId), 'Admin tree search locates tree by invite code');
+
+    // Admin forces new PIN reset
+    const adminResetPinRes = await fetch(`${BASE_URL}/api/admin/trees`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Admin-Secret': adminSecret,
+      },
+      body: JSON.stringify({
+        action: 'reset_pin',
+        treeId,
+        newPin: '777888',
+      }),
+    });
+    assert(adminResetPinRes.status === 200, 'Admin can reset tree PIN HTTP 200');
+
+    // Admin generates fresh PUK
+    const adminGenPukRes = await fetch(`${BASE_URL}/api/admin/trees`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Admin-Secret': adminSecret,
+      },
+      body: JSON.stringify({
+        action: 'generate_puk',
+        treeId,
+      }),
+    });
+    const adminPukData = await adminGenPukRes.json();
+    assert(adminGenPukRes.status === 200, 'Admin can generate new PUK HTTP 200');
+    assert(!!adminPukData.pukCode && adminPukData.pukCode.startsWith('KV-'), 'Admin receives newly generated PUK code');
+
     console.log(`\n========================================`);
     console.log(`E2E TEST SUITE FINISHED`);
     console.log(`Passed: ${passed} | Failed: ${failed}`);
-    console.log(`All 12 Core End-to-End Flows Verified!`);
+    console.log(`All 14 Core End-to-End Flows Verified!`);
     console.log(`========================================\n`);
 
   } catch (err) {

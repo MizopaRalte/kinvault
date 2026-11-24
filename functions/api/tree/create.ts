@@ -1,4 +1,4 @@
-import { generateInviteCode, hashPin, signJwt } from '../../_lib/crypto';
+import { generateInviteCode, generatePukCode, hashPin, hashPuk, signJwt } from '../../_lib/crypto';
 
 export interface Env {
   DB: D1Database;
@@ -73,6 +73,8 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
     }
 
     const { hash: pinHash, salt: pinSalt } = await hashPin(pin);
+    const pukCode = generatePukCode();
+    const { hash: pukHash, salt: pukSalt } = await hashPuk(pukCode);
     const now = Date.now();
 
     const treeId = crypto.randomUUID();
@@ -86,8 +88,8 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
     // Batch execute creation in D1
     await env.DB.batch([
       env.DB.prepare(
-        'INSERT INTO trees (id, invite_code, name, pin_hash, pin_salt, created_at) VALUES (?, ?, ?, ?, ?, ?)'
-      ).bind(treeId, inviteCode, treeName, pinHash, pinSalt, now),
+        'INSERT INTO trees (id, invite_code, name, pin_hash, pin_salt, puk_hash, puk_salt, puk_created_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      ).bind(treeId, inviteCode, treeName, pinHash, pinSalt, pukHash, pukSalt, now, now),
       env.DB.prepare(
         'INSERT INTO households (id, tree_id, family_name, branch_color, address_line, city, postal_code, country, family_photo_b64, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
       ).bind(householdId, treeId, `${creatorName} Family`, branchColor, '', city, '', country, '', now),
@@ -105,6 +107,7 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
         success: true,
         treeId,
         inviteCode,
+        pukCode,
         personId,
         householdId,
         token,
