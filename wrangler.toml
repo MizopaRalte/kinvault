@@ -1,0 +1,8 @@
+name = "kinvault"
+compatibility_date = "2026-11-01"
+pages_build_output_dir = "dist"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "kinvault-db"
+database_id = "ff08bf62-684f-4302-9ee7-97c2671324f3"
