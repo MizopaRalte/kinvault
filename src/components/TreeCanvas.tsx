@@ -625,7 +625,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
-                    onClick={() => onOpenMemberModal(undefined, h, 'add_spouse')}
+                    onClick={() => onOpenMemberModal(members[0], h, 'add_spouse')}
                     className="px-2 py-1 text-slate-600 hover:text-slate-900 hover:bg-white rounded transition-colors flex items-center gap-1"
                   >
                     {t.addSpouse}

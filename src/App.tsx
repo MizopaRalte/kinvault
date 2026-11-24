@@ -539,14 +539,15 @@ export const App: React.FC = () => {
               t={t}
               activePersonId={session.activePersonId}
               userRole={session.role}
-              onOpenMemberModal={(p, h, mode) =>
+              onOpenMemberModal={(p, h, mode) => {
+                const targetPerson = p || (h ? treeData?.persons.find((item) => item.household_id === h.id) : undefined);
                 setMemberModalState({
                   isOpen: true,
-                  person: p,
+                  person: targetPerson,
                   household: h,
-                  initialMode: mode || (p ? 'edit_person' : 'edit_household'),
-                })
-              }
+                  initialMode: mode || (targetPerson ? 'edit_person' : 'edit_household'),
+                });
+              }}
               onLayoutCalculated={(layouts) => setNodeLayouts(layouts)}
             />
           ) : (
@@ -556,14 +557,15 @@ export const App: React.FC = () => {
               t={t}
               activePersonId={session.activePersonId}
               userRole={session.role}
-              onOpenMemberModal={(p, h, mode) =>
+              onOpenMemberModal={(p, h, mode) => {
+                const targetPerson = p || (h ? treeData?.persons.find((item) => item.household_id === h.id) : undefined);
                 setMemberModalState({
                   isOpen: true,
-                  person: p,
+                  person: targetPerson,
                   household: h,
                   initialMode: mode || 'edit_person',
-                })
-              }
+                });
+              }}
             />
           )
         ) : null}
