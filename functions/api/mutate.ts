@@ -321,6 +321,128 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
         );
       }
 
+      case 'add_sibling': {
+        const personId = p.personId as string;
+        const siblingFullName = p.siblingFullName?.trim();
+        const birthYear = p.birthYear || '';
+        const phoneE164 = p.phoneE164 || '';
+        const spouseFullName = p.spouseFullName?.trim();
+        const avatarB64 = p.avatarB64 || '';
+        const parentName = p.parentName?.trim();
+        const city = p.city || '';
+        const country = p.country || '';
+
+        if (!personId || !siblingFullName) {
+          return new Response(JSON.stringify({ error: 'Person ID and sibling full name are required.' }), { status: 400 });
+        }
+
+        const targetPerson = await env.DB.prepare('SELECT * FROM persons WHERE id = ? AND tree_id = ?')
+          .bind(personId, treeId)
+          .first<DbPerson>();
+
+        if (!targetPerson) {
+          return new Response(JSON.stringify({ error: 'Target person not found.' }), { status: 404 });
+        }
+
+        const hasPerm = await canEditPerson(env.DB, treeId, caller, personId);
+        if (!hasPerm) {
+          return new Response(JSON.stringify({ error: 'Permission denied to add sibling for this person.' }), { status: 403 });
+        }
+
+        // Find existing parent(s) of targetPerson
+        const parentRels = await env.DB.prepare(
+          `SELECT person_a_id FROM relationships WHERE person_b_id = ? AND rel_type = 'parent_child' AND tree_id = ?`
+        ).bind(personId, treeId).all<{ person_a_id: string }>();
+
+        const existingParentIds = (parentRels.results || []).map((r) => r.person_a_id);
+        const siblingHouseholdId = crypto.randomUUID();
+        const siblingPersonId = crypto.randomUUID();
+
+        // Branch color inherited from targetPerson's household
+        let branchColor = '#0F172A';
+        if (targetPerson.household_id) {
+          const h = await env.DB.prepare('SELECT branch_color FROM households WHERE id = ?').bind(targetPerson.household_id).first<DbHousehold>();
+          if (h?.branch_color) branchColor = h.branch_color;
+        }
+
+        const batchStatements = [
+          env.DB.prepare(
+            `INSERT INTO households (id, tree_id, family_name, branch_color, address_line, city, postal_code, country, family_photo_b64, updated_at)
+             VALUES (?, ?, ?, ?, '', ?, '', ?, '', ?)`
+          ).bind(siblingHouseholdId, treeId, `${siblingFullName} Household`, branchColor, city, country, now),
+          env.DB.prepare(
+            `INSERT INTO persons (id, tree_id, household_id, full_name, nickname_or_maiden, phone_e164, birth_year, death_year, is_living, avatar_b64, role, claimed_device_id, updated_at)
+             VALUES (?, ?, ?, ?, '', ?, ?, '', 1, ?, 'member', '', ?)`
+          ).bind(siblingPersonId, treeId, siblingHouseholdId, siblingFullName, phoneE164, birthYear, avatarB64, now),
+        ];
+
+        if (spouseFullName) {
+          const spousePersonId = crypto.randomUUID();
+          batchStatements.push(
+            env.DB.prepare(
+              `INSERT INTO persons (id, tree_id, household_id, full_name, nickname_or_maiden, phone_e164, birth_year, death_year, is_living, avatar_b64, role, claimed_device_id, updated_at)
+               VALUES (?, ?, ?, ?, '', '', '', '', 1, '', 'member', '', ?)`
+            ).bind(spousePersonId, treeId, siblingHouseholdId, spouseFullName, now),
+            env.DB.prepare(
+              `INSERT INTO relationships (id, tree_id, person_a_id, person_b_id, rel_type)
+               VALUES (?, ?, ?, ?, 'spouse')`
+            ).bind(crypto.randomUUID(), treeId, siblingPersonId, spousePersonId)
+          );
+        }
+
+        let parentHouseholdId: string | null = null;
+        let parentPersonId: string | null = null;
+
+        if (existingParentIds.length > 0) {
+          // Link sibling to all existing parents of targetPerson
+          for (const pId of existingParentIds) {
+            batchStatements.push(
+              env.DB.prepare(
+                `INSERT INTO relationships (id, tree_id, person_a_id, person_b_id, rel_type)
+                 VALUES (?, ?, ?, ?, 'parent_child')`
+              ).bind(crypto.randomUUID(), treeId, pId, siblingPersonId)
+            );
+          }
+        } else {
+          // No parents exist yet. Create common parent household and person
+          parentHouseholdId = crypto.randomUUID();
+          parentPersonId = crypto.randomUUID();
+          const pName = parentName || `${targetPerson.full_name} Nu & Pa`;
+
+          batchStatements.push(
+            env.DB.prepare(
+              `INSERT INTO households (id, tree_id, family_name, branch_color, address_line, city, postal_code, country, family_photo_b64, updated_at)
+               VALUES (?, ?, ?, ?, '', '', '', '', '', ?)`
+            ).bind(parentHouseholdId, treeId, `${pName} Household`, '#1E293B', now),
+            env.DB.prepare(
+              `INSERT INTO persons (id, tree_id, household_id, full_name, nickname_or_maiden, phone_e164, birth_year, death_year, is_living, avatar_b64, role, claimed_device_id, updated_at)
+               VALUES (?, ?, ?, ?, '', '', '', '', 0, '', 'member', '', ?)`
+            ).bind(parentPersonId, treeId, parentHouseholdId, pName, now),
+            env.DB.prepare(
+              `INSERT INTO relationships (id, tree_id, person_a_id, person_b_id, rel_type)
+               VALUES (?, ?, ?, ?, 'parent_child')`
+            ).bind(crypto.randomUUID(), treeId, parentPersonId, personId),
+            env.DB.prepare(
+              `INSERT INTO relationships (id, tree_id, person_a_id, person_b_id, rel_type)
+               VALUES (?, ?, ?, ?, 'parent_child')`
+            ).bind(crypto.randomUUID(), treeId, parentPersonId, siblingPersonId)
+          );
+        }
+
+        await env.DB.batch(batchStatements);
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            siblingHouseholdId,
+            siblingPersonId,
+            parentHouseholdId,
+            parentPersonId,
+          }),
+          { status: 201 }
+        );
+      }
+
       case 'add_ancestors_above': {
         const personId = p.personId as string;
         const fatherName = p.fatherName?.trim();

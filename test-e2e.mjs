@@ -246,6 +246,40 @@ async function run() {
     );
 
     // -------------------------------------------------------------
+    // FLOW 6b: Add Sibling Node
+    // -------------------------------------------------------------
+    console.log(`\n--- FLOW 6b: Add Sibling Node ---`);
+    const addSiblingRes = await fetch(`${BASE_URL}/api/mutate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${superAdminToken}`,
+        'X-Person-Id': rootPersonId,
+      },
+      body: JSON.stringify({
+        action: 'add_sibling',
+        payload: {
+          personId: rootPersonId,
+          siblingFullName: `Lalthanmawii Sibling ${runId}`,
+          birthYear: '1987',
+        },
+      }),
+    });
+    const addSiblingData = await addSiblingRes.json();
+    assert(addSiblingRes.status === 201, 'Add sibling mutation succeeds HTTP 201');
+    assert(!!addSiblingData.siblingPersonId, 'Returns sibling person ID');
+
+    const treeAfterSibling = await (await fetch(`${BASE_URL}/api/tree`, {
+      headers: { Authorization: `Bearer ${superAdminToken}` },
+    })).json();
+    assert(
+      treeAfterSibling.relationships.some(
+        (r) => r.rel_type === 'parent_child' && r.person_a_id === addAncestorData.fatherId && r.person_b_id === addSiblingData.siblingPersonId
+      ),
+      'Sibling shares common parent with root person'
+    );
+
+    // -------------------------------------------------------------
     // FLOW 7: Profile Claiming by Member
     // -------------------------------------------------------------
     console.log(`\n--- FLOW 7: Profile Claiming by Member Device ---`);

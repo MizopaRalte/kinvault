@@ -14,6 +14,7 @@ import {
   UserCheck,
   Edit2,
   Camera,
+  Sparkles,
 } from 'lucide-react';
 import type { Household, Person, Relationship, Tree, Role } from '../types/family';
 import type { TranslationDictionary } from '../locales/translations';
@@ -406,6 +407,14 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
         backgroundSize: '24px 24px',
       }}
     >
+      {/* Friendly Relationship Guide Pill */}
+      {households.length <= 2 && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-white/95 backdrop-blur-md border border-slate-200/90 shadow-md rounded-full px-4 py-1.5 text-xs text-slate-700 font-medium flex items-center gap-2 pointer-events-none">
+          <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+          <span>{t.treeCanvasGuide}</span>
+        </div>
+      )}
+
       {/* Pan/Zoom Canvas Viewport */}
       <div
         className="absolute top-0 left-0 w-full h-full transform-gpu origin-top-left transition-transform duration-75"
@@ -610,36 +619,47 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
                 )}
               </div>
 
-              {/* Quick Actions Footer */}
-              <div className="p-2 bg-slate-50/70 border-t border-slate-100 rounded-b-2xl flex items-center justify-between text-[11px] gap-1 font-medium">
+              {/* Quick Actions Footer - 4 Core Relationships */}
+              <div className="p-1.5 bg-slate-50/80 border-t border-slate-100 rounded-b-2xl grid grid-cols-4 gap-1 text-[11px] font-semibold text-center">
                 <button
                   type="button"
                   onClick={() => onOpenMemberModal(members[0], h, 'add_ancestor')}
-                  className="px-2 py-1 text-slate-600 hover:text-slate-900 hover:bg-white rounded transition-colors flex items-center gap-1"
-                  title="Add parents / ancestors above this household"
+                  className="py-1 px-1 text-slate-700 hover:text-slate-900 hover:bg-white rounded-lg transition-colors flex items-center justify-center gap-0.5 truncate cursor-pointer"
+                  title="Nu & Pa / Ancestors (Above)"
                 >
-                  <Plus className="w-3 h-3 text-slate-500" />
-                  {t.addAncestorsAbove}
+                  <Plus className="w-3 h-3 text-slate-500 shrink-0" />
+                  <span className="truncate">{t.addAncestorsAbove}</span>
                 </button>
 
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => onOpenMemberModal(members[0], h, 'add_spouse')}
-                    className="px-2 py-1 text-slate-600 hover:text-slate-900 hover:bg-white rounded transition-colors flex items-center gap-1"
-                  >
-                    {t.addSpouse}
-                  </button>
+                <button
+                  type="button"
+                  onClick={() => onOpenMemberModal(members[0], h, 'add_spouse')}
+                  className="py-1 px-1 text-slate-700 hover:text-slate-900 hover:bg-white rounded-lg transition-colors flex items-center justify-center gap-0.5 truncate cursor-pointer"
+                  title="Nupa Kawppui / Spouse"
+                >
+                  <Plus className="w-3 h-3 text-slate-500 shrink-0" />
+                  <span className="truncate">{t.addSpouse}</span>
+                </button>
 
-                  <button
-                    type="button"
-                    onClick={() => onOpenMemberModal(members[0], h, 'add_child')}
-                    className="px-2 py-1 bg-slate-900 text-white hover:bg-slate-800 rounded transition-colors flex items-center gap-1 font-semibold"
-                  >
-                    <Plus className="w-3 h-3" />
-                    {t.addChildHousehold}
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => onOpenMemberModal(members[0], h, 'add_sibling')}
+                  className="py-1 px-1 text-slate-700 hover:text-slate-900 hover:bg-white rounded-lg transition-colors flex items-center justify-center gap-0.5 truncate cursor-pointer"
+                  title="Unau / Sibling (Beside)"
+                >
+                  <Plus className="w-3 h-3 text-slate-500 shrink-0" />
+                  <span className="truncate">{t.addSibling}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => onOpenMemberModal(members[0], h, 'add_child')}
+                  className="py-1 px-1 bg-slate-900 text-white hover:bg-slate-800 rounded-lg transition-colors flex items-center justify-center gap-0.5 truncate shadow-2xs cursor-pointer"
+                  title="Fa / Child (Below)"
+                >
+                  <Plus className="w-3 h-3 shrink-0" />
+                  <span className="truncate">{t.addChildHousehold}</span>
+                </button>
               </div>
             </div>
           );

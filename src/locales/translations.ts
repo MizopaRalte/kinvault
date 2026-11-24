@@ -39,7 +39,15 @@ export interface TranslationDictionary {
   resetView: string;
   addAncestorsAbove: string;
   addSpouse: string;
+  addSibling: string;
   addChildHousehold: string;
+  siblingName: string;
+  siblingPlaceholder: string;
+  addSiblingTitle: string;
+  addSiblingNotice: string;
+  optionalParentsNotice: string;
+  optionalParentsPlaceholder: string;
+  treeCanvasGuide: string;
   expandBranch: string;
   collapseBranch: string;
   living: string;
@@ -213,9 +221,17 @@ export const translations: Record<Language, TranslationDictionary> = {
     zoomIn: 'Zoom In',
     zoomOut: 'Zoom Out',
     resetView: 'Reset View',
-    addAncestorsAbove: '+ Ancestors Above',
+    addAncestorsAbove: '+ Parents',
     addSpouse: '+ Spouse',
-    addChildHousehold: '+ Child / Branch',
+    addSibling: '+ Sibling',
+    addChildHousehold: '+ Child',
+    siblingName: 'Sibling Full Name',
+    siblingPlaceholder: 'e.g. Rachel Doe',
+    addSiblingTitle: '+ Add Sibling',
+    addSiblingNotice: 'Add a brother or sister. They will share the same parents.',
+    optionalParentsNotice: 'Parents are not yet registered. Enter parent name to link both of you under them:',
+    optionalParentsPlaceholder: 'e.g. John & Mary Doe Household',
+    treeCanvasGuide: 'Expand family tree: + Parents (above) • + Spouse • + Sibling • + Child (below)',
     expandBranch: 'Expand',
     collapseBranch: 'Collapse',
     living: 'Living',
@@ -379,9 +395,17 @@ export const translations: Record<Language, TranslationDictionary> = {
     zoomIn: 'Tilian Rawh',
     zoomOut: 'Tite Rawh',
     resetView: 'A Pangngaiin Dah Rawh',
-    addAncestorsAbove: '+ A Chunga Thlahtute',
+    addAncestorsAbove: '+ Nu & Pa',
     addSpouse: '+ Kawppui',
-    addChildHousehold: '+ Fa / Peng Tharlam',
+    addSibling: '+ Unau',
+    addChildHousehold: '+ Fa',
+    siblingName: 'Unau Hming Pum',
+    siblingPlaceholder: 'Entirnan: Lalthanmawii',
+    addSiblingTitle: '+ Unau Siamna',
+    addSiblingNotice: 'Unau (unaupa / unaunu) belhna. Nu & Pa thuhmun an intawm ang.',
+    optionalParentsNotice: 'Nu & Pa an la awm loh chuan, in zawm theih nan Nu & Pa hming dah rawh:',
+    optionalParentsPlaceholder: 'Entirnan: Thangseia Te Nupa',
+    treeCanvasGuide: 'Chhungkua zawm zel nan: + Nu & Pa (chunglam) • + Kawppui • + Unau • + Fa (hnuailam)',
     expandBranch: 'Tizau Rawh',
     collapseBranch: 'Thlep Rawh',
     living: 'Dam Lai',
@@ -545,9 +569,17 @@ export const translations: Record<Language, TranslationDictionary> = {
     zoomIn: 'Acercar',
     zoomOut: 'Alejar',
     resetView: 'Restablecer Vista',
-    addAncestorsAbove: '+ Antepasados Arriba',
-    addSpouse: '+ Cónyuge',
-    addChildHousehold: '+ Hijo / Nueva Rama',
+    addAncestorsAbove: '+ Padres',
+    addSpouse: '+ Pareja',
+    addSibling: '+ Hermano/a',
+    addChildHousehold: '+ Hijo/a',
+    siblingName: 'Nombre de Hermano/a',
+    siblingPlaceholder: 'ej. Carlos Gomez',
+    addSiblingTitle: '+ Agregar Hermano/a',
+    addSiblingNotice: 'Agrega un hermano o hermana. Compartirán los mismos padres.',
+    optionalParentsNotice: 'Aún no hay padres registrados. Ingrese el nombre de los padres para vincularlos:',
+    optionalParentsPlaceholder: 'ej. Hogar Gomez & Perez',
+    treeCanvasGuide: 'Expandir árbol: + Padres (arriba) • + Pareja • + Hermano/a • + Hijo/a (abajo)',
     expandBranch: 'Expandir',
     collapseBranch: 'Contraer',
     living: 'Vivo',
@@ -711,9 +743,17 @@ export const translations: Record<Language, TranslationDictionary> = {
     zoomIn: 'Vergrößern',
     zoomOut: 'Verkleinern',
     resetView: 'Ansicht zurücksetzen',
-    addAncestorsAbove: '+ Vorfahren oben hinzufügen',
-    addSpouse: '+ Ehepartner hinzufügen',
-    addChildHousehold: '+ Kind / Neuer Zweig',
+    addAncestorsAbove: '+ Eltern',
+    addSpouse: '+ Partner',
+    addSibling: '+ Geschwister',
+    addChildHousehold: '+ Kind',
+    siblingName: 'Name des Geschwisters',
+    siblingPlaceholder: 'z.B. Anna Schmidt',
+    addSiblingTitle: '+ Geschwister hinzufügen',
+    addSiblingNotice: 'Fügen Sie einen Bruder oder eine Schwester hinzu. Sie teilen dieselben Eltern.',
+    optionalParentsNotice: 'Noch keine Eltern eingetragen. Geben Sie den Namen der Eltern ein, um Sie zu verknüpfen:',
+    optionalParentsPlaceholder: 'z.B. Familie Schmidt',
+    treeCanvasGuide: 'Stammbaum erweitern: + Eltern (oben) • + Partner • + Geschwister • + Kind (unten)',
     expandBranch: 'Aufklappen',
     collapseBranch: 'Zuklappen',
     living: 'Lebend',

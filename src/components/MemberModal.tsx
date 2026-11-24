@@ -17,7 +17,7 @@ interface MemberModalProps {
   onClose: () => void;
   person?: Person;
   household?: Household;
-  initialMode?: string; // 'edit_person' | 'edit_household' | 'add_child' | 'add_spouse' | 'add_ancestor'
+  initialMode?: string; // 'edit_person' | 'edit_household' | 'add_child' | 'add_spouse' | 'add_ancestor' | 'add_sibling'
   t: TranslationDictionary;
   activePersonId?: string;
   userRole?: Role;
@@ -86,6 +86,15 @@ export const MemberModal: React.FC<MemberModalProps> = ({
   const [fatherAvatarSizeKb, setFatherAvatarSizeKb] = useState<number | null>(null);
   const [motherAvatarB64, setMotherAvatarB64] = useState('');
   const [motherAvatarSizeKb, setMotherAvatarSizeKb] = useState<number | null>(null);
+
+  // Add sibling state
+  const [siblingFullName, setSiblingFullName] = useState('');
+  const [siblingBirthYear, setSiblingBirthYear] = useState('');
+  const [siblingPhone, setSiblingPhone] = useState('');
+  const [siblingSpouseName, setSiblingSpouseName] = useState('');
+  const [siblingAvatarB64, setSiblingAvatarB64] = useState('');
+  const [siblingAvatarSizeKb, setSiblingAvatarSizeKb] = useState<number | null>(null);
+  const [siblingParentName, setSiblingParentName] = useState('');
 
   // Synchronize modal state with props on open
   useEffect(() => {
@@ -157,6 +166,13 @@ export const MemberModal: React.FC<MemberModalProps> = ({
     setFatherAvatarSizeKb(null);
     setMotherAvatarB64('');
     setMotherAvatarSizeKb(null);
+    setSiblingFullName('');
+    setSiblingBirthYear('');
+    setSiblingPhone('');
+    setSiblingSpouseName('');
+    setSiblingAvatarB64('');
+    setSiblingAvatarSizeKb(null);
+    setSiblingParentName('');
   }, [isOpen, person, household, initialMode]);
 
   if (!isOpen) return null;
@@ -279,6 +295,22 @@ export const MemberModal: React.FC<MemberModalProps> = ({
             `${ancestorFather.trim() || ancestorMother.trim()} Household`,
           branchColor: '#1E293B',
         });
+      } else if (mode === 'add_sibling') {
+        if (!siblingFullName.trim()) throw new Error((t.siblingName || 'Sibling name') + ' is required.');
+        const targetPersonId = person?.id;
+        if (!targetPersonId) throw new Error('Person reference is required.');
+
+        await onMutate('add_sibling', {
+          personId: targetPersonId,
+          siblingFullName: siblingFullName.trim(),
+          birthYear: siblingBirthYear.trim(),
+          phoneE164: siblingPhone.trim(),
+          spouseFullName: siblingSpouseName.trim() || undefined,
+          avatarB64: siblingAvatarB64 || undefined,
+          parentName: siblingParentName.trim() || undefined,
+          city: household?.city,
+          country: household?.country,
+        });
       }
 
       onClose();
@@ -367,6 +399,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
               {mode === 'edit_household' && t.editHousehold}
               {mode === 'add_child' && t.addChildHousehold}
               {mode === 'add_spouse' && t.addSpouse}
+              {mode === 'add_sibling' && (t.addSiblingTitle || t.addSibling)}
               {mode === 'add_ancestor' && t.addAncestorsAbove}
             </h3>
           </div>
@@ -1124,6 +1157,140 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                     value={ancestorFamilyName}
                     onChange={(e) => setAncestorFamilyName(e.target.value)}
                     placeholder="e.g. Senior Branch Household"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  />
+                </div>
+              </>
+            )}
+
+            {/* 6. ADD SIBLING MODE */}
+            {mode === 'add_sibling' && (
+              <>
+                <div className="p-3 bg-slate-100 rounded-xl text-xs text-slate-600">
+                  {t.addSiblingNotice}
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                    {t.siblingName} *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={siblingFullName}
+                    onChange={(e) => setSiblingFullName(e.target.value)}
+                    placeholder={t.siblingPlaceholder}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  />
+                </div>
+
+                {/* Sibling Photo Upload & Camera */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
+                    {t.personalPhoto} (Optional)
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <div className="relative w-14 h-14 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
+                      {siblingAvatarB64 ? (
+                        <img src={siblingAvatarB64} alt="Sibling preview" className="w-full h-full object-cover" />
+                      ) : (
+                        <Camera className="w-5 h-5 text-slate-400" />
+                      )}
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 rounded-lg text-xs font-semibold cursor-pointer transition-colors">
+                          <Upload className="w-3.5 h-3.5 text-slate-600" />
+                          <span>{t.uploadPhoto}</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleAvatarUpload(e, setSiblingAvatarB64, setSiblingAvatarSizeKb)}
+                            className="hidden"
+                          />
+                        </label>
+                        <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 rounded-lg text-xs font-semibold cursor-pointer transition-colors">
+                          <Camera className="w-3.5 h-3.5 text-slate-600" />
+                          <span>{t.takePhoto}</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            capture="user"
+                            onChange={(e) => handleAvatarUpload(e, setSiblingAvatarB64, setSiblingAvatarSizeKb)}
+                            className="hidden"
+                          />
+                        </label>
+                        {siblingAvatarB64 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSiblingAvatarB64('');
+                              setSiblingAvatarSizeKb(null);
+                            }}
+                            className="px-2.5 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
+                          >
+                            {t.removePhoto}
+                          </button>
+                        )}
+                      </div>
+                      {siblingAvatarSizeKb !== null && (
+                        <p className="text-[11px] text-slate-500">
+                          Compressed: <strong className="text-slate-800">{siblingAvatarSizeKb} KB</strong> (WebP)
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                      {t.birthYear}
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={4}
+                      value={siblingBirthYear}
+                      onChange={(e) => setSiblingBirthYear(e.target.value.replace(/\D/g, ''))}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                      {t.phoneNumber}
+                    </label>
+                    <input
+                      type="tel"
+                      value={siblingPhone}
+                      onChange={(e) => setSiblingPhone(e.target.value)}
+                      placeholder="+91..."
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                    {t.spouseName} (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={siblingSpouseName}
+                    onChange={(e) => setSiblingSpouseName(e.target.value)}
+                    placeholder="e.g. Spouse name if married"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                    {t.optionalParentsNotice}
+                  </label>
+                  <input
+                    type="text"
+                    value={siblingParentName}
+                    onChange={(e) => setSiblingParentName(e.target.value)}
+                    placeholder={t.optionalParentsPlaceholder}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
                   />
                 </div>
