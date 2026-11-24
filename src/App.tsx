@@ -343,12 +343,20 @@ export const App: React.FC = () => {
   // 2. ONBOARDING / JOIN SCREEN
   if (!session) {
     return (
-      <OnboardingView
-        onSessionReady={handleSessionReady}
-        lang={lang}
-        onLanguageChange={handleLanguageChange}
-        deviceId={deviceId}
-      />
+      <>
+        <OnboardingView
+          onSessionReady={handleSessionReady}
+          lang={lang}
+          onLanguageChange={handleLanguageChange}
+          deviceId={deviceId}
+          onOpenAdmin={() => setAdminModalOpen(true)}
+        />
+        <GlobalAdminModal
+          isOpen={adminModalOpen}
+          onClose={() => setAdminModalOpen(false)}
+          t={t}
+        />
+      </>
     );
   }
 

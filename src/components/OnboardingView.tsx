@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { KeyRound, PlusCircle, LogIn, Globe, Shield, Sparkles, Copy, Check, ArrowRight } from 'lucide-react';
+import { KeyRound, PlusCircle, LogIn, Globe, Shield, ShieldAlert, Sparkles, Copy, Check, ArrowRight } from 'lucide-react';
 import type { Language, TranslationDictionary } from '../locales/translations';
 import { translations } from '../locales/translations';
 import type { UserSession } from '../types/family';
@@ -10,6 +10,7 @@ interface OnboardingViewProps {
   lang: Language;
   onLanguageChange: (lang: Language) => void;
   deviceId: string;
+  onOpenAdmin?: () => void;
 }
 
 export const OnboardingView: React.FC<OnboardingViewProps> = ({
@@ -17,6 +18,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({
   lang,
   onLanguageChange,
   deviceId,
+  onOpenAdmin,
 }) => {
   const t: TranslationDictionary = translations[lang] || translations.en;
   const [mode, setMode] = useState<'create' | 'join'>(() => {
@@ -180,23 +182,36 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({
           </div>
         </div>
 
-        {/* Language selector pill */}
-        <div className="flex items-center bg-white border border-slate-200 rounded-lg p-1 shadow-xs">
-          <Globe className="w-3.5 h-3.5 text-slate-400 ml-1.5 mr-1" />
-          {(['en', 'mz', 'es', 'de'] as Language[]).map((l) => (
+        <div className="flex items-center gap-2">
+          {onOpenAdmin && (
             <button
-              key={l}
               type="button"
-              onClick={() => onLanguageChange(l)}
-              className={`px-2 py-1 text-xs font-semibold rounded-md transition-all ${
-                lang === l
-                  ? 'bg-slate-900 text-white'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              }`}
+              onClick={onOpenAdmin}
+              title={t.globalAdminTitle}
+              className="p-1.5 text-amber-700 hover:text-amber-900 hover:bg-amber-50 bg-white border border-slate-200 rounded-lg transition-colors cursor-pointer"
             >
-              {l.toUpperCase()}
+              <ShieldAlert className="w-4 h-4 text-amber-600" />
             </button>
-          ))}
+          )}
+
+          {/* Language selector pill */}
+          <div className="flex items-center bg-white border border-slate-200 rounded-lg p-1 shadow-xs">
+            <Globe className="w-3.5 h-3.5 text-slate-400 ml-1.5 mr-1" />
+            {(['en', 'mz', 'es', 'de'] as Language[]).map((l) => (
+              <button
+                key={l}
+                type="button"
+                onClick={() => onLanguageChange(l)}
+                className={`px-2 py-1 text-xs font-semibold rounded-md transition-all ${
+                  lang === l
+                    ? 'bg-slate-900 text-white'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+              >
+                {l.toUpperCase()}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -433,9 +448,20 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({
       </div>
 
       {/* Footer */}
-      <div className="max-w-xl w-full mx-auto text-center pt-6 border-t border-slate-200 text-xs text-slate-400 flex items-center justify-center gap-1.5">
-        <Shield className="w-3.5 h-3.5 text-slate-400" />
-        KinVault • Zero Third-Party Trackers • End-to-End Family Privacy
+      <div className="max-w-xl w-full mx-auto text-center pt-6 border-t border-slate-200 text-xs text-slate-400 flex items-center justify-center gap-2">
+        <button
+          type="button"
+          onClick={onOpenAdmin}
+          className="flex items-center gap-1 text-slate-400 hover:text-amber-700 transition-colors cursor-pointer"
+          title={t.globalAdminTitle}
+        >
+          <Shield className="w-3.5 h-3.5" />
+          <span>KinVault</span>
+        </button>
+        <span>•</span>
+        <span>Zero Third-Party Trackers</span>
+        <span>•</span>
+        <span>End-to-End Family Privacy</span>
       </div>
 
       {/* PUK Presentation Modal on Tree Creation */}
