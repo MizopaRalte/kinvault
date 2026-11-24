@@ -1,67 +1,100 @@
 # KinVault - Collaborative Family Tree & Reconnection PWA
 
-**KinVault** is a production-ready Progressive Web App (PWA) built for collaborative family trees, ancestral preservation, and family reconnection across generations. Designed specifically for **Cloudflare Pages + Cloudflare Pages Functions + Cloudflare D1**.
+<div align="center">
+
+![KinVault Banner](https://img.shields.io/badge/Status-Production%20Ready-emerald?style=for-the-badge)
+![Cloudflare Pages](https://img.shields.io/badge/Cloudflare-Pages%20Functions-F38020?style=for-the-badge&logo=cloudflare&logoColor=white)
+![Cloudflare D1](https://img.shields.io/badge/Database-Cloudflare%20D1-F38020?style=for-the-badge&logo=sqlite&logoColor=white)
+![React 19](https://img.shields.io/badge/Frontend-React%2019%20%2B%20TypeScript-61DAFB?style=for-the-badge&logo=react&logoColor=black)
+![Tailwind CSS](https://img.shields.io/badge/Styling-Tailwind%20CSS%20v4-38BDF8?style=for-the-badge&logo=tailwindcss&logoColor=white)
+
+### 🌐 **Live Website:** [https://kin-vault.pages.dev](https://kin-vault.pages.dev)
+
+</div>
 
 ---
 
-## 🌟 Key Features
+## 📖 Overview
 
-1. **WhatsApp-Style Collaborative Role-Based Access Control (RBAC):**
-   - **Super Admin (Tree Creator):** Full authority across all branches, promote/demote admins, update family PIN, and execute full cloud restores from encrypted `.fam` backups.
-   - **Branch Admin:** Recursive downward permission over their household and all direct descendants.
-   - **Member:** Can claim their profile by device, edit personal details, add spouses and children under themselves, and add missing ancestors *above* existing ancestors.
-
-2. **Dual Perspective Views:**
-   - **Interactive Tree Canvas:** Infinite pan & zoom canvas powered by `d3-hierarchy` to render non-overlapping household cards, orthogonal connector lines, branch colors, living/deceased indicators, and retroactive ancestor insertion.
-   - **Reconnection Directory:** Searchable by name, maiden/nickname, city, country, or phone with instant filter pills for branch colors and cities. Includes 1-tap **Call**, **WhatsApp**, and **Google Maps** buttons.
-
-3. **Multi-Language Support:**
-   - Full native localization for **English (`en`)**, **Mizo (`mz`)** with proper diacritics (*Chhungkaw Ziarang, Thlahtute, Biakpawhna*), **Spanish (`es`)**, and **German (`de`)**.
-
-4. **Client-Side Media Compression:**
-   - Canvas-based WebP compression:
-     - **Personal Avatar:** Center-cropped square 300 × 300 px (~15–25 KB).
-     - **Family Household Photo:** Proportional max width 1280 px (~90–140 KB).
-     - Live KB preview before uploading to Cloudflare D1.
-
-5. **Panoramic Vector PDF Export:**
-   - Computes true bounding box (`minX, minY, maxX, maxY`) across all expanded households with millimeter conversion.
-   - Embeds `NotoSans-Regular.ttf` in the PDF VFS for complete glyph fidelity across Mizo (`ṭ/Ṭ`), German (`ä/ö/ü/ß`), and Spanish (`ñ`).
-
-6. **Password-Protected `.fam` Vault Backup & Restore:**
-   - AES-256-GCM encryption with 100,000 PBKDF2 iterations and random salt/IV.
-   - Export and import all trees, households, members, and embedded photos into a single encrypted file for offline storage or Google Drive.
-
-7. **PWA & Offline Capability:**
-   - Fully installable PWA via `vite-plugin-pwa` with service worker caching.
-   - Automatic snapshot caching in IndexedDB for seamless offline viewing.
-   - 4-digit device **App Lock PIN** to secure family data on shared devices.
+**KinVault** is a privacy-first, serverless Progressive Web App (PWA) engineered for family tree building, ancestral preservation, and rapid family reconnection. It operates entirely on Cloudflare's serverless edge infrastructure with Cloudflare D1 for distributed SQL storage.
 
 ---
 
-## 🚀 Local Development Setup
+## ✨ Features
 
-### 1. Prerequisites
-- Node.js 18+
-- Cloudflare Wrangler CLI (`npm install -g wrangler` or use bundled `npx wrangler`)
+- **Tree Canvas (Pan & Zoom):** Interactive panoramic hierarchy powered by `d3-hierarchy` that arranges households with orthogonal connector lines, branch color accents, collapsible branches, and living/deceased indicators.
+- **WhatsApp-Style RBAC:** Hierarchical permissions where branch administrators have scoped authority downward over their descendants without access to sibling branches or ancestors.
+- **Reconnection Directory:** Instant lookup by name, clan nickname, city, or phone number with 1-tap **Call (`tel:`)**, **WhatsApp (`wa.me`)**, and **Google Maps** buttons.
+- **Client-Side Photo Compression:** Automatically center-crops personal avatars to square 300 × 300 px (~15–25 KB) and family photos to max width 1280 px (~90–140 KB) using HTML5 Offscreen Canvas before transmission.
+- **Panoramic Vector PDF Export:** Bypasses A4 constraints by calculating exact bounding box coordinates and registers `NotoSans-Regular.ttf` for true glyph fidelity across Mizo (`ṭ`/`Ṭ`), German (`ä/ö/ü/ß`), and Spanish (`ñ`).
+- **Encrypted `.fam` Vault Backup:** Client-side PBKDF2 (100,000 iterations) + AES-256-GCM encryption with random salt and IV for local and cloud backups.
+- **PWA & Offline Snapshot:** Caches data in IndexedDB for immediate offline viewing and provides an optional 4-digit **Device App Lock PIN** for shared devices.
+- **4-Language Native Localization:** Full translations for English (`en`), Mizo (`mz`), Spanish (`es`), and German (`de`).
 
-### 2. Install Dependencies
+---
+
+## 🏛️ Project Structure
+
+```text
+kinvault/
+├── docs/
+│   ├── ARCHITECTURE.md        # Deep dive into system design, schema, and RBAC
+│   └── API.md                 # Complete REST API reference
+├── functions/
+│   ├── _lib/
+│   │   ├── crypto.ts          # PIN hashing (SHA-256 + salt) & HMAC-SHA256 JWT
+│   │   └── permissions.ts     # Recursive descendant graph RBAC check
+│   └── api/
+│       ├── tree/create.ts     # POST: Creates tree, root household, creator profile
+│       ├── auth.ts            # POST: PIN verification & device claim lookup
+│       ├── tree.ts            # GET: Complete tree metadata, households, persons
+│       ├── mutate.ts          # POST: Role-enforced graph mutations
+│       └── restore.ts         # POST: Super Admin batch restore from .fam file
+├── public/
+│   ├── fonts/
+│   │   └── NotoSans-Regular.ttf # Universal TrueType font
+│   ├── favicon.svg            # App icon
+│   ├── pwa-192x192.png        # PWA standalone icon
+│   └── pwa-512x512.png        # PWA maskable icon
+├── src/
+│   ├── locales/translations.ts# EN, Mizo, ES, and DE localization dictionaries
+│   ├── types/family.ts        # Shared TypeScript interfaces
+│   ├── utils/
+│   │   ├── imageCompress.ts   # Client-side WebP canvas compressor
+│   │   ├── cryptoVault.ts     # AES-256-GCM + PBKDF2 .fam encryption
+│   │   ├── offlineCache.ts    # IndexedDB cache & App Lock PIN
+│   │   └── pdfExport.ts       # jsPDF panoramic vector PDF generator
+│   └── components/
+│       ├── OnboardingView.tsx # Onboarding & invite code PIN join
+│       ├── TreeCanvas.tsx     # d3-hierarchy canvas
+│       ├── DirectoryView.tsx  # Searchable directory with 1-tap actions
+│       ├── MemberModal.tsx    # Member & household editor
+│       ├── ShareModal.tsx     # Invite link, PIN, and WhatsApp share
+│       └── BackupModal.tsx    # Password-encrypted backup & restore
+├── schema.sql                 # D1 SQL Schema
+└── wrangler.toml              # Cloudflare Pages and D1 configuration
+```
+
+---
+
+## 🛠️ Local Development
+
+### 1. Install Dependencies
 ```bash
 npm install
 ```
 
-### 3. Initialize Local D1 Database
-Execute the database schema on local D1:
+### 2. Run Local Migrations
 ```bash
-npx wrangler d1 execute kinvault-db --local --file=schema.sql
+npx wrangler d1 execute kinvault-db --local --file=./schema.sql
 ```
 
-### 4. Build Production Assets
+### 3. Build & Typecheck
 ```bash
 npm run build
 ```
 
-### 5. Start Local Cloudflare Pages Dev Server
+### 4. Start Local Development Server
 ```bash
 npx wrangler pages dev --port 8788
 ```
@@ -69,31 +102,33 @@ Open [http://localhost:8788](http://localhost:8788) in your browser.
 
 ---
 
-## ☁️ Cloudflare Deployment
+## 🚀 Cloudflare Deployment
 
 ### 1. Create Cloudflare D1 Database
 ```bash
 npx wrangler d1 create kinvault-db
 ```
-Copy the generated `database_id` into `wrangler.toml`:
-```toml
-[[d1_databases]]
-binding = "DB"
-database_name = "kinvault-db"
-database_id = "<YOUR_D1_DATABASE_ID>"
-```
 
 ### 2. Apply Schema to Production D1
 ```bash
-npx wrangler d1 execute kinvault-db --remote --file=schema.sql
+npx wrangler d1 execute kinvault-db --remote --file=./schema.sql
 ```
 
-### 3. Deploy to Cloudflare Pages
+### 3. Deploy Pages Project
 ```bash
-# Build the project
-npm run build
-
-# Deploy via Wrangler Pages
-npx wrangler pages deploy dist --project-name=kinvault
+npx wrangler pages deploy dist --project-name=kin-vault --branch=main
 ```
-Set the environment variable `JWT_SECRET` in the Cloudflare Pages dashboard under **Settings > Environment variables** (or via Wrangler secret).
+
+---
+
+## 📜 Documentation
+
+- [System Architecture & RBAC](docs/ARCHITECTURE.md)
+- [REST API Reference](docs/API.md)
+
+---
+
+## 🔒 Privacy & License
+
+KinVault does not include any third-party tracking scripts or advertising SDKs. All data is encrypted in transit and at rest.
+Licensed under the [Apache-2.0 License](LICENSE).
