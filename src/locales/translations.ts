@@ -298,8 +298,8 @@ export const translations: Record<Language, TranslationDictionary> = {
     offlineMode: 'Offline a ni',
     cachedOffline: 'Offline-a vawn sa en mek a ni',
 
-    welcomeTitle: 'I Thlahtute Chhuina Vawng Ṭha Rawh',
-    welcomeSubtitle: 'Chhungkaw ziarang mawi tak siam la, ṭhangtharte tana chhui theihin dah rawh.',
+    welcomeTitle: 'Thlahtute Chhuina leh Vawnṭhatna',
+    welcomeSubtitle: 'Ṭhangtharte’n an pi leh pute hming leh an chhungkhatte awmna an hriat zel theih nan i thlahtute chhuina siam rawh.',
     createNewTree: 'Thlahtute Chhuina Thar Siam',
     joinExistingTree: 'Chhungkua Zawmna',
     treeNameLabel: 'Thlahtute Chhuina Hming',
