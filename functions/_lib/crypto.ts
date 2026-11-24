@@ -84,10 +84,13 @@ export function base64UrlDecode(str: string): string {
 }
 
 async function getHmacKey(secret: string): Promise<CryptoKey> {
+  if (!secret) {
+    throw new Error('JWT_SECRET is required but not configured.');
+  }
   const enc = new TextEncoder();
   return await crypto.subtle.importKey(
     'raw',
-    enc.encode(secret || 'default-kinvault-secret-key-min-32-chars-long'),
+    enc.encode(secret),
     { name: 'HMAC', hash: 'SHA-256' },
     false,
     ['sign', 'verify']

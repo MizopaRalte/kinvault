@@ -35,13 +35,13 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
     const { treeId, deviceId } = tokenPayload;
     const activePersonId = request.headers.get('X-Person-Id');
 
-    // Find caller person
+    // Find caller person - strictly bound to the authenticated deviceId
     let caller: DbPerson | null = null;
     if (activePersonId) {
       caller = await env.DB.prepare(
-        'SELECT * FROM persons WHERE id = ? AND tree_id = ?'
+        'SELECT * FROM persons WHERE id = ? AND tree_id = ? AND claimed_device_id = ?'
       )
-        .bind(activePersonId, treeId)
+        .bind(activePersonId, treeId, deviceId)
         .first<DbPerson>();
     }
 

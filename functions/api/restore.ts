@@ -28,11 +28,11 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
     const { treeId, deviceId } = tokenPayload;
     const activePersonId = request.headers.get('X-Person-Id');
 
-    // Super-admin verification
+    // Super-admin verification - strictly bound to authenticated deviceId
     let caller: DbPerson | null = null;
     if (activePersonId) {
-      caller = await env.DB.prepare('SELECT * FROM persons WHERE id = ? AND tree_id = ?')
-        .bind(activePersonId, treeId)
+      caller = await env.DB.prepare('SELECT * FROM persons WHERE id = ? AND tree_id = ? AND claimed_device_id = ?')
+        .bind(activePersonId, treeId, deviceId)
         .first<DbPerson>();
     }
     if (!caller) {

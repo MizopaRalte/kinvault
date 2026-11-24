@@ -30,7 +30,6 @@ async function run() {
   let inviteCode = '';
   let superAdminToken = '';
   let rootPersonId = '';
-  let rootHouseholdId = '';
   let spousePersonId = '';
   let childPersonId = '';
   let childHouseholdId = '';
@@ -125,7 +124,6 @@ async function run() {
     assert(Array.isArray(treeData.persons) && treeData.persons.length === 1, 'Initial tree has 1 creator person');
     assert(treeData.persons[0].role === 'super_admin', 'Creator person has role super_admin');
     assert(treeData.persons[0].claimed_device_id === creatorDeviceId, 'Creator person is claimed by creator deviceId');
-    rootHouseholdId = treeData.households[0].id;
 
     // -------------------------------------------------------------
     // FLOW 4: Add Spouse
@@ -350,9 +348,9 @@ async function run() {
     assert(updatedChild.nickname_or_maiden === 'Vala', 'Nickname saved');
 
     // -------------------------------------------------------------
-    // FLOW 10: RBAC Guardrails (Member unauthorized action blocked)
+    // FLOW 10: RBAC Guardrails & IDOR Header Spoofing Prevention
     // -------------------------------------------------------------
-    console.log(`\n--- FLOW 10: RBAC Security Guardrails ---`);
+    console.log(`\n--- FLOW 10: RBAC Security Guardrails & IDOR Prevention ---`);
     const unauthorizedDelete = await fetch(`${BASE_URL}/api/mutate`, {
       method: 'POST',
       headers: {
@@ -368,6 +366,23 @@ async function run() {
       }),
     });
     assert(unauthorizedDelete.status === 403, 'Member cannot delete ancestor (HTTP 403 Forbidden)');
+
+    // Attempt IDOR header spoofing: attacker tries to claim super_admin identity via X-Person-Id header
+    const spoofedHeaderDelete = await fetch(`${BASE_URL}/api/mutate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${memberToken}`,
+        'X-Person-Id': rootPersonId, // Attacker spoofing super admin's person ID
+      },
+      body: JSON.stringify({
+        action: 'delete_person',
+        payload: {
+          personId: rootPersonId,
+        },
+      }),
+    });
+    assert(spoofedHeaderDelete.status === 403, 'IDOR header spoofing strictly blocked (HTTP 403 Forbidden)');
 
     // -------------------------------------------------------------
     // FLOW 11: Encrypted Full Backup & Cloud Batch Restore
