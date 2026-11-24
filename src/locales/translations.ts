@@ -26,7 +26,9 @@ export interface TranslationDictionary {
   pinLabel: string;
   pinPlaceholder: string;
   cityLabel: string;
+  cityPlaceholder: string;
   countryLabel: string;
+  countryPlaceholder: string;
   createTreeBtn: string;
   joinTreeBtn: string;
   orDivider: string;
@@ -171,7 +173,9 @@ export const translations: Record<Language, TranslationDictionary> = {
     pinLabel: '6-Digit Family PIN',
     pinPlaceholder: '123456',
     cityLabel: 'City / Town',
+    cityPlaceholder: 'e.g. Aizawl',
     countryLabel: 'Country',
+    countryPlaceholder: 'e.g. India',
     createTreeBtn: 'Create Family Tree',
     joinTreeBtn: 'Join Family Tree',
     orDivider: 'OR',
@@ -284,8 +288,8 @@ export const translations: Record<Language, TranslationDictionary> = {
 
   mz: {
     appName: 'KinVault',
-    tagline: 'Chhungkaw Thlahtute & Inzawmṭhatna',
-    treeTab: 'Chhungkaw Thlahtute',
+    tagline: 'Chhungkaw Inthlahchhawn Vawn Ṭhatna',
+    treeTab: 'Chhungkaw Inthlahchhawn',
     directoryTab: 'Hmingtlang',
     shareTab: 'Sâwmna',
     backupTab: 'Vawng Ṭha Rawh (.fam)',
@@ -294,21 +298,23 @@ export const translations: Record<Language, TranslationDictionary> = {
     offlineMode: 'Offline a ni',
     cachedOffline: 'Offline-a vawn sa en mek a ni',
 
-    welcomeTitle: 'I Chhungkaw Thlahtute Vawng Ṭha Rawh',
-    welcomeSubtitle: 'Chhungkaw thlahtute chanchin vawng ṭha la, thangtharte tana chhui theihin dah rawh.',
-    createNewTree: 'Chhungkaw Thlahtute Siamna',
-    joinExistingTree: 'I Chhungkuaa Zawmna',
-    treeNameLabel: 'Chhungkaw Thlahtute Hming',
-    treeNamePlaceholder: 'Entirnan: Sailo Thlahtute',
+    welcomeTitle: 'I Thlahtute Chanchin Vawng Ṭha Rawh',
+    welcomeSubtitle: 'Chhungkaw inthlahchhawn mawi tak siam la, ṭhangthar lo la awm zel turte tan vawng ṭha reng rawh.',
+    createNewTree: 'Chhungkaw Inthlahchhawn Thar Siamna',
+    joinExistingTree: 'Chhungkua Zawmna',
+    treeNameLabel: 'Chhungkaw Inthlahchhawn Hming',
+    treeNamePlaceholder: 'Entirnan: Sailo Chhungkaw Inthlahchhawn',
     creatorNameLabel: 'I Hming Pum',
     creatorNamePlaceholder: 'Entirnan: Lalthanmawia',
     inviteCodeLabel: 'Sâwmna Code (Hawrawp 8)',
     inviteCodePlaceholder: 'Entirnan: K9X4M2P7',
-    pinLabel: 'Chhungkaw PIN (Number 6)',
+    pinLabel: 'Chhungkaw PIN (Nambar 6)',
     pinPlaceholder: '123456',
     cityLabel: 'Khua / Veng',
+    cityPlaceholder: 'Entirnan: Aizawl',
     countryLabel: 'Ram',
-    createTreeBtn: 'Chhungkaw Thlahtute Siam Rawh',
+    countryPlaceholder: 'Entirnan: India',
+    createTreeBtn: 'Chhungkaw Inthlahchhawn Siam Rawh',
     joinTreeBtn: 'Chhungkuaah Zawm Rawh',
     orDivider: 'EMAW',
 
@@ -358,7 +364,7 @@ export const translations: Record<Language, TranslationDictionary> = {
     removePhoto: 'Paih Rawh',
     addressLine: 'Veng / Kawng Hming',
     postalCode: 'PIN Code',
-    branchColorLabel: 'Peng Rawng',
+    branchColorLabel: 'Rawng Thlanna',
     saveChanges: 'Vawng Rawh',
     cancel: 'Sut Rawh',
     close: 'Khâr Rawh',
@@ -443,7 +449,9 @@ export const translations: Record<Language, TranslationDictionary> = {
     pinLabel: 'PIN Familiar de 6 Dígitos',
     pinPlaceholder: '123456',
     cityLabel: 'Ciudad',
+    cityPlaceholder: 'p. ej. Madrid',
     countryLabel: 'País',
+    countryPlaceholder: 'p. ej. España',
     createTreeBtn: 'Crear Árbol Familiar',
     joinTreeBtn: 'Unirse al Árbol',
     orDivider: 'O',
@@ -579,7 +587,9 @@ export const translations: Record<Language, TranslationDictionary> = {
     pinLabel: '6-stellige Familien-PIN',
     pinPlaceholder: '123456',
     cityLabel: 'Stadt',
+    cityPlaceholder: 'z. B. Berlin',
     countryLabel: 'Land',
+    countryPlaceholder: 'z. B. Deutschland',
     createTreeBtn: 'Stammbaum erstellen',
     joinTreeBtn: 'Stammbaum beitreten',
     orDivider: 'ODER',

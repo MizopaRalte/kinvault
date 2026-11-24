@@ -272,7 +272,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                    {t.pinLabel} (6 Digits) *
+                    {t.pinLabel} *
                   </label>
                   <div className="relative">
                     <input
@@ -319,7 +319,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({
                     type="text"
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
-                    placeholder="e.g. Aizawl"
+                    placeholder={t.cityPlaceholder || "e.g. Aizawl"}
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent"
                   />
                 </div>
@@ -331,7 +331,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({
                     type="text"
                     value={country}
                     onChange={(e) => setCountry(e.target.value)}
-                    placeholder="e.g. India"
+                    placeholder={t.countryPlaceholder || "e.g. India"}
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent"
                   />
                 </div>
