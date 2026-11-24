@@ -130,6 +130,8 @@ export async function getDescendantScope(
 
 /**
  * Checks if caller can modify a specific person
+ * Super admin can do all to all family.
+ * Invited users and members can add their family and edit.
  */
 export async function canEditPerson(
   db: D1Database,
@@ -137,46 +139,23 @@ export async function canEditPerson(
   caller: DbPerson | null,
   targetPersonId: string
 ): Promise<boolean> {
-  if (!caller) return false;
-  if (caller.role === 'super_admin') return true;
+  // Super admin has full control over all persons in the tree
+  if (caller?.role === 'super_admin') return true;
 
-  if (caller.role === 'branch_admin') {
+  // Branch admin can edit within their descendant scope
+  if (caller?.role === 'branch_admin') {
     const { allowedPersonIds } = await getDescendantScope(db, treeId, caller);
-    return allowedPersonIds.has(targetPersonId);
+    if (allowedPersonIds.has(targetPersonId)) return true;
   }
 
-  // Member role
-  if (caller.id === targetPersonId) return true;
-
-  // Member can edit their own household members, spouse, or direct children
-  const [targetPerson, relsResult] = await Promise.all([
-    db.prepare('SELECT id, household_id FROM persons WHERE id = ? AND tree_id = ?').bind(targetPersonId, treeId).first<{ id: string; household_id: string | null }>(),
-    db.prepare('SELECT person_a_id, person_b_id, rel_type FROM relationships WHERE tree_id = ? AND (person_a_id = ? OR person_b_id = ?)').bind(treeId, caller.id, caller.id).all<{ person_a_id: string; person_b_id: string; rel_type: string }>()
-  ]);
-
-  if (!targetPerson) return false;
-
-  // Same household
-  if (caller.household_id && targetPerson.household_id === caller.household_id) {
-    return true;
-  }
-
-  // Check if spouse or direct child
-  const rels = relsResult.results || [];
-  for (const r of rels) {
-    if (r.rel_type === 'spouse' && (r.person_a_id === targetPersonId || r.person_b_id === targetPersonId)) {
-      return true;
-    }
-    if (r.rel_type === 'parent_child' && r.person_a_id === caller.id && r.person_b_id === targetPersonId) {
-      return true;
-    }
-  }
-
-  return false;
+  // All authenticated invited users and members can add their family and edit
+  return true;
 }
 
 /**
  * Checks if caller can modify a specific household
+ * Super admin can do all to all family.
+ * Invited users and members can edit household details.
  */
 export async function canEditHousehold(
   db: D1Database,
@@ -184,16 +163,17 @@ export async function canEditHousehold(
   caller: DbPerson | null,
   targetHouseholdId: string
 ): Promise<boolean> {
-  if (!caller) return false;
-  if (caller.role === 'super_admin') return true;
+  // Super admin has full control over all households in the tree
+  if (caller?.role === 'super_admin') return true;
 
-  if (caller.role === 'branch_admin') {
+  // Branch admin can edit within their descendant scope
+  if (caller?.role === 'branch_admin') {
     const { allowedHouseholdIds } = await getDescendantScope(db, treeId, caller);
-    return allowedHouseholdIds.has(targetHouseholdId);
+    if (allowedHouseholdIds.has(targetHouseholdId)) return true;
   }
 
-  // Member can edit their own household
-  return caller.household_id === targetHouseholdId;
+  // All authenticated invited users and members can edit household details
+  return true;
 }
 
 /**

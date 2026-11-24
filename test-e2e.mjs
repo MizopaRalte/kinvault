@@ -263,6 +263,26 @@ async function run() {
     });
     assert(claimRes.status === 200, 'Member claims unclaimed child profile HTTP 200');
 
+    // Invited member adds spouse to their node with avatar
+    const memberAddSpouseRes = await fetch(`${BASE_URL}/api/mutate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${memberToken}`,
+        'X-Person-Id': childPersonId,
+      },
+      body: JSON.stringify({
+        action: 'add_spouse',
+        payload: {
+          personId: childPersonId,
+          spouseFullName: `Member Added Spouse ${runId}`,
+          birthYear: '1990',
+          avatarB64: 'data:image/webp;base64,UklGRkAAAABXRUJQVlA4IDQAAADwAQCdASoBAAEAAkA4JaQAA3AA/vv9gAA=',
+        },
+      }),
+    });
+    assert(memberAddSpouseRes.status === 201 || memberAddSpouseRes.status === 200, 'Invited member can add spouse to family');
+
     // -------------------------------------------------------------
     // FLOW 8: Role Promotion (Super Admin promotes to Branch Admin)
     // -------------------------------------------------------------

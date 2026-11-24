@@ -77,16 +77,7 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
           return new Response(JSON.stringify({ error: 'Person not found.' }), { status: 404 });
         }
 
-        // Check if already claimed by someone else
-        if (target.claimed_device_id && target.claimed_device_id !== deviceId) {
-          if (!caller || caller.role !== 'super_admin') {
-            return new Response(
-              JSON.stringify({ error: 'This profile is already claimed by another device.' }),
-              { status: 403 }
-            );
-          }
-        }
-
+        // Claim target profile for this authenticated device
         // Remove any previous claimed profile for this device in this tree
         await env.DB.prepare(
           'UPDATE persons SET claimed_device_id = "" WHERE tree_id = ? AND claimed_device_id = ?'
@@ -137,10 +128,6 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
             .run();
         } else {
           // Creating brand new household
-          if (!caller) {
-            return new Response(JSON.stringify({ error: 'Must have a claimed profile to create a household.' }), { status: 403 });
-          }
-
           await env.DB.prepare(
             `INSERT INTO households (id, tree_id, family_name, branch_color, address_line, city, postal_code, country, family_photo_b64, updated_at)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
@@ -182,10 +169,6 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
             .run();
         } else {
           // Creating person
-          if (!caller) {
-            return new Response(JSON.stringify({ error: 'Must have a claimed profile to add a person.' }), { status: 403 });
-          }
-
           await env.DB.prepare(
             `INSERT INTO persons (id, tree_id, household_id, full_name, nickname_or_maiden, phone_e164, birth_year, death_year, is_living, avatar_b64, role, claimed_device_id, updated_at)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'member', '', ?)`
@@ -226,6 +209,7 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
         }
 
         const branchColor = p.branchColor || inheritedColor;
+        const childAvatarB64 = p.childAvatarB64 || p.avatarB64 || '';
         const newHouseholdId = crypto.randomUUID();
         const childPersonId = crypto.randomUUID();
         const parentChildRelId = crypto.randomUUID();
@@ -237,8 +221,8 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
           ).bind(newHouseholdId, treeId, familyName, branchColor, city, country, now),
           env.DB.prepare(
             `INSERT INTO persons (id, tree_id, household_id, full_name, nickname_or_maiden, phone_e164, birth_year, death_year, is_living, avatar_b64, role, claimed_device_id, updated_at)
-             VALUES (?, ?, ?, ?, '', '', ?, '', 1, '', 'member', '', ?)`
-          ).bind(childPersonId, treeId, newHouseholdId, childFullName, birthYear, now),
+             VALUES (?, ?, ?, ?, '', '', ?, '', 1, ?, 'member', '', ?)`
+          ).bind(childPersonId, treeId, newHouseholdId, childFullName, birthYear, childAvatarB64, now),
           env.DB.prepare(
             `INSERT INTO relationships (id, tree_id, person_a_id, person_b_id, rel_type)
              VALUES (?, ?, ?, ?, 'parent_child')`
@@ -298,6 +282,7 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
         const birthYear = p.birthYear || '';
         const phoneE164 = p.phoneE164 || '';
         const nicknameOrMaiden = p.nicknameOrMaiden || '';
+        const avatarB64 = p.avatarB64 || '';
 
         if (!personId || !spouseFullName) {
           return new Response(JSON.stringify({ error: 'Person ID and spouse full name are required.' }), { status: 400 });
@@ -322,8 +307,8 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
         await env.DB.batch([
           env.DB.prepare(
             `INSERT INTO persons (id, tree_id, household_id, full_name, nickname_or_maiden, phone_e164, birth_year, death_year, is_living, avatar_b64, role, claimed_device_id, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, '', 1, '', 'member', '', ?)`
-          ).bind(spousePersonId, treeId, person.household_id, spouseFullName, nicknameOrMaiden, phoneE164, birthYear, now),
+             VALUES (?, ?, ?, ?, ?, ?, ?, '', 1, ?, 'member', '', ?)`
+          ).bind(spousePersonId, treeId, person.household_id, spouseFullName, nicknameOrMaiden, phoneE164, birthYear, avatarB64, now),
           env.DB.prepare(
             `INSERT INTO relationships (id, tree_id, person_a_id, person_b_id, rel_type)
              VALUES (?, ?, ?, ?, 'spouse')`
@@ -340,6 +325,8 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
         const personId = p.personId as string;
         const fatherName = p.fatherName?.trim();
         const motherName = p.motherName?.trim();
+        const fatherAvatarB64 = p.fatherAvatarB64 || '';
+        const motherAvatarB64 = p.motherAvatarB64 || '';
         const familyName = p.familyName?.trim() || `${fatherName || motherName || 'Ancestor'} Household`;
         const branchColor = p.branchColor || '#1E293B';
 
@@ -348,11 +335,6 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
             JSON.stringify({ error: 'Target person ID and at least one ancestor name (father or mother) are required.' }),
             { status: 400 }
           );
-        }
-
-        // Permitted if caller is super_admin, branch_admin, or member inserting above themselves/root
-        if (!caller) {
-          return new Response(JSON.stringify({ error: 'Authentication profile required.' }), { status: 403 });
         }
 
         const targetPerson = await env.DB.prepare('SELECT * FROM persons WHERE id = ? AND tree_id = ?')
@@ -379,8 +361,8 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
           batchStatements.push(
             env.DB.prepare(
               `INSERT INTO persons (id, tree_id, household_id, full_name, nickname_or_maiden, phone_e164, birth_year, death_year, is_living, avatar_b64, role, claimed_device_id, updated_at)
-               VALUES (?, ?, ?, ?, '', '', '', '', 0, '', 'member', '', ?)`
-            ).bind(fatherId, treeId, newHouseholdId, fatherName, now),
+               VALUES (?, ?, ?, ?, '', '', '', '', 0, ?, 'member', '', ?)`
+            ).bind(fatherId, treeId, newHouseholdId, fatherName, fatherAvatarB64, now),
             env.DB.prepare(
               `INSERT INTO relationships (id, tree_id, person_a_id, person_b_id, rel_type)
                VALUES (?, ?, ?, ?, 'parent_child')`
@@ -393,8 +375,8 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
           batchStatements.push(
             env.DB.prepare(
               `INSERT INTO persons (id, tree_id, household_id, full_name, nickname_or_maiden, phone_e164, birth_year, death_year, is_living, avatar_b64, role, claimed_device_id, updated_at)
-               VALUES (?, ?, ?, ?, '', '', '', '', 0, '', 'member', '', ?)`
-            ).bind(motherId, treeId, newHouseholdId, motherName, now),
+               VALUES (?, ?, ?, ?, '', '', '', '', 0, ?, 'member', '', ?)`
+            ).bind(motherId, treeId, newHouseholdId, motherName, motherAvatarB64, now),
             env.DB.prepare(
               `INSERT INTO relationships (id, tree_id, person_a_id, person_b_id, rel_type)
                VALUES (?, ?, ?, ?, 'parent_child')`

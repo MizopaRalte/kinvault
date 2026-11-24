@@ -79,6 +79,7 @@ export interface TranslationDictionary {
   personalPhoto: string;
   familyPhoto: string;
   uploadPhoto: string;
+  takePhoto: string;
   removePhoto: string;
   addressLine: string;
   postalCode: string;
@@ -223,6 +224,7 @@ export const translations: Record<Language, TranslationDictionary> = {
     personalPhoto: 'Personal Photo',
     familyPhoto: 'Family Household Photo',
     uploadPhoto: 'Upload Photo',
+    takePhoto: 'Take Photo',
     removePhoto: 'Remove',
     addressLine: 'Street Address',
     postalCode: 'Postal Code',
@@ -361,11 +363,12 @@ export const translations: Record<Language, TranslationDictionary> = {
     personalPhoto: 'Mimal Thlalak',
     familyPhoto: 'Chhungkaw Thlalak',
     uploadPhoto: 'Thlalak Thlang Rawh',
+    takePhoto: 'Camera Hmanga Lâk',
     removePhoto: 'Paih Rawh',
     addressLine: 'Veng / Kawng Hming',
     postalCode: 'PIN Code',
     branchColorLabel: 'A Peng Rawng',
-    saveChanges: 'Vawng Rawh',
+    saveChanges: 'Save Rawh',
     cancel: 'Sut Rawh',
     close: 'Khâr Rawh',
     deletePerson: 'Paih Rawh',
@@ -419,9 +422,9 @@ export const translations: Record<Language, TranslationDictionary> = {
     pdfExportSuccess: 'Panoramic PDF download fel e!',
 
     loading: 'Chhungkaw chanchin lak mek a ni...',
-    saving: 'Vawn mek a ni...',
+    saving: 'Save mek a ni...',
     errorOccurred: 'Thil a dik lo tlat. Khawngaihin han ti nawn leh rawh.',
-    success: 'Hlawhtling takin vawn a ni e!',
+    success: 'Hlawhtling takin save a ni e!',
   },
 
   es: {
@@ -499,6 +502,7 @@ export const translations: Record<Language, TranslationDictionary> = {
     personalPhoto: 'Foto de Perfil',
     familyPhoto: 'Foto Familiar',
     uploadPhoto: 'Subir Foto',
+    takePhoto: 'Tomar Foto',
     removePhoto: 'Eliminar',
     addressLine: 'Dirección',
     postalCode: 'Código Postal',
@@ -637,6 +641,7 @@ export const translations: Record<Language, TranslationDictionary> = {
     personalPhoto: 'Profilfoto',
     familyPhoto: 'Familienfoto',
     uploadPhoto: 'Foto hochladen',
+    takePhoto: 'Foto aufnehmen',
     removePhoto: 'Entfernen',
     addressLine: 'Straße und Hausnummer',
     postalCode: 'Postleitzahl',
