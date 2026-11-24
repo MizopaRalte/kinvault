@@ -80,19 +80,25 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
       const fullName = (p.full_name || '').toLowerCase();
       const nickname = (p.nickname_or_maiden || '').toLowerCase();
       const phone = (p.phone_e164 || '').toLowerCase();
+      const birthYear = (p.birth_year || '').toLowerCase();
+      const deathYear = (p.death_year || '').toLowerCase();
       const familyName = (household?.family_name || '').toLowerCase();
       const city = (household?.city || '').toLowerCase();
       const country = (household?.country || '').toLowerCase();
       const address = (household?.address_line || '').toLowerCase();
+      const postalCode = (household?.postal_code || '').toLowerCase();
 
       return (
         fullName.includes(query) ||
         nickname.includes(query) ||
         phone.includes(query) ||
+        birthYear.includes(query) ||
+        deathYear.includes(query) ||
         familyName.includes(query) ||
         city.includes(query) ||
         country.includes(query) ||
-        address.includes(query)
+        address.includes(query) ||
+        postalCode.includes(query)
       );
     });
   }, [persons, householdMap, searchQuery, selectedColor, selectedCity]);

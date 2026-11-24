@@ -6,7 +6,7 @@ import {
   Shield,
   Lock,
   FolderTree,
-  BookUser,
+  Search,
   LogOut,
   RefreshCw,
   UserCheck,
@@ -404,7 +404,7 @@ export const App: React.FC = () => {
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              <BookUser className="w-3.5 h-3.5" />
+              <Search className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">{t.directoryTab}</span>
             </button>
           </div>
