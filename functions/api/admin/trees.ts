@@ -181,6 +181,7 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
       action?: string;
       treeId?: string;
       personId?: string;
+      personIds?: string[];
       householdId?: string;
       role?: string;
       newPin?: string;
@@ -513,6 +514,96 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
 
       return new Response(
         JSON.stringify({ success: true, treeId, personId, role }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (action === 'bulk_set_person_role') {
+      const { treeId, personIds, role } = body;
+      const cleanIds = Array.isArray(personIds)
+        ? personIds.filter((id): id is string => typeof id === 'string' && id.trim().length > 0)
+        : [];
+
+      if (
+        !treeId ||
+        cleanIds.length === 0 ||
+        (role !== 'super_admin' && role !== 'branch_admin' && role !== 'member')
+      ) {
+        return new Response(
+          JSON.stringify({ error: 'Valid treeId, non-empty personIds, and role required.' }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const now = Date.now();
+      const stmts = cleanIds.map((pid) =>
+        env.DB.prepare('UPDATE persons SET role = ?, updated_at = ? WHERE id = ? AND tree_id = ?').bind(
+          role,
+          now,
+          pid,
+          treeId
+        )
+      );
+
+      for (let i = 0; i < stmts.length; i += 50) {
+        await env.DB.batch(stmts.slice(i, i + 50));
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, treeId, updatedCount: cleanIds.length, role }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (action === 'bulk_delete_persons') {
+      const { treeId, personIds } = body;
+      const cleanIds = Array.isArray(personIds)
+        ? personIds.filter((id): id is string => typeof id === 'string' && id.trim().length > 0)
+        : [];
+
+      if (!treeId || cleanIds.length === 0) {
+        return new Response(
+          JSON.stringify({ error: 'Valid treeId and non-empty personIds required.' }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const targetRows = await env.DB.prepare(
+        'SELECT id, household_id FROM persons WHERE tree_id = ?'
+      )
+        .bind(treeId)
+        .all<{ id: string; household_id: string | null }>();
+      const targetIdSet = new Set(cleanIds);
+      const affectedHouseholds = new Set<string>();
+      for (const row of targetRows.results || []) {
+        if (targetIdSet.has(row.id) && row.household_id) {
+          affectedHouseholds.add(row.household_id);
+        }
+      }
+
+      const stmts: D1PreparedStatement[] = [];
+      for (const pid of cleanIds) {
+        stmts.push(
+          env.DB.prepare(
+            'DELETE FROM relationships WHERE tree_id = ? AND (person_a_id = ? OR person_b_id = ?)'
+          ).bind(treeId, pid, pid),
+          env.DB.prepare('DELETE FROM persons WHERE id = ? AND tree_id = ?').bind(pid, treeId)
+        );
+      }
+      for (const hId of affectedHouseholds) {
+        stmts.push(
+          env.DB.prepare(
+            'DELETE FROM households WHERE id = ? AND tree_id = ? AND NOT EXISTS (SELECT 1 FROM persons WHERE household_id = ? AND tree_id = ?)'
+          ).bind(hId, treeId, hId, treeId)
+        );
+      }
+
+      for (let i = 0; i < stmts.length; i += 50) {
+        await env.DB.batch(stmts.slice(i, i + 50));
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, treeId, deletedCount: cleanIds.length }),
         { status: 200, headers: { 'Content-Type': 'application/json' } }
       );
     }

@@ -124,6 +124,9 @@ export const GlobalAdminModal: React.FC<GlobalAdminModalProps> = ({
   // Full tree & member inspector states
   const [inspectedTree, setInspectedTree] = useState<InspectedTreeData | null>(null);
   const [memberSearch, setMemberSearch] = useState('');
+  const [selectedPersonIds, setSelectedPersonIds] = useState<Set<string>>(new Set());
+  const [bulkRole, setBulkRole] = useState<'member' | 'branch_admin' | 'super_admin'>('branch_admin');
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
   const [confirmAdminDelete, setConfirmAdminDelete] = useState<{
     type: 'person' | 'household';
     id: string;
@@ -402,6 +405,8 @@ export const GlobalAdminModal: React.FC<GlobalAdminModalProps> = ({
         persons: data.persons || [],
       });
       setMemberSearch('');
+      setSelectedPersonIds(new Set());
+      setConfirmBulkDelete(false);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to inspect tree');
     } finally {
@@ -480,6 +485,77 @@ export const GlobalAdminModal: React.FC<GlobalAdminModalProps> = ({
       onDataChanged?.();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to update role');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBulkSetRole = async () => {
+    if (!inspectedTree || selectedPersonIds.size === 0) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/admin/trees', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Admin-Token': adminToken,
+        },
+        body: JSON.stringify({
+          action: 'bulk_set_person_role',
+          treeId: inspectedTree.tree.id,
+          personIds: Array.from(selectedPersonIds),
+          role: bulkRole,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update roles');
+
+      setSuccessMsg(`Updated role for ${selectedPersonIds.size} members.`);
+      setTimeout(() => setSuccessMsg(null), 2500);
+      setSelectedPersonIds(new Set());
+      await handleInspectTree(inspectedTree.tree.id);
+      onDataChanged?.();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to update roles');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBulkDeleteSelected = async () => {
+    if (!inspectedTree || selectedPersonIds.size === 0) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const count = selectedPersonIds.size;
+      const res = await fetch('/api/admin/trees', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Admin-Token': adminToken,
+        },
+        body: JSON.stringify({
+          action: 'bulk_delete_persons',
+          treeId: inspectedTree.tree.id,
+          personIds: Array.from(selectedPersonIds),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete selected members');
+
+      setConfirmBulkDelete(false);
+      setSelectedPersonIds(new Set());
+      setSuccessMsg(`Deleted ${count} selected profiles.`);
+      setTimeout(() => setSuccessMsg(null), 3000);
+      await Promise.all([
+        handleInspectTree(inspectedTree.tree.id),
+        loadStats(),
+        loadTrees(adminToken, searchQuery),
+      ]);
+      onDataChanged?.();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to delete selected members');
     } finally {
       setLoading(false);
     }
@@ -1140,76 +1216,188 @@ export const GlobalAdminModal: React.FC<GlobalAdminModalProps> = ({
                     );
                   })()}
 
-                  {/* All Individual Profiles */}
-                  <div className="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100 max-h-80 overflow-y-auto">
-                    {(() => {
-                      const q = memberSearch.trim().toLowerCase();
-                      const householdNameMap = new Map(
-                        inspectedTree.households.map((h) => [h.id, h.family_name])
+                  {/* Select All & Bulk Actions + All Individual Profiles */}
+                  {(() => {
+                    const q = memberSearch.trim().toLowerCase();
+                    const householdNameMap = new Map(
+                      inspectedTree.households.map((h) => [h.id, h.family_name])
+                    );
+                    const filtered = inspectedTree.persons.filter((p) => {
+                      if (!q) return true;
+                      const hName = (p.household_id ? householdNameMap.get(p.household_id) : '') || '';
+                      return (
+                        p.full_name.toLowerCase().includes(q) ||
+                        (p.nickname_or_maiden || '').toLowerCase().includes(q) ||
+                        (p.phone_e164 || '').toLowerCase().includes(q) ||
+                        (p.birth_year || '').includes(q) ||
+                        hName.toLowerCase().includes(q)
                       );
-                      const filtered = inspectedTree.persons.filter((p) => {
-                        if (!q) return true;
-                        const hName = (p.household_id ? householdNameMap.get(p.household_id) : '') || '';
-                        return (
-                          p.full_name.toLowerCase().includes(q) ||
-                          (p.nickname_or_maiden || '').toLowerCase().includes(q) ||
-                          (p.phone_e164 || '').toLowerCase().includes(q) ||
-                          (p.birth_year || '').includes(q) ||
-                          hName.toLowerCase().includes(q)
-                        );
-                      });
+                    });
+                    const allFilteredSelected =
+                      filtered.length > 0 && filtered.every((p) => selectedPersonIds.has(p.id));
 
-                      if (filtered.length === 0) {
-                        return (
-                          <div className="p-6 text-center text-xs text-slate-400">
-                            No profiles found.
-                          </div>
-                        );
-                      }
-
-                      return filtered.map((p) => {
-                        const hName = p.household_id ? householdNameMap.get(p.household_id) : undefined;
-                        return (
-                          <div
-                            key={p.id}
-                            className="p-3 hover:bg-slate-50/70 transition-colors flex items-center justify-between gap-2"
-                          >
-                            <div className="min-w-0">
-                              <div className="flex flex-wrap items-center gap-1.5">
-                                <span className="font-bold text-slate-900 text-xs">
-                                  {p.full_name}
+                    return (
+                      <>
+                        {filtered.length > 0 && (
+                          <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex flex-wrap items-center justify-between gap-2 text-xs">
+                            <label className="inline-flex items-center gap-2 font-bold text-slate-800 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={allFilteredSelected}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedPersonIds(new Set(filtered.map((p) => p.id)));
+                                  } else {
+                                    setSelectedPersonIds(new Set());
+                                    setConfirmBulkDelete(false);
+                                  }
+                                }}
+                                className="w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer"
+                              />
+                              <span>
+                                {allFilteredSelected
+                                  ? `Deselect All (${filtered.length})`
+                                  : `Select All (${filtered.length})`}
+                              </span>
+                              {selectedPersonIds.size > 0 && (
+                                <span className="px-2 py-0.5 bg-slate-900 text-white rounded-full text-[10px]">
+                                  {selectedPersonIds.size} selected
                                 </span>
-                                {p.role === 'super_admin' && (
-                                  <span className="text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.2 rounded">
-                                    Super Admin
-                                  </span>
-                                )}
-                                {p.role === 'branch_admin' && (
-                                  <span className="text-[10px] font-bold bg-sky-50 text-sky-800 border border-sky-200 px-1.5 py-0.2 rounded">
-                                    Branch Admin
-                                  </span>
-                                )}
-                                {p.claimed_device_id ? (
-                                  <span className="text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.2 rounded">
-                                    Claimed
-                                  </span>
-                                ) : (
-                                  <span className="text-[10px] font-semibold bg-slate-100 text-slate-500 px-1.5 py-0.2 rounded">
-                                    Unclaimed
-                                  </span>
-                                )}
+                              )}
+                            </label>
+
+                            {selectedPersonIds.size > 0 && (
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <select
+                                  aria-label="Bulk role"
+                                  value={bulkRole}
+                                  disabled={loading}
+                                  onChange={(e) =>
+                                    setBulkRole(
+                                      e.target.value as 'member' | 'branch_admin' | 'super_admin'
+                                    )
+                                  }
+                                  className="px-2 py-1 text-[11px] font-semibold bg-white border border-slate-200 rounded-lg text-slate-700"
+                                >
+                                  <option value="member">Member</option>
+                                  <option value="branch_admin">Branch Admin</option>
+                                  <option value="super_admin">Super Admin (All)</option>
+                                </select>
+                                <button
+                                  type="button"
+                                  disabled={loading}
+                                  onClick={handleBulkSetRole}
+                                  className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[11px] font-bold cursor-pointer disabled:opacity-50"
+                                >
+                                  Apply Role
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={loading}
+                                  onClick={() => setConfirmBulkDelete(true)}
+                                  className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                  <span>Delete ({selectedPersonIds.size})</span>
+                                </button>
                               </div>
-                              <p className="text-[11px] text-slate-500 mt-0.5 truncate">
-                                {[
-                                  hName ? `Household: ${hName}` : 'No Household',
-                                  p.birth_year ? `b. ${p.birth_year}` : '',
-                                  p.is_living ? 'Living' : 'Deceased',
-                                  p.phone_e164 || '',
-                                ]
-                                  .filter(Boolean)
-                                  .join(' • ')}
-                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {confirmBulkDelete && selectedPersonIds.size > 0 && (
+                          <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs flex flex-wrap items-center justify-between gap-2">
+                            <span className="font-semibold text-rose-900">
+                              Delete {selectedPersonIds.size} selected profile(s)? This cannot be undone.
+                            </span>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <button
+                                type="button"
+                                disabled={loading}
+                                onClick={handleBulkDeleteSelected}
+                                className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold cursor-pointer disabled:opacity-50"
+                              >
+                                Confirm Bulk Delete
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setConfirmBulkDelete(false)}
+                                className="px-2.5 py-1 text-xs text-slate-600 hover:text-slate-900 cursor-pointer"
+                              >
+                                Cancel
+                              </button>
                             </div>
+                          </div>
+                        )}
+
+                        <div className="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100 max-h-80 overflow-y-auto">
+                          {filtered.length === 0 ? (
+                            <div className="p-6 text-center text-xs text-slate-400">
+                              No profiles found.
+                            </div>
+                          ) : (
+                            filtered.map((p) => {
+                              const hName = p.household_id ? householdNameMap.get(p.household_id) : undefined;
+                              const isSelected = selectedPersonIds.has(p.id);
+                              return (
+                                <div
+                                  key={p.id}
+                                  className={`p-3 transition-colors flex items-center justify-between gap-2 ${
+                                    isSelected ? 'bg-indigo-50/50' : 'hover:bg-slate-50/70'
+                                  }`}
+                                >
+                                  <div className="flex items-start gap-2.5 min-w-0">
+                                    <input
+                                      type="checkbox"
+                                      aria-label={`Select ${p.full_name}`}
+                                      checked={isSelected}
+                                      onChange={(e) => {
+                                        setSelectedPersonIds((prev) => {
+                                          const next = new Set(prev);
+                                          if (e.target.checked) next.add(p.id);
+                                          else next.delete(p.id);
+                                          return next;
+                                        });
+                                      }}
+                                      className="mt-0.5 w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer shrink-0"
+                                    />
+                                    <div className="min-w-0">
+                                      <div className="flex flex-wrap items-center gap-1.5">
+                                        <span className="font-bold text-slate-900 text-xs">
+                                          {p.full_name}
+                                        </span>
+                                        {p.role === 'super_admin' && (
+                                          <span className="text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.2 rounded">
+                                            Super Admin
+                                          </span>
+                                        )}
+                                        {p.role === 'branch_admin' && (
+                                          <span className="text-[10px] font-bold bg-sky-50 text-sky-800 border border-sky-200 px-1.5 py-0.2 rounded">
+                                            Branch Admin
+                                          </span>
+                                        )}
+                                        {p.claimed_device_id ? (
+                                          <span className="text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.2 rounded">
+                                            Claimed
+                                          </span>
+                                        ) : (
+                                          <span className="text-[10px] font-semibold bg-slate-100 text-slate-500 px-1.5 py-0.2 rounded">
+                                            Unclaimed
+                                          </span>
+                                        )}
+                                      </div>
+                                      <p className="text-[11px] text-slate-500 mt-0.5 truncate">
+                                        {[
+                                          hName ? `Household: ${hName}` : 'No Household',
+                                          p.birth_year ? `b. ${p.birth_year}` : '',
+                                          p.is_living ? 'Living' : 'Deceased',
+                                          p.phone_e164 || '',
+                                        ]
+                                          .filter(Boolean)
+                                          .join(' • ')}
+                                      </p>
+                                    </div>
+                                  </div>
 
                             <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
                               <select
@@ -1260,11 +1448,14 @@ export const GlobalAdminModal: React.FC<GlobalAdminModalProps> = ({
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </div>
-                          </div>
-                        );
-                      });
-                    })()}
-                  </div>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               ) : (
               <div className="space-y-3">
