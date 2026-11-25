@@ -65,3 +65,26 @@ CREATE TABLE IF NOT EXISTS system_config (
   updated_at INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS tree_presence (
+  tree_id TEXT NOT NULL,
+  device_id TEXT NOT NULL,
+  person_id TEXT DEFAULT '',
+  display_name TEXT NOT NULL DEFAULT 'Guest',
+  active_household_id TEXT DEFAULT '',
+  activity TEXT NOT NULL DEFAULT 'viewing',
+  target_name TEXT DEFAULT '',
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (tree_id, device_id),
+  FOREIGN KEY (tree_id) REFERENCES trees(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS tree_events (
+  tree_id TEXT PRIMARY KEY,
+  last_mutated_at INTEGER NOT NULL,
+  actor_name TEXT NOT NULL DEFAULT '',
+  summary TEXT NOT NULL DEFAULT '',
+  FOREIGN KEY (tree_id) REFERENCES trees(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_presence_tree_time ON tree_presence(tree_id, updated_at);
+

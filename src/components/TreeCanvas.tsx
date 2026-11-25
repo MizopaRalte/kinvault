@@ -18,7 +18,7 @@ import {
   Pencil,
   UserCheck,
 } from 'lucide-react';
-import type { Household, Person, Relationship, Tree, Role } from '../types/family';
+import type { Household, Person, Relationship, Tree, Role, PresenceUser } from '../types/family';
 import type { TranslationDictionary } from '../locales/translations';
 import { PersonDetailModal } from './PersonDetailModal';
 import { KinshipModal } from './KinshipModal';
@@ -34,6 +34,12 @@ interface TreeCanvasProps {
   userRole?: Role;
   deviceId: string;
   focusPersonRequest?: { personId: string; nonce: number } | null;
+  presenceUsers?: PresenceUser[];
+  onPresenceContextChange?: (ctx: {
+    activeHouseholdId: string;
+    activity: 'viewing' | 'editing' | 'adding';
+    targetName: string;
+  }) => void;
   onOpenMemberModal: (person?: Person, household?: Household, initialMode?: string) => void;
   onUpdatePersonAvatar?: (person: Person, avatarB64: string) => Promise<void>;
   onToggleSpouseStatus?: (relationshipId: string, status: 'spouse' | 'former_spouse') => Promise<void>;
@@ -97,6 +103,8 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
   userRole,
   deviceId,
   focusPersonRequest,
+  presenceUsers,
+  onPresenceContextChange,
   onOpenMemberModal,
   onUpdatePersonAvatar,
   onToggleSpouseStatus,
@@ -786,6 +794,29 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
     };
   }, []);
 
+  useEffect(() => {
+    if (!onPresenceContextChange) return;
+    if (detailTarget) {
+      onPresenceContextChange({
+        activeHouseholdId: detailTarget.household?.id || detailTarget.person.household_id || '',
+        activity: 'viewing',
+        targetName: detailTarget.person.full_name,
+      });
+    } else if (compareSource) {
+      onPresenceContextChange({
+        activeHouseholdId: compareSource.household?.id || compareSource.person.household_id || '',
+        activity: 'viewing',
+        targetName: compareSource.person.full_name,
+      });
+    } else {
+      onPresenceContextChange({
+        activeHouseholdId: '',
+        activity: 'viewing',
+        targetName: '',
+      });
+    }
+  }, [detailTarget, compareSource, onPresenceContextChange]);
+
   const panToNodePerson = useCallback(
     (targetPersonId: string): boolean => {
       const hId = personToHousehold.get(targetPersonId);
@@ -1236,6 +1267,9 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
           const branchColor = h.branch_color || '#0F172A';
 
           const isDimmed = Boolean(spotlightHouseholdIds && !spotlightHouseholdIds.has(h.id));
+          const activeNodePeers = (presenceUsers || []).filter(
+            (u) => u.deviceId !== deviceId && u.activeHouseholdId === h.id
+          );
 
           return (
             <div
@@ -1247,6 +1281,33 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
               }}
               className="flowchart-node group absolute top-0 left-0 transition-opacity duration-200"
             >
+              {activeNodePeers.length > 0 && (
+                <div className="absolute -top-6 left-1/2 -translate-x-1/2 z-30 pointer-events-none flex items-center gap-1 whitespace-nowrap">
+                  {activeNodePeers.slice(0, 2).map((peer) => {
+                    const isBusy = peer.activity === 'editing' || peer.activity === 'adding';
+                    return (
+                      <span
+                        key={peer.deviceId}
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9.5px] font-bold shadow-md border ${
+                          isBusy
+                            ? 'bg-amber-500 text-white border-amber-600'
+                            : 'bg-emerald-600 text-white border-emerald-700'
+                        }`}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse shrink-0" />
+                        <span>
+                          {peer.displayName.split(' ')[0]} •{' '}
+                          {peer.activity === 'editing'
+                            ? t.presenceEditingLabel
+                            : peer.activity === 'adding'
+                            ? t.presenceAddingLabel
+                            : t.presenceViewingLabel}
+                        </span>
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
               {/* Horizontal Spouse / Former-Spouse Connectors */}
               {node.pairConnectors.map((conn, cIdx) => (
                 <React.Fragment key={`conn-${h.id}-${cIdx}`}>

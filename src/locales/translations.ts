@@ -270,6 +270,11 @@ export interface TranslationDictionary {
   claimMeGuideHint: string;
   parentPairChoiceLabel: string;
   moreSettingsBtn: string;
+  onlineUsersTitle: string;
+  presenceViewingLabel: string;
+  presenceEditingLabel: string;
+  presenceAddingLabel: string;
+  presenceBrowsingTree: string;
   compareRelation: string;
   comparingFromHint: string;
   relationToYou: string;
@@ -565,6 +570,11 @@ export const translations: Record<Language, TranslationDictionary> = {
     claimMeGuideHint: 'Tap your name to link your profile on this device',
     parentPairChoiceLabel: 'Which parents is this child from?',
     moreSettingsBtn: 'More Settings',
+    onlineUsersTitle: 'Active on Tree',
+    presenceViewingLabel: 'Viewing',
+    presenceEditingLabel: 'Editing',
+    presenceAddingLabel: 'Adding',
+    presenceBrowsingTree: 'Browsing tree',
     compareRelation: 'Compare Relation',
     comparingFromHint: 'Comparing from {name} — Tap another person on the tree',
     relationToYou: 'Your Relation',
@@ -859,6 +869,11 @@ export const translations: Record<Language, TranslationDictionary> = {
     claimMeGuideHint: 'I phone nena thlunzawm tûrin i hming hmet rawh',
     parentPairChoiceLabel: 'Tu te fa nge ni dawn?',
     moreSettingsBtn: 'Setting Dangte',
+    onlineUsersTitle: 'Tunah Lut Mekte',
+    presenceViewingLabel: 'En mek',
+    presenceEditingLabel: 'Siamṭha mek',
+    presenceAddingLabel: 'Belh mek',
+    presenceBrowsingTree: 'Tree en kual mek',
     compareRelation: 'Inlaichinna Enna',
     comparingFromHint: '{name} aṭanga en mek — Mi dang hmet rawh',
     relationToYou: 'I Chhungkhat Nihna',
@@ -1153,6 +1168,11 @@ export const translations: Record<Language, TranslationDictionary> = {
     claimMeGuideHint: 'Toca tu nombre para vincular tu perfil',
     parentPairChoiceLabel: '¿De qué padres es este hijo/a?',
     moreSettingsBtn: 'Más Opciones',
+    onlineUsersTitle: 'Activos en el Árbol',
+    presenceViewingLabel: 'Viendo',
+    presenceEditingLabel: 'Editando',
+    presenceAddingLabel: 'Añadiendo',
+    presenceBrowsingTree: 'Explorando el árbol',
     compareRelation: 'Comparar Parentesco',
     comparingFromHint: 'Comparando desde {name} — Toca otra persona en el árbol',
     relationToYou: 'Tu Parentesco',
@@ -1447,6 +1467,11 @@ export const translations: Record<Language, TranslationDictionary> = {
     claimMeGuideHint: 'Tippe auf deinen Namen, um dein Profil zu verknüpfen',
     parentPairChoiceLabel: 'Von welchen Eltern stammt dieses Kind?',
     moreSettingsBtn: 'Weitere Optionen',
+    onlineUsersTitle: 'Gerade aktiv',
+    presenceViewingLabel: 'Sieht an',
+    presenceEditingLabel: 'Bearbeitet',
+    presenceAddingLabel: 'Fügt hinzu',
+    presenceBrowsingTree: 'Schaut den Stammbaum an',
     compareRelation: 'Verwandtschaft prüfen',
     comparingFromHint: 'Vergleich ab {name} — Tippe auf eine andere Person',
     relationToYou: 'Beziehung zu dir',

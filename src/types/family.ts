@@ -62,3 +62,21 @@ export interface UserSession {
   activePersonId?: string;
   role?: Role;
 }
+
+export type PresenceActivity = 'viewing' | 'editing' | 'adding';
+
+export interface PresenceUser {
+  deviceId: string;
+  personId: string;
+  displayName: string;
+  activeHouseholdId: string;
+  activity: PresenceActivity | string;
+  targetName: string;
+  updatedAt: number;
+}
+
+export interface TreeEventInfo {
+  lastMutatedAt: number;
+  actorName: string;
+  summary: string;
+}

@@ -21,7 +21,7 @@ import {
 
 import type { Language, TranslationDictionary } from './locales/translations';
 import { translations } from './locales/translations';
-import type { TreeData, UserSession, Person, Household } from './types/family';
+import type { TreeData, UserSession, Person, Household, PresenceUser } from './types/family';
 import {
   getSession,
   saveSession,
@@ -171,6 +171,17 @@ export const App: React.FC = () => {
   const [adminModalOpen, setAdminModalOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [desktopMenuOpen, setDesktopMenuOpen] = useState(false);
+  const [presenceUsers, setPresenceUsers] = useState<PresenceUser[]>([]);
+  const [presenceMenuOpen, setPresenceMenuOpen] = useState(false);
+  const [activityToast, setActivityToast] = useState<string | null>(null);
+  const [viewingPresenceCtx, setViewingPresenceCtx] = useState<{
+    activeHouseholdId: string;
+    activity: 'viewing' | 'editing' | 'adding';
+    targetName: string;
+  }>({ activeHouseholdId: '', activity: 'viewing', targetName: '' });
+  const lastEventTsRef = useRef<number>(0);
+  const ownMutationTsRef = useRef<number>(0);
+  const activityToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [renameModalOpen, setRenameModalOpen] = useState(false);
   const [renameInput, setRenameInput] = useState('');
   const [renameSaving, setRenameSaving] = useState(false);
@@ -394,17 +405,32 @@ export const App: React.FC = () => {
 
   // Sign out / disconnect tree
   const handleSignOut = () => {
+    const oldSession = session;
     const oldCode = session?.inviteCode;
+    if (oldSession) {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${oldSession.token}`,
+      };
+      if (oldSession.activePersonId) headers['X-Person-Id'] = oldSession.activePersonId;
+      fetch('/api/presence', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ leave: true }),
+      }).catch(() => {});
+    }
     setSession(null);
     updateSessionPin('', oldCode);
     saveSession(null);
     setTreeData(null);
+    setPresenceUsers([]);
   };
 
   // Execute mutation
   const handleMutate = async (action: string, payload: any) => {
     if (!session) throw new Error('No active session');
 
+    ownMutationTsRef.current = Date.now() + 2500;
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${session.token}`,
@@ -427,6 +453,86 @@ export const App: React.FC = () => {
     // Refresh tree
     await loadTreeData(session, false);
   };
+
+  // Presence & Live Sync Heartbeat
+  const effectivePresenceCtx = useMemo(() => {
+    if (memberModalState.isOpen) {
+      const hId =
+        memberModalState.household?.id || memberModalState.person?.household_id || '';
+      const mode = memberModalState.initialMode || 'edit_person';
+      return {
+        activeHouseholdId: hId,
+        activity: mode.startsWith('add_') ? ('adding' as const) : ('editing' as const),
+        targetName:
+          memberModalState.person?.full_name || memberModalState.household?.family_name || '',
+      };
+    }
+    return viewingPresenceCtx;
+  }, [memberModalState, viewingPresenceCtx]);
+
+  const hasTreeData = Boolean(treeData);
+
+  useEffect(() => {
+    if (!session || !isOnline || !hasTreeData) return;
+    let cancelled = false;
+
+    const sendHeartbeat = async () => {
+      if (cancelled || document.visibilityState === 'hidden') return;
+      try {
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.token}`,
+        };
+        if (session.activePersonId) headers['X-Person-Id'] = session.activePersonId;
+
+        const res = await fetch('/api/presence', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(effectivePresenceCtx),
+        });
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as {
+          activeUsers?: PresenceUser[];
+          lastEvent?: { lastMutatedAt: number; actorName: string; summary: string } | null;
+        };
+        if (Array.isArray(data.activeUsers)) {
+          setPresenceUsers(data.activeUsers);
+        }
+        if (data.lastEvent?.lastMutatedAt) {
+          const ts = data.lastEvent.lastMutatedAt;
+          if (lastEventTsRef.current === 0) {
+            lastEventTsRef.current = ts;
+          } else if (ts > lastEventTsRef.current) {
+            lastEventTsRef.current = ts;
+            if (ts > ownMutationTsRef.current) {
+              loadTreeData(session, false);
+              setActivityToast(`${data.lastEvent.actorName} ${data.lastEvent.summary}`);
+              if (activityToastTimerRef.current) clearTimeout(activityToastTimerRef.current);
+              activityToastTimerRef.current = setTimeout(() => {
+                setActivityToast(null);
+              }, 4200);
+            }
+          }
+        }
+      } catch {
+        // Ignore transient presence errors
+      }
+    };
+
+    const initialTimer = setTimeout(sendHeartbeat, 400);
+    const interval = setInterval(sendHeartbeat, 10_000);
+    return () => {
+      cancelled = true;
+      clearTimeout(initialTimer);
+      clearInterval(interval);
+    };
+  }, [session, isOnline, hasTreeData, effectivePresenceCtx, loadTreeData]);
+
+  useEffect(() => {
+    return () => {
+      if (activityToastTimerRef.current) clearTimeout(activityToastTimerRef.current);
+    };
+  }, []);
 
   const openRenameModal = () => {
     setRenameInput(treeData?.tree?.name || session?.treeName || '');
@@ -677,6 +783,31 @@ export const App: React.FC = () => {
 
           {/* Right Action Icons (Desktop) */}
           <div className="hidden md:flex items-center gap-1.5 relative">
+            {/* Live Online Presence Stack */}
+            {presenceUsers.length > 0 && (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setPresenceMenuOpen((v) => !v)}
+                  title={t.onlineUsersTitle}
+                  className="inline-flex items-center gap-1.5 px-2 py-1 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-full text-[11px] font-bold text-emerald-900 transition-colors cursor-pointer"
+                >
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                  <span className="flex -space-x-1.5">
+                    {presenceUsers.slice(0, 3).map((u) => (
+                      <span
+                        key={u.deviceId}
+                        className="w-5 h-5 rounded-full bg-slate-900 text-white border border-white flex items-center justify-center text-[9px] font-extrabold"
+                      >
+                        {u.displayName.slice(0, 1).toUpperCase()}
+                      </span>
+                    ))}
+                  </span>
+                  <span>{presenceUsers.length}</span>
+                </button>
+              </div>
+            )}
+
             <button
               type="button"
               onClick={() => loadTreeData(session, false)}
@@ -828,7 +959,18 @@ export const App: React.FC = () => {
           </div>
 
           {/* Right Quick Actions (Mobile < md) */}
-          <div className="flex md:hidden items-center gap-1 shrink-0">
+          <div className="flex md:hidden items-center gap-1 shrink-0 relative">
+            {presenceUsers.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setPresenceMenuOpen((v) => !v)}
+                title={t.onlineUsersTitle}
+                className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 border border-emerald-200 rounded-full text-[11px] font-bold text-emerald-900 cursor-pointer"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span>{presenceUsers.length}</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={() => loadTreeData(session, false)}
@@ -1015,10 +1157,80 @@ export const App: React.FC = () => {
             </span>
           </div>
         )}
+        {/* Live Online Presence Popover (Shared Desktop & Mobile) */}
+        {presenceMenuOpen && presenceUsers.length > 0 && (
+          <>
+            <div
+              className="fixed inset-0 z-30"
+              onClick={() => setPresenceMenuOpen(false)}
+            />
+            <div className="absolute right-3 sm:right-6 top-full mt-1.5 w-72 max-w-[calc(100vw-1.5rem)] bg-white border border-slate-200 rounded-2xl shadow-xl p-2 z-40">
+              <p className="px-2 py-1 text-[10px] uppercase tracking-wider font-bold text-slate-400">
+                {t.onlineUsersTitle} ({presenceUsers.length})
+              </p>
+              <div className="divide-y divide-slate-100 max-h-60 overflow-y-auto">
+                {presenceUsers.map((u) => {
+                  const isBusy = u.activity === 'editing' || u.activity === 'adding';
+                  const statusWord =
+                    u.activity === 'editing'
+                      ? t.presenceEditingLabel
+                      : u.activity === 'adding'
+                      ? t.presenceAddingLabel
+                      : t.presenceViewingLabel;
+                  const targetPerson = u.activeHouseholdId
+                    ? treeData?.persons.find((p) => p.household_id === u.activeHouseholdId)
+                    : undefined;
+                  return (
+                    <button
+                      key={u.deviceId}
+                      type="button"
+                      onClick={() => {
+                        setPresenceMenuOpen(false);
+                        if (targetPerson) {
+                          setActiveTab('tree');
+                          setFocusPersonRequest((prev) => ({
+                            personId: targetPerson.id,
+                            nonce: (prev?.nonce ?? 0) + 1,
+                          }));
+                        }
+                      }}
+                      className="w-full px-2 py-2 flex items-center gap-2.5 hover:bg-slate-50 rounded-xl text-left transition-colors cursor-pointer"
+                    >
+                      <span
+                        className={`w-7 h-7 rounded-full text-white flex items-center justify-center text-xs font-extrabold shrink-0 ${
+                          isBusy ? 'bg-amber-500' : 'bg-emerald-600'
+                        }`}
+                      >
+                        {u.displayName.slice(0, 1).toUpperCase()}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold text-slate-900 truncate">
+                          {u.displayName}
+                          {u.deviceId === deviceId ? ' (You)' : ''}
+                        </p>
+                        <p className="text-[10px] text-slate-500 truncate">
+                          {u.targetName
+                            ? `${statusWord} • ${u.targetName}`
+                            : t.presenceBrowsingTree}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </>
+        )}
       </header>
 
-      {/* Main Viewport Content */}
+        {/* Main Viewport Content */}
       <main className="flex-1 relative min-h-0">
+        {activityToast && (
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 bg-slate-900/95 text-white px-3.5 py-1.5 rounded-full text-xs font-semibold shadow-lg flex items-center gap-2 pointer-events-none">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span>{activityToast}</span>
+          </div>
+        )}
         {loading ? (
           <div className="absolute inset-0 flex items-center justify-center p-8 bg-slate-50/80 backdrop-blur-xs z-20">
             <div className="flex flex-col items-center gap-3">
@@ -1051,6 +1263,8 @@ export const App: React.FC = () => {
               userRole={session.role}
               deviceId={deviceId}
               focusPersonRequest={focusPersonRequest}
+              presenceUsers={presenceUsers}
+              onPresenceContextChange={setViewingPresenceCtx}
               onOpenMemberModal={(p, h, mode) => {
                 const targetPerson = p || (h ? treeData?.persons.find((item) => item.household_id === h.id) : undefined);
                 setMemberModalState({

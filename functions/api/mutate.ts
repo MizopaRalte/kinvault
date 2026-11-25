@@ -13,6 +13,39 @@ export interface Env {
   JWT_SECRET: string;
 }
 
+function summarizeMutation(action: string, p: Record<string, any>): string {
+  switch (action) {
+    case 'claim_profile':
+      return 'claimed their profile';
+    case 'upsert_household':
+      return `updated ${p.family_name || 'household'}`;
+    case 'upsert_person':
+      return `updated ${p.full_name || 'a profile'}`;
+    case 'add_child_household':
+      return `added ${p.childFullName || 'a child'}`;
+    case 'reparent_person':
+      return 'updated parent placement';
+    case 'add_spouse':
+      return `added ${p.spouseFullName || 'a partner'}`;
+    case 'update_spouse_status':
+      return 'updated relationship status';
+    case 'add_sibling':
+      return `added ${p.siblingFullName || 'a sibling'}`;
+    case 'add_ancestors_above':
+      return `added parents (${[p.fatherName, p.motherName].filter(Boolean).join(' & ') || 'ancestors'})`;
+    case 'set_role':
+      return 'updated member role';
+    case 'delete_person':
+      return 'removed a profile';
+    case 'delete_household':
+      return 'removed a household';
+    case 'rename_tree':
+      return `renamed tree to "${p.name || ''}"`;
+    default:
+      return 'updated the tree';
+  }
+}
+
 export const onRequestPost = async ({ request, env }: { request: Request; env: Env }): Promise<Response> => {
   try {
     const authHeader = request.headers.get('Authorization');
@@ -62,7 +95,8 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
     const p = body.payload || {};
     const now = Date.now();
 
-    switch (action) {
+    const response = await (async (): Promise<Response> => {
+      switch (action) {
       case 'claim_profile': {
         const personId = p.personId as string;
         if (!personId) {
@@ -882,6 +916,8 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
         }
 
         await env.DB.batch([
+          env.DB.prepare('DELETE FROM tree_presence WHERE tree_id = ?').bind(treeId),
+          env.DB.prepare('DELETE FROM tree_events WHERE tree_id = ?').bind(treeId),
           env.DB.prepare('DELETE FROM relationships WHERE tree_id = ?').bind(treeId),
           env.DB.prepare('DELETE FROM persons WHERE tree_id = ?').bind(treeId),
           env.DB.prepare('DELETE FROM households WHERE tree_id = ?').bind(treeId),
@@ -893,7 +929,29 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
 
       default:
         return new Response(JSON.stringify({ error: `Unsupported mutation action: ${action}` }), { status: 400 });
+      }
+    })();
+
+    if (response.ok && action !== 'delete_self_tree') {
+      try {
+        const actorName = caller?.full_name || 'Member';
+        const summary = summarizeMutation(action, p);
+        await env.DB.prepare(
+          `INSERT INTO tree_events (tree_id, last_mutated_at, actor_name, summary)
+           VALUES (?, ?, ?, ?)
+           ON CONFLICT(tree_id) DO UPDATE SET
+             last_mutated_at = excluded.last_mutated_at,
+             actor_name = excluded.actor_name,
+             summary = excluded.summary`
+        )
+          .bind(treeId, now, actorName, summary)
+          .run();
+      } catch {
+        // Presence/activity tracking is non-fatal if table isn't initialized yet
+      }
     }
+
+    return response;
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown server error';
     return new Response(JSON.stringify({ error: message }), {

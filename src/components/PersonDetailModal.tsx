@@ -5,7 +5,6 @@ import {
   MessageCircle,
   MapPin,
   Edit2,
-  Home,
   Users,
   ShieldAlert,
   ShieldCheck,
@@ -328,9 +327,23 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
             </div>
 
             <div className="min-w-0">
-              <h3 className="text-lg font-extrabold text-slate-900 leading-tight">
-                {person.full_name}
-              </h3>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <h3 className="text-lg font-extrabold text-slate-900 leading-tight truncate">
+                  {person.full_name}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenMemberModal(person, household, 'edit_person');
+                  }}
+                  title={t.editProfile}
+                  aria-label={t.editProfile}
+                  className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer shrink-0"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
               {person.nickname_or_maiden && (
                 <p className="text-xs font-medium text-slate-500 mt-0.5">
                   ({person.nickname_or_maiden})
@@ -403,137 +416,131 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
             </p>
           )}
 
-          {/* Add Relative Quick Actions (Promoted for Immediate Discovery) */}
-          <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3">
-            <p className="text-[10px] uppercase tracking-wider font-bold text-slate-500 mb-2 truncate">
-              {t.addFamilyLineLabel} • {person.full_name}
-            </p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-xs sm:text-[11px] font-bold">
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                  onOpenMemberModal(person, household, 'add_ancestor');
-                }}
-                className="py-2 px-2 bg-white hover:bg-slate-100 border border-slate-200 text-slate-800 rounded-xl flex items-center justify-center gap-1 transition-colors cursor-pointer"
-              >
-                <ArrowUp className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                <span className="truncate">{t.addAncestorsAbove.replace(/^\+\s*/, '')}</span>
-              </button>
+          {/* Compact Quick-Add Relative Strip */}
+          <div className="grid grid-cols-4 gap-1.5 text-[11px] font-bold">
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenMemberModal(person, household, 'add_ancestor');
+              }}
+              className="py-1.5 px-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl flex items-center justify-center gap-1 transition-colors cursor-pointer"
+            >
+              <ArrowUp className="w-3 h-3 text-slate-500 shrink-0" />
+              <span className="truncate">{t.addAncestorsAbove.replace(/^\+\s*/, '')}</span>
+            </button>
 
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                  onOpenMemberModal(person, household, 'add_spouse');
-                }}
-                className="py-2 px-2 bg-white hover:bg-slate-100 border border-slate-200 text-slate-800 rounded-xl flex items-center justify-center gap-1 transition-colors cursor-pointer"
-              >
-                <Heart className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                <span className="truncate">{t.addSpouse.replace(/^\+\s*/, '')}</span>
-              </button>
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenMemberModal(person, household, 'add_spouse');
+              }}
+              className="py-1.5 px-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl flex items-center justify-center gap-1 transition-colors cursor-pointer"
+            >
+              <Heart className="w-3 h-3 text-rose-500 shrink-0" />
+              <span className="truncate">{t.addSpouse.replace(/^\+\s*/, '')}</span>
+            </button>
 
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                  onOpenMemberModal(person, household, 'add_sibling');
-                }}
-                className="py-2 px-2 bg-white hover:bg-slate-100 border border-slate-200 text-slate-800 rounded-xl flex items-center justify-center gap-1 transition-colors cursor-pointer"
-              >
-                <Users className="w-3.5 h-3.5 text-sky-600 shrink-0" />
-                <span className="truncate">{t.addSibling.replace(/^\+\s*/, '')}</span>
-              </button>
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenMemberModal(person, household, 'add_sibling');
+              }}
+              className="py-1.5 px-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl flex items-center justify-center gap-1 transition-colors cursor-pointer"
+            >
+              <Users className="w-3 h-3 text-sky-600 shrink-0" />
+              <span className="truncate">{t.addSibling.replace(/^\+\s*/, '')}</span>
+            </button>
 
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                  onOpenMemberModal(person, household, 'add_child');
-                }}
-                className="py-2 px-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl flex items-center justify-center gap-1 transition-colors cursor-pointer"
-              >
-                <ArrowDown className="w-3.5 h-3.5 text-sky-300 shrink-0" />
-                <span className="truncate">{t.addChildHousehold.replace(/^\+\s*/, '')}</span>
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenMemberModal(person, household, 'add_child');
+              }}
+              className="py-1.5 px-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl flex items-center justify-center gap-1 transition-colors cursor-pointer"
+            >
+              <ArrowDown className="w-3 h-3 text-sky-300 shrink-0" />
+              <span className="truncate">{t.addChildHousehold.replace(/^\+\s*/, '')}</span>
+            </button>
           </div>
 
-          {/* Contact & Address Information */}
-          <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 space-y-3">
-            {/* Telephone */}
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center shrink-0">
-                  <Phone className="w-4 h-4 text-slate-600" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400">
-                    {t.phoneNumber}
-                  </p>
-                  <p className="text-xs font-mono font-semibold text-slate-800 truncate">
-                    {person.phone_e164 || t.noPhone}
-                  </p>
-                </div>
-              </div>
-
+          {/* Filled Contact, Address & Family Photo Only (No Empty Placeholders) */}
+          {(person.phone_e164 || fullAddress || household?.family_photo_b64) && (
+            <div className="bg-slate-50/90 border border-slate-200/80 rounded-2xl p-3 space-y-2.5">
               {person.phone_e164 && (
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <a
-                    href={`tel:${person.phone_e164}`}
-                    className="px-2.5 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-[11px] font-bold text-slate-700 flex items-center gap-1 transition-colors"
-                  >
-                    <Phone className="w-3 h-3 text-slate-600" />
-                    {t.call}
-                  </a>
-                  {cleanPhoneForWhatsApp && (
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Phone className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                    <span className="text-xs font-mono font-semibold text-slate-800 truncate">
+                      {person.phone_e164}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
                     <a
-                      href={`https://wa.me/${cleanPhoneForWhatsApp}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold flex items-center gap-1 transition-colors"
+                      href={`tel:${person.phone_e164}`}
+                      className="px-2 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-[11px] font-bold text-slate-700 flex items-center gap-1 transition-colors"
                     >
-                      <MessageCircle className="w-3 h-3" />
-                      {t.whatsApp}
+                      <Phone className="w-3 h-3 text-slate-600" />
+                      {t.call}
                     </a>
-                  )}
+                    {cleanPhoneForWhatsApp && (
+                      <a
+                        href={`https://wa.me/${cleanPhoneForWhatsApp}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold flex items-center gap-1 transition-colors"
+                      >
+                        <MessageCircle className="w-3 h-3" />
+                        {t.whatsApp}
+                      </a>
+                    )}
+                  </div>
                 </div>
               )}
-            </div>
 
-            <div className="border-t border-slate-200/70" />
-
-            {/* Address */}
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center shrink-0">
-                  <MapPin className="w-4 h-4 text-slate-600" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400">
-                    {t.addressLabel} {household?.family_name ? `• ${household.family_name}` : ''}
-                  </p>
-                  <p className="text-xs font-medium text-slate-800 leading-snug">
-                    {fullAddress || t.noAddress}
-                  </p>
-                </div>
-              </div>
+              {person.phone_e164 && fullAddress && (
+                <div className="border-t border-slate-200/70" />
+              )}
 
               {fullAddress && (
-                <a
-                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-2.5 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-[11px] font-bold text-slate-700 flex items-center gap-1 transition-colors shrink-0"
-                >
-                  <MapPin className="w-3 h-3 text-slate-600" />
-                  {t.maps}
-                </a>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                    <span className="text-xs font-medium text-slate-800 leading-snug truncate">
+                      {fullAddress}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {household && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClose();
+                          onOpenMemberModal(person, household, 'edit_household');
+                        }}
+                        title={t.editHousehold}
+                        className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-white rounded-lg transition-colors cursor-pointer"
+                      >
+                        <Edit2 className="w-3 h-3" />
+                      </button>
+                    )}
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-2 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-[11px] font-bold text-slate-700 flex items-center gap-1 transition-colors"
+                    >
+                      <MapPin className="w-3 h-3 text-slate-600" />
+                      {t.maps}
+                    </a>
+                  </div>
+                </div>
               )}
-            </div>
 
-            {household?.family_photo_b64 && onPreviewPhoto && (
-              <div className="pt-1">
+              {household?.family_photo_b64 && onPreviewPhoto && (
                 <button
                   type="button"
                   onClick={() => onPreviewPhoto(household.family_photo_b64!)}
@@ -542,9 +549,9 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
                   <Camera className="w-3.5 h-3.5 text-slate-500" />
                   <span>{t.familyPhoto}</span>
                 </button>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
           {/* Family Connections Navigation Chips */}
           {(familyConnections.parents.length > 0 ||
@@ -739,88 +746,58 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
           )}
         </div>
 
-        {/* Footer Edit & Focus Actions */}
-        <div className="px-5 sm:px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
+        {/* Footer Actions */}
+        <div className="px-5 sm:px-6 py-3 bg-slate-50 border-t border-slate-100 flex flex-wrap items-center justify-end gap-2">
+          {onInviteBranchMember &&
+            (userRole === 'super_admin' || userRole === 'branch_admin') &&
+            person.role !== 'super_admin' &&
+            person.id !== activePersonId && (
+              <button
+                type="button"
+                disabled={invitingBranch}
+                onClick={async () => {
+                  setInvitingBranch(true);
+                  try {
+                    await onInviteBranchMember(person);
+                    onClose();
+                  } finally {
+                    setInvitingBranch(false);
+                  }
+                }}
+                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                <span>{t.inviteBranchAdminBtn}</span>
+              </button>
+            )}
+
+          {onStartCompare && (
             <button
               type="button"
               onClick={() => {
+                onStartCompare(person, household);
                 onClose();
-                onOpenMemberModal(person, household, 'edit_person');
               }}
-              className="px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-800 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
             >
-              <Edit2 className="w-3.5 h-3.5 text-slate-600" />
-              <span>{t.editProfile}</span>
+              <GitCompare className="w-3.5 h-3.5" />
+              <span>{t.compareRelation}</span>
             </button>
+          )}
 
-            {household && (
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                  onOpenMemberModal(person, household, 'edit_household');
-                }}
-                className="px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 flex items-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <Home className="w-3.5 h-3.5 text-slate-600" />
-                <span className="hidden sm:inline">{t.addressLabel}</span>
-              </button>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2 flex-wrap">
-            {onInviteBranchMember &&
-              (userRole === 'super_admin' || userRole === 'branch_admin') &&
-              person.role !== 'super_admin' &&
-              person.id !== activePersonId && (
-                <button
-                  type="button"
-                  disabled={invitingBranch}
-                  onClick={async () => {
-                    setInvitingBranch(true);
-                    try {
-                      await onInviteBranchMember(person);
-                      onClose();
-                    } finally {
-                      setInvitingBranch(false);
-                    }
-                  }}
-                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
-                >
-                  <Share2 className="w-3.5 h-3.5" />
-                  <span>{t.inviteBranchAdminBtn}</span>
-                </button>
-              )}
-
-            {onStartCompare && (
-              <button
-                type="button"
-                onClick={() => {
-                  onStartCompare(person, household);
-                  onClose();
-                }}
-                className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-800 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <GitCompare className="w-3.5 h-3.5" />
-                <span>{t.compareRelation}</span>
-              </button>
-            )}
-
-            {household && onFocusBranch && (
-              <button
-                type="button"
-                onClick={() => {
-                  onFocusBranch(household.id);
-                  onClose();
-                }}
-                className="px-3 py-1.5 bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-800 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <Focus className="w-3.5 h-3.5" />
-                <span>{t.focusBranch}</span>
-              </button>
-            )}
-          </div>
+          {household && onFocusBranch && (
+            <button
+              type="button"
+              onClick={() => {
+                onFocusBranch(household.id);
+                onClose();
+              }}
+              className="px-3 py-1.5 bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-800 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <Focus className="w-3.5 h-3.5" />
+              <span>{t.focusBranch}</span>
+            </button>
+          )}
         </div>
       </div>
     </div>
