@@ -488,7 +488,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                   <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between">
                     <div>
                       <p className="text-xs font-bold text-amber-900">{t.unclaimedProfile}</p>
-                      <p className="text-[11px] text-amber-700">Link this profile to this device</p>
+                      <p className="text-[11px] text-amber-700">{t.claimProfileSubtitle}</p>
                     </div>
                     <button
                       type="button"
@@ -559,7 +559,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                       </div>
                       {avatarSizeKb !== null && (
                         <p className="text-[11px] text-slate-500">
-                          Compressed: <strong className="text-slate-800">{avatarSizeKb} KB</strong> (WebP)
+                          {t.compressedSizeLabel} <strong className="text-slate-800">{avatarSizeKb} KB</strong> (WebP)
                         </p>
                       )}
                     </div>
@@ -587,7 +587,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                     type="text"
                     value={nicknameOrMaiden}
                     onChange={(e) => setNicknameOrMaiden(e.target.value)}
-                    placeholder="e.g. Mami"
+                    placeholder={t.nicknamePlaceholder}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
                   />
                 </div>
@@ -615,7 +615,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                       maxLength={4}
                       value={birthYear}
                       onChange={(e) => setBirthYear(e.target.value.replace(/\D/g, ''))}
-                      placeholder="e.g. 1985"
+                      placeholder={t.birthYearPlaceholder}
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
                     />
                   </div>
@@ -628,7 +628,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                       maxLength={4}
                       value={deathYear}
                       onChange={(e) => setDeathYear(e.target.value.replace(/\D/g, ''))}
-                      placeholder="e.g. 2020"
+                      placeholder={t.deathYearPlaceholder}
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
                     />
                   </div>
@@ -652,7 +652,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                   <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
                     <div>
                       <span className="text-xs font-bold text-slate-800">
-                        Role: {person.role === 'branch_admin' ? t.branchAdminBadge : t.memberBadge}
+                        {t.roleLabel} {person.role === 'branch_admin' ? t.branchAdminBadge : t.memberBadge}
                       </span>
                     </div>
                     <button
@@ -710,7 +710,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                         <Camera className="w-8 h-8 text-slate-400 mb-1" />
                         <span className="text-xs font-semibold text-slate-700">{t.uploadPhoto}</span>
                         <span className="text-[11px] text-slate-400 mt-0.5">
-                          Compressed to 1280px WebP
+                          {t.compressedSizeLabel} 1280px WebP
                         </span>
                         <input
                           type="file"
@@ -723,7 +723,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
 
                     {photoSizeKb !== null && (
                       <p className="text-[11px] text-slate-500">
-                        Compressed size: <strong className="text-slate-800">{photoSizeKb} KB</strong> (WebP)
+                        {t.compressedSizeLabel} <strong className="text-slate-800">{photoSizeKb} KB</strong> (WebP)
                       </p>
                     )}
                   </div>
@@ -738,7 +738,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                     required
                     value={familyName}
                     onChange={(e) => setFamilyName(e.target.value)}
-                    placeholder="e.g. Sailo Family"
+                    placeholder={t.newFamilyPlaceholder}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
                   />
                 </div>
@@ -776,7 +776,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                     type="text"
                     value={addressLine}
                     onChange={(e) => setAddressLine(e.target.value)}
-                    placeholder="Street, House No."
+                    placeholder={t.addressPlaceholder}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
                   />
                 </div>
@@ -823,7 +823,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
             {mode === 'add_child' && (
               <>
                 <p className="text-xs text-slate-500">
-                  Add a child under <strong>{person?.full_name || 'parent'}</strong> to branch out into a new household.
+                  {t.addChildNotice.replace('{name}', person?.full_name || 'parent')}
                 </p>
 
                 <div>
@@ -835,7 +835,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                     required
                     value={childFullName}
                     onChange={(e) => setChildFullName(e.target.value)}
-                    placeholder="e.g. Lalnunfela"
+                    placeholder={t.childPlaceholder}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
                   />
                 </div>
@@ -843,7 +843,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                 {/* Child Photo Upload & Camera */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
-                    {t.personalPhoto} (Optional)
+                    {t.personalPhoto} {t.optionalLabel}
                   </label>
                   <div className="flex items-center gap-3">
                     <div className="relative w-14 h-14 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
@@ -891,7 +891,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                       </div>
                       {childAvatarSizeKb !== null && (
                         <p className="text-[11px] text-slate-500">
-                          Compressed: <strong className="text-slate-800">{childAvatarSizeKb} KB</strong> (WebP)
+                          {t.compressedSizeLabel} <strong className="text-slate-800">{childAvatarSizeKb} KB</strong> (WebP)
                         </p>
                       )}
                     </div>
@@ -900,27 +900,27 @@ export const MemberModal: React.FC<MemberModalProps> = ({
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                    {t.spouseName} (Optional)
+                    {t.spouseName} {t.optionalLabel}
                   </label>
                   <input
                     type="text"
                     value={childSpouseName}
                     onChange={(e) => setChildSpouseName(e.target.value)}
-                    placeholder="e.g. Zothanpuii"
+                    placeholder={t.spousePlaceholder}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                    {t.birthYear} (Optional)
+                    {t.birthYear} {t.optionalLabel}
                   </label>
                   <input
                     type="text"
                     maxLength={4}
                     value={childBirthYear}
                     onChange={(e) => setChildBirthYear(e.target.value.replace(/\D/g, ''))}
-                    placeholder="e.g. 2010"
+                    placeholder={t.birthYearPlaceholder}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
                   />
                 </div>
@@ -931,7 +931,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
             {mode === 'add_spouse' && (
               <>
                 <p className="text-xs text-slate-500">
-                  Add a spouse to <strong>{person?.full_name || household?.family_name}</strong>.
+                  {t.addSpouseNotice.replace('{name}', person?.full_name || household?.family_name || '')}
                 </p>
 
                 <div>
@@ -943,7 +943,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                     required
                     value={spouseFullName}
                     onChange={(e) => setSpouseFullName(e.target.value)}
-                    placeholder="e.g. Lalthantluangi"
+                    placeholder={t.spousePlaceholder}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
                   />
                 </div>
@@ -951,7 +951,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                 {/* Spouse Photo Upload & Camera */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
-                    {t.personalPhoto} (Optional)
+                    {t.personalPhoto} {t.optionalLabel}
                   </label>
                   <div className="flex items-center gap-3">
                     <div className="relative w-14 h-14 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
@@ -999,7 +999,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                       </div>
                       {spouseAvatarSizeKb !== null && (
                         <p className="text-[11px] text-slate-500">
-                          Compressed: <strong className="text-slate-800">{spouseAvatarSizeKb} KB</strong> (WebP)
+                          {t.compressedSizeLabel} <strong className="text-slate-800">{spouseAvatarSizeKb} KB</strong> (WebP)
                         </p>
                       )}
                     </div>
@@ -1039,7 +1039,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
             {mode === 'add_ancestor' && (
               <>
                 <div className="p-3 bg-slate-100 rounded-xl text-xs text-slate-600">
-                  Retroactively add missing parent(s) above <strong>{person?.full_name}</strong>. A new ancestor household will be created above.
+                  {t.addAncestorNotice.replace('{name}', person?.full_name || '')}
                 </div>
 
                 <div>
@@ -1050,7 +1050,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                     type="text"
                     value={ancestorFather}
                     onChange={(e) => setAncestorFather(e.target.value)}
-                    placeholder="e.g. Hmingthanga"
+                    placeholder={t.fatherPlaceholder}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
                   />
                   {ancestorFather.trim() && (
@@ -1103,7 +1103,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                     type="text"
                     value={ancestorMother}
                     onChange={(e) => setAncestorMother(e.target.value)}
-                    placeholder="e.g. Rochhingpuii"
+                    placeholder={t.motherPlaceholder}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
                   />
                   {ancestorMother.trim() && (
@@ -1156,7 +1156,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                     type="text"
                     value={ancestorFamilyName}
                     onChange={(e) => setAncestorFamilyName(e.target.value)}
-                    placeholder="e.g. Senior Branch Household"
+                    placeholder={t.newFamilyPlaceholder}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
                   />
                 </div>
@@ -1187,7 +1187,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                 {/* Sibling Photo Upload & Camera */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
-                    {t.personalPhoto} (Optional)
+                    {t.personalPhoto} {t.optionalLabel}
                   </label>
                   <div className="flex items-center gap-3">
                     <div className="relative w-14 h-14 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
@@ -1235,7 +1235,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                       </div>
                       {siblingAvatarSizeKb !== null && (
                         <p className="text-[11px] text-slate-500">
-                          Compressed: <strong className="text-slate-800">{siblingAvatarSizeKb} KB</strong> (WebP)
+                          {t.compressedSizeLabel} <strong className="text-slate-800">{siblingAvatarSizeKb} KB</strong> (WebP)
                         </p>
                       )}
                     </div>
@@ -1252,6 +1252,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                       maxLength={4}
                       value={siblingBirthYear}
                       onChange={(e) => setSiblingBirthYear(e.target.value.replace(/\D/g, ''))}
+                      placeholder={t.birthYearPlaceholder}
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
                     />
                   </div>
@@ -1271,13 +1272,13 @@ export const MemberModal: React.FC<MemberModalProps> = ({
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                    {t.spouseName} (Optional)
+                    {t.spouseName} {t.optionalLabel}
                   </label>
                   <input
                     type="text"
                     value={siblingSpouseName}
                     onChange={(e) => setSiblingSpouseName(e.target.value)}
-                    placeholder="e.g. Spouse name if married"
+                    placeholder={t.spousePlaceholder}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
                   />
                 </div>

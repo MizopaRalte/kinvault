@@ -77,19 +77,27 @@ export interface TranslationDictionary {
   editProfile: string;
   editHousehold: string;
   claimThisProfile: string;
+  claimProfileSubtitle: string;
   profileClaimed: string;
   fullName: string;
   maidenOrNickname: string;
+  nicknamePlaceholder: string;
   phoneNumber: string;
   birthYear: string;
+  birthYearPlaceholder: string;
   deathYear: string;
+  deathYearPlaceholder: string;
   isLivingCheck: string;
   personalPhoto: string;
   familyPhoto: string;
   uploadPhoto: string;
   takePhoto: string;
   removePhoto: string;
+  optionalLabel: string;
+  compressedSizeLabel: string;
+  roleLabel: string;
   addressLine: string;
+  addressPlaceholder: string;
   postalCode: string;
   branchColorLabel: string;
   saveChanges: string;
@@ -103,10 +111,18 @@ export interface TranslationDictionary {
   promoteBranchAdmin: string;
   demoteToMember: string;
   ancestorFather: string;
+  fatherPlaceholder: string;
   ancestorMother: string;
+  motherPlaceholder: string;
   childName: string;
+  childPlaceholder: string;
   spouseName: string;
+  spousePlaceholder: string;
   newFamilyName: string;
+  newFamilyPlaceholder: string;
+  addChildNotice: string;
+  addSpouseNotice: string;
+  addAncestorNotice: string;
 
   // Share
   shareTitle: string;
@@ -259,19 +275,27 @@ export const translations: Record<Language, TranslationDictionary> = {
     editProfile: 'Edit Profile',
     editHousehold: 'Edit Household',
     claimThisProfile: 'Claim This Profile as Me',
+    claimProfileSubtitle: 'Link this profile to this device',
     profileClaimed: 'Profile claimed by this device',
     fullName: 'Full Name',
     maidenOrNickname: 'Nickname / Maiden Name',
+    nicknamePlaceholder: 'e.g. Mami',
     phoneNumber: 'Phone (International format)',
     birthYear: 'Birth Year',
+    birthYearPlaceholder: 'e.g. 1985',
     deathYear: 'Death Year',
+    deathYearPlaceholder: 'e.g. 2020',
     isLivingCheck: 'Is this person currently living?',
     personalPhoto: 'Personal Photo',
     familyPhoto: 'Family Household Photo',
     uploadPhoto: 'Upload Photo',
     takePhoto: 'Take Photo',
     removePhoto: 'Remove',
+    optionalLabel: '(Optional)',
+    compressedSizeLabel: 'Compressed:',
+    roleLabel: 'Role:',
     addressLine: 'Street Address',
+    addressPlaceholder: 'Street, House No.',
     postalCode: 'Postal Code',
     branchColorLabel: 'Branch Accent Color',
     saveChanges: 'Save Changes',
@@ -285,10 +309,18 @@ export const translations: Record<Language, TranslationDictionary> = {
     promoteBranchAdmin: 'Promote to Branch Admin',
     demoteToMember: 'Demote to Regular Member',
     ancestorFather: "Father's Full Name",
+    fatherPlaceholder: 'e.g. Hmingthanga',
     ancestorMother: "Mother's Full Name",
+    motherPlaceholder: 'e.g. Rochhingpuii',
     childName: "Child's Full Name",
+    childPlaceholder: 'e.g. Lalnunfela',
     spouseName: "Spouse's Full Name",
+    spousePlaceholder: 'e.g. Lalthantluangi',
     newFamilyName: 'New Family / Household Name',
+    newFamilyPlaceholder: 'e.g. Sailo Family',
+    addChildNotice: 'Add a child under {name} to branch out into a new household.',
+    addSpouseNotice: 'Add a spouse to {name}.',
+    addAncestorNotice: 'Add missing parent(s) above {name}. A new ancestor household will be created above.',
 
     shareTitle: 'Invite Your Family',
     shareSubtitle: 'Relatives need the 8-character code and 6-digit PIN to join.',
@@ -415,7 +447,7 @@ export const translations: Record<Language, TranslationDictionary> = {
     superAdminBadge: 'Siamtu (Super Admin)',
     branchAdminBadge: 'Peng Admin',
     memberBadge: 'Chhungkhat',
-    unclaimedProfile: 'Hauh loh nihna',
+    unclaimedProfile: 'Tuma la hauh loh',
     claimedByYou: 'Nangmah',
 
     searchPlaceholder: 'Hming, kohduat, khua, phone number, kum zawng rawh...',
@@ -430,22 +462,30 @@ export const translations: Record<Language, TranslationDictionary> = {
     born: 'b.',
     died: 'd.',
 
-    editProfile: 'Mimal Nihna Siamaṭhatna',
-    editHousehold: 'Chhungkaw Siamaṭhatna',
-    claimThisProfile: 'He nihna hi keimah ka ni',
+    editProfile: 'Mimal Chanchin Siamṭhatna',
+    editHousehold: 'Chhungkaw Chanchin Siamṭhatna',
+    claimThisProfile: 'He hi keimah ka ni',
+    claimProfileSubtitle: 'He profile hi i phone nen thlunzawm rawh',
     profileClaimed: 'He khawlah hian hauh tawh a ni',
     fullName: 'Hming Pum',
-    maidenOrNickname: 'Kohduat / Hming dang',
+    maidenOrNickname: 'Koh duat / Hming lem',
+    nicknamePlaceholder: 'Entirnan: Mami',
     phoneNumber: 'Phone (Ram code telin)',
     birthYear: 'Pian Kum',
+    birthYearPlaceholder: 'Entirnan: 1985',
     deathYear: 'Boral Kum',
-    isLivingCheck: 'A la dam em?',
+    deathYearPlaceholder: 'Entirnan: 2020',
+    isLivingCheck: 'A la dam (Dam lai)',
     personalPhoto: 'Mimal Thlalak',
     familyPhoto: 'Chhungkaw Thlalak',
     uploadPhoto: 'Thlalak Thlang Rawh',
-    takePhoto: 'Camera Hmanga Lâk',
+    takePhoto: 'Camera-a Lâk',
     removePhoto: 'Paih Rawh',
+    optionalLabel: '(A duh tan)',
+    compressedSizeLabel: 'Lian zawng:',
+    roleLabel: 'Chanvo:',
     addressLine: 'Veng / Kawng Hming',
+    addressPlaceholder: 'Veng hming, In number',
     postalCode: 'PIN Code',
     branchColorLabel: 'A Peng Rawng',
     saveChanges: 'Save Rawh',
@@ -459,10 +499,18 @@ export const translations: Record<Language, TranslationDictionary> = {
     promoteBranchAdmin: 'Peng Admin-ah Siam Rawh',
     demoteToMember: 'Chhungkhat Pangngaiah Thlâk Rawh',
     ancestorFather: 'Pa Hming Pum',
+    fatherPlaceholder: 'Entirnan: Hmingthanga',
     ancestorMother: 'Nu Hming Pum',
+    motherPlaceholder: 'Entirnan: Rochhingpuii',
     childName: 'Fa Hming Pum',
+    childPlaceholder: 'Entirnan: Lalnunfela',
     spouseName: 'Kawppui Hming Pum',
-    newFamilyName: 'Chhungkaw Hming Tharlam',
+    spousePlaceholder: 'Entirnan: Lalthantluangi',
+    newFamilyName: 'Chhungkaw Hming',
+    newFamilyPlaceholder: 'Entirnan: Sailo Chhungkua',
+    addChildNotice: '{name} hnuaiah fa thar belhna (chhungkaw peng thar a siam ang).',
+    addSpouseNotice: '{name} kawppui belhna.',
+    addAncestorNotice: '{name} chungah a nu leh pa (thlahtute) belhna.',
 
     shareTitle: 'Chhungte Sâwmna',
     shareSubtitle: 'Code hawrawp 8 leh PIN number 6 hmangin chhungkua an zawm thei ang.',
@@ -607,19 +655,27 @@ export const translations: Record<Language, TranslationDictionary> = {
     editProfile: 'Editar Perfil',
     editHousehold: 'Editar Hogar',
     claimThisProfile: 'Vincular este perfil como mío',
+    claimProfileSubtitle: 'Vincular este perfil a este dispositivo',
     profileClaimed: 'Perfil vinculado a este dispositivo',
     fullName: 'Nombre Completo',
     maidenOrNickname: 'Apodo / Apellido de Soltera',
+    nicknamePlaceholder: 'ej. Mami',
     phoneNumber: 'Teléfono (formato internacional)',
     birthYear: 'Año de Nacimiento',
+    birthYearPlaceholder: 'ej. 1985',
     deathYear: 'Año de Fallecimiento',
+    deathYearPlaceholder: 'ej. 2020',
     isLivingCheck: '¿Esta persona sigue con vida?',
     personalPhoto: 'Foto de Perfil',
     familyPhoto: 'Foto Familiar',
     uploadPhoto: 'Subir Foto',
     takePhoto: 'Tomar Foto',
     removePhoto: 'Eliminar',
+    optionalLabel: '(Opcional)',
+    compressedSizeLabel: 'Comprimido:',
+    roleLabel: 'Rol:',
     addressLine: 'Dirección',
+    addressPlaceholder: 'Calle, Número de casa',
     postalCode: 'Código Postal',
     branchColorLabel: 'Color de la Rama',
     saveChanges: 'Guardar Cambios',
@@ -633,10 +689,18 @@ export const translations: Record<Language, TranslationDictionary> = {
     promoteBranchAdmin: 'Promover a Administrador de Rama',
     demoteToMember: 'Cambiar a Miembro Regular',
     ancestorFather: 'Nombre del Padre',
+    fatherPlaceholder: 'ej. Juan',
     ancestorMother: 'Nombre de la Madre',
+    motherPlaceholder: 'ej. María',
     childName: 'Nombre del Hijo/Hija',
+    childPlaceholder: 'ej. Mateo',
     spouseName: 'Nombre del Cónyuge',
+    spousePlaceholder: 'ej. Sofía',
     newFamilyName: 'Nombre del Nuevo Hogar',
+    newFamilyPlaceholder: 'ej. Familia Gomez',
+    addChildNotice: 'Agrega un hijo/a debajo de {name} para crear una nueva rama.',
+    addSpouseNotice: 'Agregar pareja a {name}.',
+    addAncestorNotice: 'Agregar padres arriba de {name}. Se creará un hogar de antepasados arriba.',
 
     shareTitle: 'Invitar a la Familia',
     shareSubtitle: 'Tus familiares necesitan el código de 8 caracteres y el PIN de 6 dígitos.',
@@ -781,19 +845,27 @@ export const translations: Record<Language, TranslationDictionary> = {
     editProfile: 'Profil bearbeiten',
     editHousehold: 'Haushalt bearbeiten',
     claimThisProfile: 'Dieses Profil als meins beanspruchen',
+    claimProfileSubtitle: 'Dieses Profil mit diesem Gerät verknüpfen',
     profileClaimed: 'Auf diesem Gerät beansprucht',
     fullName: 'Vollständiger Name',
     maidenOrNickname: 'Spitzname / Geburtsname',
+    nicknamePlaceholder: 'z. B. Mami',
     phoneNumber: 'Telefon (internationales Format)',
     birthYear: 'Geburtsjahr',
+    birthYearPlaceholder: 'z. B. 1985',
     deathYear: 'Todesjahr',
+    deathYearPlaceholder: 'z. B. 2020',
     isLivingCheck: 'Lebt diese Person noch?',
     personalPhoto: 'Profilfoto',
     familyPhoto: 'Familienfoto',
     uploadPhoto: 'Foto hochladen',
     takePhoto: 'Foto aufnehmen',
     removePhoto: 'Entfernen',
+    optionalLabel: '(Optional)',
+    compressedSizeLabel: 'Komprimiert:',
+    roleLabel: 'Rolle:',
     addressLine: 'Straße und Hausnummer',
+    addressPlaceholder: 'Straße, Hausnummer',
     postalCode: 'Postleitzahl',
     branchColorLabel: 'Zweig-Farbe',
     saveChanges: 'Änderungen speichern',
@@ -807,10 +879,18 @@ export const translations: Record<Language, TranslationDictionary> = {
     promoteBranchAdmin: 'Zum Zweig-Admin befördern',
     demoteToMember: 'Zu regulärem Mitglied herabstufen',
     ancestorFather: 'Vollständiger Name des Vaters',
+    fatherPlaceholder: 'z. B. Hans',
     ancestorMother: 'Vollständiger Name der Mutter',
+    motherPlaceholder: 'z. B. Maria',
     childName: 'Vollständiger Name des Kindes',
+    childPlaceholder: 'z. B. Lukas',
     spouseName: 'Vollständiger Name des Ehepartners',
+    spousePlaceholder: 'z. B. Julia',
     newFamilyName: 'Neuer Familien-/Haushaltsname',
+    newFamilyPlaceholder: 'z. B. Familie Schmidt',
+    addChildNotice: 'Fügen Sie ein Kind unter {name} hinzu, um einen neuen Zweig zu erstellen.',
+    addSpouseNotice: 'Partner für {name} hinzufügen.',
+    addAncestorNotice: 'Fügen Sie fehlende Eltern über {name} hinzu. Oben wird ein neuer Haushalt erstellt.',
 
     shareTitle: 'Familie einladen',
     shareSubtitle: 'Verwandte benötigen den 8-stelligen Code und die 6-stellige PIN zum Beitreten.',
