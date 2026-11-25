@@ -15,6 +15,7 @@ import {
   GitCompare,
   Search,
   LocateFixed,
+  Pencil,
 } from 'lucide-react';
 import type { Household, Person, Relationship, Tree, Role } from '../types/family';
 import type { TranslationDictionary } from '../locales/translations';
@@ -36,6 +37,7 @@ interface TreeCanvasProps {
   onUpdatePersonAvatar?: (person: Person, avatarB64: string) => Promise<void>;
   onToggleSpouseStatus?: (relationshipId: string, status: 'spouse' | 'former_spouse') => Promise<void>;
   onInviteBranchMember?: (person: Person) => Promise<void>;
+  onRenameTree?: () => void;
   onLayoutCalculated?: (layouts: Map<string, { x: number; y: number; width: number; height: number }>) => void;
 }
 
@@ -98,6 +100,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
   onUpdatePersonAvatar,
   onToggleSpouseStatus,
   onInviteBranchMember,
+  onRenameTree,
   onLayoutCalculated,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1043,7 +1046,20 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
               <Trees className="w-4 h-4 sm:w-5 sm:h-5 text-sky-300" />
             </div>
             <div className="min-w-0">
-              <h2 className="font-extrabold text-xs sm:text-sm tracking-tight truncate">{tree.name}</h2>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <h2 className="font-extrabold text-xs sm:text-sm tracking-tight truncate">{tree.name}</h2>
+                {onRenameTree && (
+                  <button
+                    type="button"
+                    onClick={onRenameTree}
+                    title={t.renameTreeBtn}
+                    aria-label={t.renameTreeBtn}
+                    className="p-1 rounded-md text-slate-300 hover:text-white hover:bg-white/15 transition-colors cursor-pointer shrink-0"
+                  >
+                    <Pencil className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
               <p className="text-[10px] sm:text-[11px] text-slate-300 font-medium">
                 {persons.length} {t.membersCount} • {households.length} {t.statsHouseholds}
               </p>

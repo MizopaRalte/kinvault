@@ -15,6 +15,7 @@ import {
   Menu,
   X,
   Smartphone,
+  Pencil,
 } from 'lucide-react';
 
 import type { Language, TranslationDictionary } from './locales/translations';
@@ -168,6 +169,10 @@ export const App: React.FC = () => {
   // Global Admin and live telemetry state
   const [adminModalOpen, setAdminModalOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [renameModalOpen, setRenameModalOpen] = useState(false);
+  const [renameInput, setRenameInput] = useState('');
+  const [renameSaving, setRenameSaving] = useState(false);
+  const [renameError, setRenameError] = useState<string | null>(null);
   const [globalStats, setGlobalStats] = useState<{ totalTrees: number; totalPersons: number } | null>(null);
 
   // PWA Install Prompt & Platform Detection
@@ -342,14 +347,16 @@ export const App: React.FC = () => {
         // Cache snapshot in IndexedDB for offline access
         await saveOfflineTree(currentSession.treeId, data);
 
-        // Update active profile role in session if found
-        if (currentSession.activePersonId) {
-          const me = data.persons.find((p) => p.id === currentSession.activePersonId);
-          if (me && me.role !== currentSession.role) {
-            const updatedSession = { ...currentSession, role: me.role };
-            setSession(updatedSession);
-            saveSession(updatedSession);
-          }
+        // Update active profile role and treeName in session if changed
+        const me = currentSession.activePersonId
+          ? data.persons.find((p) => p.id === currentSession.activePersonId)
+          : undefined;
+        const nextRole = me ? me.role : currentSession.role;
+        const nextTreeName = data.tree?.name || currentSession.treeName;
+        if (nextRole !== currentSession.role || nextTreeName !== currentSession.treeName) {
+          const updatedSession = { ...currentSession, role: nextRole, treeName: nextTreeName };
+          setSession(updatedSession);
+          saveSession(updatedSession);
         }
       } catch (err: unknown) {
         console.warn('Network fetch failed, attempting to load offline cache:', err);
@@ -417,6 +424,31 @@ export const App: React.FC = () => {
 
     // Refresh tree
     await loadTreeData(session, false);
+  };
+
+  const openRenameModal = () => {
+    setRenameInput(treeData?.tree?.name || session?.treeName || '');
+    setRenameError(null);
+    setRenameModalOpen(true);
+  };
+
+  const handleRenameTreeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = renameInput.trim();
+    if (!trimmed) {
+      setRenameError(t.treeNameLabel + ' is required.');
+      return;
+    }
+    setRenameSaving(true);
+    setRenameError(null);
+    try {
+      await handleMutate('rename_tree', { name: trimmed });
+      setRenameModalOpen(false);
+    } catch (err: unknown) {
+      setRenameError(err instanceof Error ? err.message : t.errorOccurred);
+    } finally {
+      setRenameSaving(false);
+    }
   };
 
   // Export PDF Handler
@@ -567,10 +599,21 @@ export const App: React.FC = () => {
               KV
             </div>
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 min-w-0">
                 <h1 className="font-extrabold text-slate-900 text-sm sm:text-base truncate tracking-tight">
                   {treeData?.tree?.name || session.treeName}
                 </h1>
+                {session.role === 'super_admin' && (
+                  <button
+                    type="button"
+                    onClick={openRenameModal}
+                    title={t.renameTreeBtn}
+                    aria-label={t.renameTreeBtn}
+                    className="p-1 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors cursor-pointer shrink-0"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                )}
                 <span className="hidden sm:inline font-mono text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
                   {session.inviteCode}
                 </span>
@@ -989,6 +1032,7 @@ export const App: React.FC = () => {
                 setShareTargetPerson(targetPerson);
                 setShareModalOpen(true);
               }}
+              onRenameTree={session.role === 'super_admin' ? openRenameModal : undefined}
               onLayoutCalculated={(layouts) => setNodeLayouts(layouts)}
             />
           ) : (
@@ -1139,6 +1183,78 @@ export const App: React.FC = () => {
                   {t.disableLockPin}
                 </button>
               )}
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Rename Tree Modal */}
+      {renameModalOpen && (
+        <div
+          className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 z-50"
+          onClick={() => !renameSaving && setRenameModalOpen(false)}
+        >
+          <div
+            className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-sm w-full p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
+              <div className="flex items-center gap-2">
+                <Pencil className="w-4 h-4 text-slate-800" />
+                <h3 className="font-bold text-slate-900 text-sm">{t.renameTreeTitle}</h3>
+              </div>
+              <button
+                type="button"
+                disabled={renameSaving}
+                onClick={() => setRenameModalOpen(false)}
+                className="text-slate-400 hover:text-slate-700 text-xs font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600 mb-4 leading-relaxed">{t.renameTreeHint}</p>
+
+            {renameError && (
+              <div className="mb-3 p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-medium">
+                {renameError}
+              </div>
+            )}
+
+            <form onSubmit={handleRenameTreeSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                  {t.treeNameLabel}
+                </label>
+                <input
+                  type="text"
+                  autoFocus
+                  maxLength={80}
+                  required
+                  value={renameInput}
+                  onChange={(e) => setRenameInput(e.target.value)}
+                  placeholder={t.treeNamePlaceholder}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  disabled={renameSaving}
+                  onClick={() => setRenameModalOpen(false)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition-colors cursor-pointer"
+                >
+                  {t.cancel}
+                </button>
+                <button
+                  type="submit"
+                  disabled={renameSaving || !renameInput.trim()}
+                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 disabled:opacity-45 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
+                >
+                  {renameSaving ? t.loading : t.saveChanges}
+                </button>
+              </div>
             </form>
           </div>
         </div>

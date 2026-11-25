@@ -841,6 +841,23 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
         return new Response(JSON.stringify({ success: true, deletedHouseholdId: householdId }), { status: 200 });
       }
 
+      case 'rename_tree': {
+        if (!caller || caller.role !== 'super_admin') {
+          return new Response(JSON.stringify({ error: 'Only the Super Admin can rename this family tree.' }), { status: 403 });
+        }
+
+        const name = (p.name as string | undefined)?.trim();
+        if (!name || name.length > 80) {
+          return new Response(JSON.stringify({ error: 'Tree name must be between 1 and 80 characters.' }), { status: 400 });
+        }
+
+        await env.DB.prepare('UPDATE trees SET name = ? WHERE id = ?')
+          .bind(name, treeId)
+          .run();
+
+        return new Response(JSON.stringify({ success: true, name }), { status: 200 });
+      }
+
       case 'update_pin': {
         if (!caller || caller.role !== 'super_admin') {
           return new Response(JSON.stringify({ error: 'Only the Super Admin can change the tree PIN.' }), { status: 403 });

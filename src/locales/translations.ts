@@ -261,6 +261,9 @@ export interface TranslationDictionary {
   jumpToPersonPlaceholder: string;
   centerOnMeBtn: string;
   locateOnTreeBtn: string;
+  renameTreeBtn: string;
+  renameTreeTitle: string;
+  renameTreeHint: string;
   compareRelation: string;
   comparingFromHint: string;
   relationToYou: string;
@@ -547,6 +550,9 @@ export const translations: Record<Language, TranslationDictionary> = {
     jumpToPersonPlaceholder: 'Jump to family member...',
     centerOnMeBtn: 'Me',
     locateOnTreeBtn: 'Show in Tree',
+    renameTreeBtn: 'Edit Tree Name',
+    renameTreeTitle: 'Rename Family Tree',
+    renameTreeHint: 'Update the main tree title anytime—for instance, when you discover an earlier founding ancestor.',
     compareRelation: 'Compare Relation',
     comparingFromHint: 'Comparing from {name} — Tap another person on the tree',
     relationToYou: 'Your Relation',
@@ -832,6 +838,9 @@ export const translations: Record<Language, TranslationDictionary> = {
     jumpToPersonPlaceholder: 'Chhungkhat hming zawng rawh...',
     centerOnMeBtn: 'Keimah',
     locateOnTreeBtn: 'Tree-ah En',
+    renameTreeBtn: 'Chhungkaw Hming Thlâk',
+    renameTreeTitle: 'Thlahtute Chhuina Hming Thlâkna',
+    renameTreeHint: 'Thlahtu hmasa zawk (pi leh pu chhawng) i hmuh chhuah belh chuan he chhungkaw bul hming hi a thlâk theih e.',
     compareRelation: 'Inlaichinna Enna',
     comparingFromHint: '{name} aṭanga en mek — Mi dang hmet rawh',
     relationToYou: 'I Chhungkhat Nihna',
@@ -1117,6 +1126,9 @@ export const translations: Record<Language, TranslationDictionary> = {
     jumpToPersonPlaceholder: 'Ir a un familiar...',
     centerOnMeBtn: 'Yo',
     locateOnTreeBtn: 'Ver en Árbol',
+    renameTreeBtn: 'Editar Nombre del Árbol',
+    renameTreeTitle: 'Cambiar Nombre del Árbol',
+    renameTreeHint: 'Actualiza el título principal cuando descubras ancestros más antiguos.',
     compareRelation: 'Comparar Parentesco',
     comparingFromHint: 'Comparando desde {name} — Toca otra persona en el árbol',
     relationToYou: 'Tu Parentesco',
@@ -1402,6 +1414,9 @@ export const translations: Record<Language, TranslationDictionary> = {
     jumpToPersonPlaceholder: 'Zu Person springen...',
     centerOnMeBtn: 'Ich',
     locateOnTreeBtn: 'Im Baum zeigen',
+    renameTreeBtn: 'Stammbaum-Namen ändern',
+    renameTreeTitle: 'Stammbaum umbenennen',
+    renameTreeHint: 'Passe den Hauptnamen an, sobald ältere Vorfahren gefunden werden.',
     compareRelation: 'Verwandtschaft prüfen',
     comparingFromHint: 'Vergleich ab {name} — Tippe auf eine andere Person',
     relationToYou: 'Beziehung zu dir',
