@@ -8,6 +8,8 @@ import {
   UserCheck,
   Upload,
   Plus,
+  Heart,
+  HeartCrack,
 } from 'lucide-react';
 import type { Household, Person, Relationship, Role } from '../types/family';
 import type { TranslationDictionary } from '../locales/translations';
@@ -144,6 +146,24 @@ export const MemberModal: React.FC<MemberModalProps> = ({
   const [spouseAvatarSizeKb, setSpouseAvatarSizeKb] = useState<number | null>(null);
   const [spouseRelType, setSpouseRelType] = useState<'spouse' | 'former_spouse'>('spouse');
   const [markPreviousDivorced, setMarkPreviousDivorced] = useState<boolean>(true);
+  const [togglingSpouseRelId, setTogglingSpouseRelId] = useState<string | null>(null);
+
+  const personSpouseLinks = useMemo(() => {
+    if (!person) return [];
+    const personMap = new Map(allPersons.map((item) => [item.id, item]));
+    const list: Array<{ relId: string; partner: Person; status: 'spouse' | 'former_spouse' }> = [];
+    for (const r of relationships) {
+      if (r.rel_type !== 'spouse' && r.rel_type !== 'former_spouse') continue;
+      const partnerId =
+        r.person_a_id === person.id ? r.person_b_id : r.person_b_id === person.id ? r.person_a_id : null;
+      if (!partnerId) continue;
+      const partner = personMap.get(partnerId);
+      if (partner) {
+        list.push({ relId: r.id, partner, status: r.rel_type });
+      }
+    }
+    return list;
+  }, [person, allPersons, relationships]);
 
   // Add ancestors above state
   const [ancestorFather, setAncestorFather] = useState('');
@@ -826,6 +846,77 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                         </span>
                       </label>
                     )}
+                  </div>
+                )}
+
+                {/* Marriage / Divorce Status Controls */}
+                {person && personSpouseLinks.length > 0 && (
+                  <div className="pt-2 border-t border-slate-100 space-y-2">
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                      {t.spouseStatusLabel}
+                    </label>
+                    <div className="space-y-1.5">
+                      {personSpouseLinks.map((item) => {
+                        const isDivorced = item.status === 'former_spouse';
+                        return (
+                          <div
+                            key={item.relId}
+                            className="flex items-center justify-between gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              {isDivorced ? (
+                                <HeartCrack className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                              ) : (
+                                <Heart className="w-3.5 h-3.5 text-slate-700 shrink-0" />
+                              )}
+                              <div className="min-w-0">
+                                <p className="text-xs font-bold text-slate-900 truncate">
+                                  {item.partner.full_name}
+                                </p>
+                                <p className="text-[10px] text-slate-500">
+                                  {isDivorced ? t.divorcedStatusOption : t.marriedStatusOption}
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              disabled={loading || togglingSpouseRelId === item.relId}
+                              onClick={async () => {
+                                setError(null);
+                                setTogglingSpouseRelId(item.relId);
+                                try {
+                                  await onMutate('update_spouse_status', {
+                                    relationshipId: item.relId,
+                                    status: isDivorced ? 'spouse' : 'former_spouse',
+                                  });
+                                } catch (err: unknown) {
+                                  setError(err instanceof Error ? err.message : t.errorOccurred);
+                                } finally {
+                                  setTogglingSpouseRelId(null);
+                                }
+                              }}
+                              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer disabled:opacity-50 shrink-0 ${
+                                isDivorced
+                                  ? 'bg-rose-50 hover:bg-rose-100 text-rose-700'
+                                  : 'bg-white hover:bg-rose-50 text-slate-700 hover:text-rose-700 border border-slate-200'
+                              }`}
+                            >
+                              {isDivorced ? (
+                                <>
+                                  <Heart className="w-3 h-3" />
+                                  <span>{t.restoreMarriageBtn}</span>
+                                </>
+                              ) : (
+                                <>
+                                  <HeartCrack className="w-3 h-3" />
+                                  <span>{t.markDivorcedBtn}</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
 

@@ -370,23 +370,39 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
 
     const arrangeMembers = (rawMembers: Person[]): Person[] => {
       if (rawMembers.length <= 2) return rawMembers;
-      // Place pivot person (with multiple marriages or bloodline) between former spouses (left) and current spouses (right)
+      // Place pivot person (highest spouse degree or bloodline) centrally among their partners
       const pivot =
-        rawMembers.find((m) => (spouseDegreeMap.get(m.id) || 0) >= 2) ||
-        rawMembers.find((m) => bloodlineChildIds.has(m.id)) ||
-        rawMembers[0];
+        [...rawMembers].sort((a, b) => {
+          const degDiff = (spouseDegreeMap.get(b.id) || 0) - (spouseDegreeMap.get(a.id) || 0);
+          if (degDiff !== 0) return degDiff;
+          const aBlood = bloodlineChildIds.has(a.id) ? 1 : 0;
+          const bBlood = bloodlineChildIds.has(b.id) ? 1 : 0;
+          return bBlood - aBlood;
+        })[0];
       const formerList: Person[] = [];
       const currentList: Person[] = [];
+      const unlinkedList: Person[] = [];
       for (const m of rawMembers) {
         if (m.id === pivot.id) continue;
         const relType = pairRelTypeMap.get(pairKey(pivot.id, m.id));
         if (relType === 'former_spouse') {
           formerList.push(m);
-        } else {
+        } else if (relType === 'spouse') {
           currentList.push(m);
+        } else {
+          unlinkedList.push(m);
         }
       }
-      return [...formerList, pivot, ...currentList];
+
+      if (currentList.length === 0 && formerList.length >= 2) {
+        const mid = Math.ceil(formerList.length / 2);
+        return [...formerList.slice(0, mid), pivot, ...formerList.slice(mid), ...unlinkedList];
+      }
+      if (formerList.length === 0 && currentList.length >= 2) {
+        const mid = Math.ceil(currentList.length / 2);
+        return [...currentList.slice(0, mid), pivot, ...currentList.slice(mid), ...unlinkedList];
+      }
+      return [...formerList, pivot, ...currentList, ...unlinkedList];
     };
 
     const getNodeGeometry = (h: Household, rawMembers: Person[]) => {
@@ -454,6 +470,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
       const pairConnectors: PairConnector[] = [];
       for (let i = 0; i < count - 1; i++) {
         const relType = pairRelTypeMap.get(pairKey(members[i].id, members[i + 1].id));
+        if (!relType) continue;
         pairConnectors.push({
           leftX: centers[i],
           rightX: centers[i + 1],
@@ -463,7 +480,18 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
       }
 
       const bloodlineIdx = members.findIndex((m) => bloodlineChildIds.has(m.id));
-      const pivotIdx = bloodlineIdx >= 0 ? bloodlineIdx : Math.floor(count / 2);
+      let pivotIdx = bloodlineIdx;
+      if (pivotIdx < 0) {
+        pivotIdx = 0;
+        let maxDeg = -1;
+        for (let i = 0; i < members.length; i++) {
+          const deg = spouseDegreeMap.get(members[i].id) || 0;
+          if (deg > maxDeg) {
+            maxDeg = deg;
+            pivotIdx = i;
+          }
+        }
+      }
       const incomingOffsetX = centers[pivotIdx];
       const activeConn = pairConnectors.find((c) => !c.isDivorced);
       const heartX = activeConn ? activeConn.centerX : centers[pivotIdx];
@@ -1236,7 +1264,12 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
               )}
 
               {/* Quick-Add Pill Bar (always visible on small trees <= 2 nodes, visible on hover otherwise) */}
-              {members.length > 0 && (
+              {members.length > 0 && (() => {
+                const primaryMember =
+                  members.find((m) => bloodlineChildIds.has(m.id)) ||
+                  members[Math.floor(members.length / 2)] ||
+                  members[0];
+                return (
                 <div
                   className={`${node.hasChildren && isCollapsed ? 'mt-7' : 'mt-2'} flex items-center justify-center gap-1 transition-opacity duration-150 ${
                     households.length <= 2
@@ -1247,7 +1280,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
                   <div className="bg-white/95 backdrop-blur-xs border border-slate-200 rounded-2xl sm:rounded-full px-2 py-1 shadow-md flex flex-wrap sm:flex-nowrap items-center justify-center gap-1 text-[10px] font-bold">
                     <button
                       type="button"
-                      onClick={() => onOpenMemberModal(members[0], h, 'add_ancestor')}
+                      onClick={() => onOpenMemberModal(primaryMember, h, 'add_ancestor')}
                       className="px-1.5 py-0.5 text-slate-700 hover:bg-slate-100 rounded-full transition-colors cursor-pointer whitespace-nowrap"
                     >
                       {t.addAncestorsAbove}
@@ -1255,7 +1288,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
                     <span className="text-slate-300">•</span>
                     <button
                       type="button"
-                      onClick={() => onOpenMemberModal(members[0], h, 'add_spouse')}
+                      onClick={() => onOpenMemberModal(primaryMember, h, 'add_spouse')}
                       className="px-1.5 py-0.5 text-slate-700 hover:bg-slate-100 rounded-full transition-colors cursor-pointer whitespace-nowrap"
                     >
                       {t.addSpouse}
@@ -1263,7 +1296,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
                     <span className="text-slate-300">•</span>
                     <button
                       type="button"
-                      onClick={() => onOpenMemberModal(members[0], h, 'add_sibling')}
+                      onClick={() => onOpenMemberModal(primaryMember, h, 'add_sibling')}
                       className="px-1.5 py-0.5 text-slate-700 hover:bg-slate-100 rounded-full transition-colors cursor-pointer whitespace-nowrap"
                     >
                       {t.addSibling}
@@ -1271,14 +1304,15 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
                     <span className="text-slate-300">•</span>
                     <button
                       type="button"
-                      onClick={() => onOpenMemberModal(members[0], h, 'add_child')}
+                      onClick={() => onOpenMemberModal(primaryMember, h, 'add_child')}
                       className="px-1.5 py-0.5 bg-slate-900 text-white hover:bg-slate-800 rounded-full transition-colors cursor-pointer whitespace-nowrap"
                     >
                       {t.addChildHousehold}
                     </button>
                   </div>
                 </div>
-              )}
+                );
+              })()}
             </div>
           );
         })}

@@ -570,9 +570,12 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
                               type="button"
                               disabled={togglingRelId === relationshipId}
                               onClick={async () => {
+                                setPhotoError(null);
                                 setTogglingRelId(relationshipId);
                                 try {
                                   await onToggleSpouseStatus(relationshipId, 'former_spouse');
+                                } catch (err: unknown) {
+                                  setPhotoError(err instanceof Error ? err.message : t.errorOccurred);
                                 } finally {
                                   setTogglingRelId(null);
                                 }
@@ -611,9 +614,12 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
                               type="button"
                               disabled={togglingRelId === relationshipId}
                               onClick={async () => {
+                                setPhotoError(null);
                                 setTogglingRelId(relationshipId);
                                 try {
                                   await onToggleSpouseStatus(relationshipId, 'spouse');
+                                } catch (err: unknown) {
+                                  setPhotoError(err instanceof Error ? err.message : t.errorOccurred);
                                 } finally {
                                   setTogglingRelId(null);
                                 }

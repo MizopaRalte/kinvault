@@ -502,7 +502,9 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
           return new Response(JSON.stringify({ error: 'Spouse relationship not found.' }), { status: 404 });
         }
 
-        const hasPerm = await canEditPerson(env.DB, treeId, caller, existingRel.person_a_id);
+        const hasPerm =
+          (await canEditPerson(env.DB, treeId, caller, existingRel.person_a_id)) ||
+          (await canEditPerson(env.DB, treeId, caller, existingRel.person_b_id));
         if (!hasPerm) {
           return new Response(JSON.stringify({ error: 'Permission denied to update marriage status.' }), { status: 403 });
         }
