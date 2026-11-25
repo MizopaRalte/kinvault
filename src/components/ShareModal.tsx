@@ -125,7 +125,13 @@ export const ShareModal: React.FC<ShareModalProps> = ({
               </button>
             </div>
 
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center flex flex-col justify-between">
+            <div
+              className={`rounded-xl p-3 text-center flex flex-col justify-between border ${
+                hasValidPin
+                  ? 'bg-slate-50 border-slate-200'
+                  : 'bg-amber-50/70 border-amber-300'
+              }`}
+            >
               <span className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
                 {t.pinLabel}
               </span>
@@ -138,7 +144,11 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                 onChange={(e) => handlePinInputChange(e.target.value)}
                 placeholder={t.pinPlaceholder}
                 aria-label={t.pinLabel}
-                className="w-full bg-white border border-slate-200 rounded-lg py-0.5 px-2 font-mono text-xl font-bold tracking-widest text-center text-slate-900 mb-2 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                className={`w-full bg-white border rounded-lg py-0.5 px-2 font-mono text-xl font-bold tracking-widest text-center text-slate-900 mb-2 focus:outline-none focus:ring-2 ${
+                  hasValidPin
+                    ? 'border-slate-200 focus:ring-slate-900'
+                    : 'border-amber-300 focus:ring-amber-500'
+                }`}
               />
               <button
                 type="button"
@@ -183,12 +193,17 @@ export const ShareModal: React.FC<ShareModalProps> = ({
               </button>
             </div>
 
-            <label className="mt-2.5 flex items-center gap-2 text-xs text-slate-600 cursor-pointer select-none">
+            <label
+              className={`mt-2.5 flex items-center gap-2 text-xs select-none ${
+                hasValidPin ? 'text-slate-600 cursor-pointer' : 'text-slate-400 cursor-not-allowed'
+              }`}
+            >
               <input
                 type="checkbox"
-                checked={includePinInLink}
+                checked={includePinInLink && hasValidPin}
+                disabled={!hasValidPin}
                 onChange={(e) => setIncludePinInLink(e.target.checked)}
-                className="w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer"
+                className="w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer disabled:opacity-45"
               />
               <span>{t.includePinInLink}</span>
             </label>

@@ -92,18 +92,48 @@ export const App: React.FC = () => {
     return saved;
   });
 
-  // Volatile in-memory PIN (never persisted to localStorage or DB)
-  const [sessionPin, setSessionPin] = useState<string>(() => {
+  // Tab-scoped session PIN (never persisted to localStorage or DB)
+  const [sessionPin, setSessionPinState] = useState<string>(() => {
     const saved = getSession();
     if (
       saved &&
       initialInvite?.inviteCode === saved.inviteCode &&
       /^\d{6}$/.test(initialInvite.pin)
     ) {
+      try {
+        sessionStorage.setItem(`kinvault_pin_${saved.inviteCode}`, initialInvite.pin);
+      } catch {
+        // Ignore storage errors
+      }
       return initialInvite.pin;
+    }
+    if (saved?.inviteCode) {
+      try {
+        const stored = sessionStorage.getItem(`kinvault_pin_${saved.inviteCode}`) || '';
+        if (/^\d{6}$/.test(stored)) return stored;
+      } catch {
+        // Ignore storage errors
+      }
     }
     return '';
   });
+
+  const updateSessionPin = (nextPin: string, inviteCodeOverride?: string) => {
+    const clean = nextPin.replace(/\D/g, '').slice(0, 6);
+    setSessionPinState(clean);
+    const code = inviteCodeOverride || session?.inviteCode;
+    if (code) {
+      try {
+        if (/^\d{6}$/.test(clean)) {
+          sessionStorage.setItem(`kinvault_pin_${code}`, clean);
+        } else {
+          sessionStorage.removeItem(`kinvault_pin_${code}`);
+        }
+      } catch {
+        // Ignore storage errors
+      }
+    }
+  };
 
   // Clean ?join=... and #pin=... from address bar after boot
   useEffect(() => {
@@ -349,14 +379,15 @@ export const App: React.FC = () => {
   // Session ready callback
   const handleSessionReady = (newSession: UserSession, enteredPin?: string) => {
     setSession(newSession);
-    setSessionPin(enteredPin || '');
+    updateSessionPin(enteredPin || '', newSession.inviteCode);
     saveSession(newSession);
   };
 
   // Sign out / disconnect tree
   const handleSignOut = () => {
+    const oldCode = session?.inviteCode;
     setSession(null);
-    setSessionPin('');
+    updateSessionPin('', oldCode);
     saveSession(null);
     setTreeData(null);
   };
@@ -1024,7 +1055,7 @@ export const App: React.FC = () => {
           }}
           tree={treeData.tree}
           pin={sessionPin}
-          onPinChange={setSessionPin}
+          onPinChange={(nextPin) => updateSessionPin(nextPin)}
           targetPerson={shareTargetPerson}
           t={t}
         />
