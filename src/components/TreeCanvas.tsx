@@ -30,6 +30,7 @@ interface TreeCanvasProps {
   userRole?: Role;
   deviceId: string;
   onOpenMemberModal: (person?: Person, household?: Household, initialMode?: string) => void;
+  onUpdatePersonAvatar?: (person: Person, avatarB64: string) => Promise<void>;
   onLayoutCalculated?: (layouts: Map<string, { x: number; y: number; width: number; height: number }>) => void;
 }
 
@@ -76,6 +77,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
   userRole: _userRole,
   deviceId,
   onOpenMemberModal,
+  onUpdatePersonAvatar,
   onLayoutCalculated,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1039,8 +1041,9 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
 
       {/* Person Detail Modal (Address, Telephone, Connections, Actions) */}
       <PersonDetailModal
-        person={detailTarget?.person || null}
-        household={detailTarget?.household}
+        key={detailTarget?.person.id || 'closed'}
+        person={detailTarget ? persons.find((p) => p.id === detailTarget.person.id) || detailTarget.person : null}
+        household={detailTarget?.household ? households.find((h) => h.id === detailTarget.household?.id) || detailTarget.household : undefined}
         allPersons={persons}
         allHouseholds={households}
         relationships={relationships}
@@ -1081,6 +1084,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
         onClose={() => setDetailTarget(null)}
         onSelectPerson={(p, h) => setDetailTarget({ person: p, household: h })}
         onOpenMemberModal={onOpenMemberModal}
+        onUpdatePersonAvatar={onUpdatePersonAvatar}
         onFocusBranch={(hId) => {
           setFocusedHouseholdId(hId);
           setCollapsedBranchIds(new Set());

@@ -92,7 +92,9 @@ export interface TranslationDictionary {
   familyPhoto: string;
   uploadPhoto: string;
   takePhoto: string;
+  viewPhoto: string;
   removePhoto: string;
+  addFamilyLineLabel: string;
   optionalLabel: string;
   compressedSizeLabel: string;
   roleLabel: string;
@@ -359,7 +361,9 @@ export const translations: Record<Language, TranslationDictionary> = {
     familyPhoto: 'Family Household Photo',
     uploadPhoto: 'Upload Photo',
     takePhoto: 'Take Photo',
+    viewPhoto: 'View Full Photo',
     removePhoto: 'Remove',
+    addFamilyLineLabel: 'Add Family Line (Auto-Connected)',
     optionalLabel: '(Optional)',
     compressedSizeLabel: 'Compressed:',
     roleLabel: 'Role:',
@@ -615,7 +619,9 @@ export const translations: Record<Language, TranslationDictionary> = {
     familyPhoto: 'Chhungkaw Thlalak',
     uploadPhoto: 'Thlalak Thlang Rawh',
     takePhoto: 'Camera-a Lâk',
+    viewPhoto: 'Thlalak Lian Enna',
     removePhoto: 'Paih Rawh',
+    addFamilyLineLabel: 'Chhungkaw Peng Belhna (Inzawm Nghal)',
     optionalLabel: '(A duh tan)',
     compressedSizeLabel: 'Lian zawng:',
     roleLabel: 'Chanvo:',
@@ -871,7 +877,9 @@ export const translations: Record<Language, TranslationDictionary> = {
     familyPhoto: 'Foto Familiar',
     uploadPhoto: 'Subir Foto',
     takePhoto: 'Tomar Foto',
+    viewPhoto: 'Ver Foto Completa',
     removePhoto: 'Eliminar',
+    addFamilyLineLabel: 'Añadir Línea Familiar (Conectada)',
     optionalLabel: '(Opcional)',
     compressedSizeLabel: 'Comprimido:',
     roleLabel: 'Rol:',
@@ -1127,7 +1135,9 @@ export const translations: Record<Language, TranslationDictionary> = {
     familyPhoto: 'Familienfoto',
     uploadPhoto: 'Foto hochladen',
     takePhoto: 'Foto aufnehmen',
+    viewPhoto: 'Foto vergrößern',
     removePhoto: 'Entfernen',
+    addFamilyLineLabel: 'Familienlinie hinzufügen (Verbunden)',
     optionalLabel: '(Optional)',
     compressedSizeLabel: 'Komprimiert:',
     roleLabel: 'Rolle:',

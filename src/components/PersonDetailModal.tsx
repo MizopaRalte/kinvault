@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   X,
   Phone,
@@ -16,10 +16,14 @@ import {
   GitCompare,
   ChevronsDownUp,
   ChevronsUpDown,
+  Upload,
+  Trash2,
+  Eye,
 } from 'lucide-react';
 import type { Person, Household, Relationship } from '../types/family';
 import type { TranslationDictionary } from '../locales/translations';
 import { calculateKinship } from '../utils/kinshipCalculator';
+import { compressAvatar } from '../utils/imageCompress';
 
 interface PersonDetailModalProps {
   person: Person | null;
@@ -40,6 +44,7 @@ interface PersonDetailModalProps {
   isBranchCollapsed?: boolean;
   onToggleBranchExpand?: (householdId: string) => void;
   onExpandToHousehold?: (householdId: string) => void;
+  onUpdatePersonAvatar?: (person: Person, avatarB64: string) => Promise<void>;
 }
 
 export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
@@ -61,7 +66,11 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
   isBranchCollapsed,
   onToggleBranchExpand,
   onExpandToHousehold,
+  onUpdatePersonAvatar,
 }) => {
+  const [photoMenuOpen, setPhotoMenuOpen] = useState(false);
+  const [photoSaving, setPhotoSaving] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
   const familyConnections = useMemo(() => {
     if (!person) return { parents: [], spouses: [], siblings: [], children: [] };
 
@@ -132,11 +141,44 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
   const cleanPhoneForWhatsApp = person.phone_e164?.replace(/[^\d]/g, '') || '';
 
   const jumpToPerson = (target: Person) => {
+    setPhotoMenuOpen(false);
+    setPhotoError(null);
     const targetHousehold = allHouseholds.find((h) => h.id === target.household_id);
     if (target.household_id) {
       onExpandToHousehold?.(target.household_id);
     }
     onSelectPerson(target, targetHousehold);
+  };
+
+  const handleQuickPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !onUpdatePersonAvatar) return;
+    setPhotoError(null);
+    setPhotoSaving(true);
+    setPhotoMenuOpen(false);
+    try {
+      const compressed = await compressAvatar(file, 300, 0.75);
+      await onUpdatePersonAvatar(person, compressed.dataUrl);
+    } catch (err: unknown) {
+      setPhotoError(err instanceof Error ? err.message : 'Failed to upload photo.');
+    } finally {
+      setPhotoSaving(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleQuickPhotoRemove = async () => {
+    if (!onUpdatePersonAvatar) return;
+    setPhotoError(null);
+    setPhotoSaving(true);
+    setPhotoMenuOpen(false);
+    try {
+      await onUpdatePersonAvatar(person, '');
+    } catch (err: unknown) {
+      setPhotoError(err instanceof Error ? err.message : 'Failed to remove photo.');
+    } finally {
+      setPhotoSaving(false);
+    }
   };
 
   return (
@@ -146,7 +188,10 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
     >
       <div
         className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full overflow-hidden my-8"
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (photoMenuOpen) setPhotoMenuOpen(false);
+        }}
       >
         {/* Top Accent Banner */}
         <div className="h-3 w-full" style={{ backgroundColor: branchColor }} />
@@ -154,28 +199,108 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
         {/* Header & Close */}
         <div className="px-6 pt-4 pb-2 flex items-start justify-between gap-3">
           <div className="flex items-center gap-4">
-            <button
-              type="button"
-              onClick={() => {
-                if (person.avatar_b64 && onPreviewPhoto) onPreviewPhoto(person.avatar_b64);
-              }}
-              className={`w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden shrink-0 shadow-sm transition-transform ${
-                person.avatar_b64 ? 'cursor-pointer hover:scale-105' : 'cursor-default'
-              }`}
-              style={{ border: `4px solid ${branchColor}` }}
-            >
-              {person.avatar_b64 ? (
-                <img
-                  src={person.avatar_b64}
-                  alt={person.full_name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <span className="text-2xl font-extrabold text-slate-600">
-                  {person.full_name.slice(0, 1).toUpperCase()}
-                </span>
+            <div className="relative shrink-0">
+              <button
+                type="button"
+                disabled={photoSaving}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onUpdatePersonAvatar) {
+                    setPhotoMenuOpen((prev) => !prev);
+                  } else if (person.avatar_b64 && onPreviewPhoto) {
+                    onPreviewPhoto(person.avatar_b64);
+                  }
+                }}
+                className="relative w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden shadow-sm transition-transform hover:scale-105 cursor-pointer disabled:opacity-60"
+                style={{ border: `4px solid ${branchColor}` }}
+                title={t.uploadPhoto}
+              >
+                {person.avatar_b64 ? (
+                  <img
+                    src={person.avatar_b64}
+                    alt={person.full_name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="text-2xl font-extrabold text-slate-600">
+                    {person.full_name.slice(0, 1).toUpperCase()}
+                  </span>
+                )}
+
+                {photoSaving && (
+                  <div className="absolute inset-0 bg-slate-950/50 flex items-center justify-center">
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  </div>
+                )}
+              </button>
+
+              {onUpdatePersonAvatar && (
+                <button
+                  type="button"
+                  disabled={photoSaving}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPhotoMenuOpen((prev) => !prev);
+                  }}
+                  className="absolute -bottom-0.5 -right-0.5 w-7 h-7 rounded-full bg-slate-900 hover:bg-slate-800 text-white border-2 border-white shadow-md flex items-center justify-center cursor-pointer transition-colors"
+                  title={t.uploadPhoto}
+                >
+                  <Camera className="w-3.5 h-3.5" />
+                </button>
               )}
-            </button>
+
+              {photoMenuOpen && (
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className="absolute left-0 top-full mt-2 w-48 bg-white border border-slate-200 rounded-2xl shadow-xl p-1.5 z-30 text-xs font-semibold text-slate-700"
+                >
+                  <label className="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-slate-100 cursor-pointer transition-colors">
+                    <Upload className="w-3.5 h-3.5 text-slate-500" />
+                    <span>{t.uploadPhoto}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleQuickPhotoUpload}
+                      className="hidden"
+                    />
+                  </label>
+                  <label className="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-slate-100 cursor-pointer transition-colors">
+                    <Camera className="w-3.5 h-3.5 text-slate-500" />
+                    <span>{t.takePhoto}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="user"
+                      onChange={handleQuickPhotoUpload}
+                      className="hidden"
+                    />
+                  </label>
+                  {person.avatar_b64 && onPreviewPhoto && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPhotoMenuOpen(false);
+                        onPreviewPhoto(person.avatar_b64!);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-slate-100 cursor-pointer transition-colors text-left"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-slate-500" />
+                      <span>{t.viewPhoto}</span>
+                    </button>
+                  )}
+                  {person.avatar_b64 && (
+                    <button
+                      type="button"
+                      onClick={handleQuickPhotoRemove}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-rose-50 text-rose-600 cursor-pointer transition-colors text-left"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>{t.removePhoto}</span>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
 
             <div className="min-w-0">
               <h3 className="text-lg font-extrabold text-slate-900 leading-tight">
@@ -239,6 +364,11 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
 
         {/* Body */}
         <div className="px-5 sm:px-6 py-4 space-y-4 max-h-[70dvh] overflow-y-auto">
+          {photoError && (
+            <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2 font-medium">
+              {photoError}
+            </p>
+          )}
           {/* Contact & Address Information */}
           <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 space-y-3">
             {/* Telephone */}
@@ -453,7 +583,7 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
           {/* Add Relative Quick Buttons */}
           <div>
             <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-2">
-              {t.treeTab}
+              {t.addFamilyLineLabel}
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs sm:text-[11px] font-bold">
               <button

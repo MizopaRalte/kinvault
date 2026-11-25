@@ -875,6 +875,19 @@ export const App: React.FC = () => {
                   initialMode: mode || (targetPerson ? 'edit_person' : 'edit_household'),
                 });
               }}
+              onUpdatePersonAvatar={async (targetPerson, avatarB64) => {
+                await handleMutate('upsert_person', {
+                  id: targetPerson.id,
+                  household_id: targetPerson.household_id,
+                  full_name: targetPerson.full_name,
+                  nickname_or_maiden: targetPerson.nickname_or_maiden || '',
+                  phone_e164: targetPerson.phone_e164 || '',
+                  birth_year: targetPerson.birth_year || '',
+                  death_year: targetPerson.death_year || '',
+                  is_living: targetPerson.is_living,
+                  avatar_b64: avatarB64,
+                });
+              }}
               onLayoutCalculated={(layouts) => setNodeLayouts(layouts)}
             />
           ) : (
