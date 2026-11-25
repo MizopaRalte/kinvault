@@ -557,93 +557,108 @@ async function run() {
     });
     assert(unauthAdminRes.status === 401, 'Invalid admin secret rejected with HTTP 401');
 
-    // Authorized Admin verification & token issuance
+    // Global Admin authentication / 2FA enforcement check
     const adminSecret = process.env.GLOBAL_ADMIN_SECRET || 'kinvault-admin-2026';
-    const verifyAdminRes = await fetch(`${BASE_URL}/api/admin/trees`, {
+    const adminTotp = process.env.GLOBAL_ADMIN_TOTP_CODE;
+
+    if (statsData.is2faEnabled && !adminTotp) {
+      // Production has custom secret / 2FA enabled: verify unauthenticated / missing 2FA attempt is strictly blocked
+      const blockedAdminRes = await fetch(`${BASE_URL}/api/admin/trees`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Admin-Secret': adminSecret,
+        },
+        body: JSON.stringify({ action: 'verify_admin' }),
+      });
+      assert(blockedAdminRes.status === 401, 'Global Admin strictly blocks login without valid Secret + 2FA (HTTP 401)');
+    } else {
+      const verifyAdminRes = await fetch(`${BASE_URL}/api/admin/trees`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Admin-Secret': adminSecret,
+          ...(adminTotp ? { 'X-Admin-Totp': adminTotp } : {}),
+        },
+        body: JSON.stringify({ action: 'verify_admin', ...(adminTotp ? { totpCode: adminTotp } : {}) }),
+      });
+      const verifyAdminData = await verifyAdminRes.json();
+      assert(verifyAdminRes.status === 200, 'Admin verify returns HTTP 200');
+      assert(!!verifyAdminData.adminToken, 'Admin login issues short-lived session JWT');
+      const adminToken = verifyAdminData.adminToken;
+
+      const initTotpRes = await fetch(`${BASE_URL}/api/admin/trees`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Admin-Token': adminToken,
+        },
+        body: JSON.stringify({ action: 'init_totp_setup' }),
+      });
+      const initTotpData = await initTotpRes.json();
+      assert(initTotpRes.status === 200, '2FA setup initialization succeeds HTTP 200');
+      assert(!!initTotpData.secret && initTotpData.otpauthUrl?.startsWith('otpauth://totp/KinVault'), 'Returns valid Base32 secret & otpauth URI');
+
+      const badTotpEnableRes = await fetch(`${BASE_URL}/api/admin/trees`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Admin-Token': adminToken,
+        },
+        body: JSON.stringify({ action: 'enable_totp', secret: initTotpData.secret, totpCode: '000000' }),
+      });
+      assert(badTotpEnableRes.status === 400, '2FA activation rejects mismatched Authenticator code (HTTP 400)');
+
+      const authAdminRes = await fetch(`${BASE_URL}/api/admin/trees?q=${inviteCode}`, {
+        headers: { 'X-Admin-Token': adminToken },
+      });
+      const adminData = await authAdminRes.json();
+      assert(authAdminRes.status === 200, 'Authorized admin lookup returns HTTP 200');
+      assert(adminData.trees.some((t) => t.id === treeId), 'Admin tree search locates tree by invite code');
+
+      const adminResetPinRes = await fetch(`${BASE_URL}/api/admin/trees`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Admin-Secret': adminSecret,
+          ...(adminTotp ? { 'X-Admin-Totp': adminTotp } : {}),
+        },
+        body: JSON.stringify({
+          action: 'reset_pin',
+          treeId,
+          newPin: '777888',
+        }),
+      });
+      assert(adminResetPinRes.status === 200, 'Admin can reset tree PIN HTTP 200');
+
+      const adminGenPukRes = await fetch(`${BASE_URL}/api/admin/trees`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Admin-Secret': adminSecret,
+          ...(adminTotp ? { 'X-Admin-Totp': adminTotp } : {}),
+        },
+        body: JSON.stringify({
+          action: 'generate_puk',
+          treeId,
+        }),
+      });
+      const adminPukData = await adminGenPukRes.json();
+      assert(adminGenPukRes.status === 200, 'Admin can generate new PUK HTTP 200');
+      assert(!!adminPukData.pukCode && adminPukData.pukCode.startsWith('KV-'), 'Admin receives newly generated PUK code');
+    }
+
+    // Clean up temporary E2E test tree via Super Admin token so production counts stay untouched
+    const cleanupRes = await fetch(`${BASE_URL}/api/mutate`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Admin-Secret': adminSecret,
-      },
-      body: JSON.stringify({ action: 'verify_admin' }),
-    });
-    const verifyAdminData = await verifyAdminRes.json();
-    assert(verifyAdminRes.status === 200, 'Admin verify returns HTTP 200');
-    assert(!!verifyAdminData.adminToken, 'Admin login issues short-lived session JWT');
-    const adminToken = verifyAdminData.adminToken;
-
-    // 2FA TOTP Setup initialization & verification guardrail
-    const initTotpRes = await fetch(`${BASE_URL}/api/admin/trees`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Admin-Token': adminToken,
-      },
-      body: JSON.stringify({ action: 'init_totp_setup' }),
-    });
-    const initTotpData = await initTotpRes.json();
-    assert(initTotpRes.status === 200, '2FA setup initialization succeeds HTTP 200');
-    assert(!!initTotpData.secret && initTotpData.otpauthUrl?.startsWith('otpauth://totp/KinVault'), 'Returns valid Base32 secret & otpauth URI');
-
-    const badTotpEnableRes = await fetch(`${BASE_URL}/api/admin/trees`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Admin-Token': adminToken,
-      },
-      body: JSON.stringify({ action: 'enable_totp', secret: initTotpData.secret, totpCode: '000000' }),
-    });
-    assert(badTotpEnableRes.status === 400, '2FA activation rejects mismatched Authenticator code (HTTP 400)');
-
-    // Authorized Admin lookup via token
-    const authAdminRes = await fetch(`${BASE_URL}/api/admin/trees?q=${inviteCode}`, {
-      headers: { 'X-Admin-Token': adminToken },
-    });
-    const adminData = await authAdminRes.json();
-    assert(authAdminRes.status === 200, 'Authorized admin lookup returns HTTP 200');
-    assert(adminData.trees.some((t) => t.id === treeId), 'Admin tree search locates tree by invite code');
-
-    // Admin forces new PIN reset
-    const adminResetPinRes = await fetch(`${BASE_URL}/api/admin/trees`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Admin-Secret': adminSecret,
+        Authorization: `Bearer ${superAdminToken}`,
+        'X-Person-Id': rootPersonId,
       },
       body: JSON.stringify({
-        action: 'reset_pin',
-        treeId,
-        newPin: '777888',
-      }),
-    });
-    assert(adminResetPinRes.status === 200, 'Admin can reset tree PIN HTTP 200');
-
-    // Admin generates fresh PUK
-    const adminGenPukRes = await fetch(`${BASE_URL}/api/admin/trees`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Admin-Secret': adminSecret,
-      },
-      body: JSON.stringify({
-        action: 'generate_puk',
-        treeId,
-      }),
-    });
-    const adminPukData = await adminGenPukRes.json();
-    assert(adminGenPukRes.status === 200, 'Admin can generate new PUK HTTP 200');
-    assert(!!adminPukData.pukCode && adminPukData.pukCode.startsWith('KV-'), 'Admin receives newly generated PUK code');
-
-    // Clean up temporary E2E test tree so production counts stay accurate
-    const cleanupRes = await fetch(`${BASE_URL}/api/admin/trees`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Admin-Secret': adminSecret,
-      },
-      body: JSON.stringify({
-        action: 'delete_tree',
-        treeId,
+        action: 'delete_self_tree',
+        payload: {},
       }),
     });
     assert(cleanupRes.status === 200, 'Automated test tree cleaned up after E2E suite');

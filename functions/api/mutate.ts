@@ -619,6 +619,21 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
         return new Response(JSON.stringify({ success: true, message: 'Tree PIN updated successfully.' }), { status: 200 });
       }
 
+      case 'delete_self_tree': {
+        if (!caller || caller.role !== 'super_admin') {
+          return new Response(JSON.stringify({ error: 'Only the Super Admin can delete this family tree.' }), { status: 403 });
+        }
+
+        await env.DB.batch([
+          env.DB.prepare('DELETE FROM relationships WHERE tree_id = ?').bind(treeId),
+          env.DB.prepare('DELETE FROM persons WHERE tree_id = ?').bind(treeId),
+          env.DB.prepare('DELETE FROM households WHERE tree_id = ?').bind(treeId),
+          env.DB.prepare('DELETE FROM trees WHERE id = ?').bind(treeId),
+        ]);
+
+        return new Response(JSON.stringify({ success: true, deletedTreeId: treeId }), { status: 200 });
+      }
+
       default:
         return new Response(JSON.stringify({ error: `Unsupported mutation action: ${action}` }), { status: 400 });
     }
