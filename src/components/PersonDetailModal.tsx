@@ -6,7 +6,6 @@ import {
   MapPin,
   Edit2,
   Home,
-  Plus,
   Users,
   ShieldAlert,
   ShieldCheck,
@@ -22,6 +21,8 @@ import {
   Heart,
   HeartCrack,
   Share2,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
 import type { Person, Household, Relationship, Role } from '../types/family';
 import type { TranslationDictionary } from '../locales/translations';
@@ -401,6 +402,63 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
               {photoError}
             </p>
           )}
+
+          {/* Add Relative Quick Actions (Promoted for Immediate Discovery) */}
+          <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3">
+            <p className="text-[10px] uppercase tracking-wider font-bold text-slate-500 mb-2 truncate">
+              {t.addFamilyLineLabel} • {person.full_name}
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-xs sm:text-[11px] font-bold">
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenMemberModal(person, household, 'add_ancestor');
+                }}
+                className="py-2 px-2 bg-white hover:bg-slate-100 border border-slate-200 text-slate-800 rounded-xl flex items-center justify-center gap-1 transition-colors cursor-pointer"
+              >
+                <ArrowUp className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                <span className="truncate">{t.addAncestorsAbove.replace(/^\+\s*/, '')}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenMemberModal(person, household, 'add_spouse');
+                }}
+                className="py-2 px-2 bg-white hover:bg-slate-100 border border-slate-200 text-slate-800 rounded-xl flex items-center justify-center gap-1 transition-colors cursor-pointer"
+              >
+                <Heart className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                <span className="truncate">{t.addSpouse.replace(/^\+\s*/, '')}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenMemberModal(person, household, 'add_sibling');
+                }}
+                className="py-2 px-2 bg-white hover:bg-slate-100 border border-slate-200 text-slate-800 rounded-xl flex items-center justify-center gap-1 transition-colors cursor-pointer"
+              >
+                <Users className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                <span className="truncate">{t.addSibling.replace(/^\+\s*/, '')}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenMemberModal(person, household, 'add_child');
+                }}
+                className="py-2 px-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl flex items-center justify-center gap-1 transition-colors cursor-pointer"
+              >
+                <ArrowDown className="w-3.5 h-3.5 text-sky-300 shrink-0" />
+                <span className="truncate">{t.addChildHousehold.replace(/^\+\s*/, '')}</span>
+              </button>
+            </div>
+          </div>
+
           {/* Contact & Address Information */}
           <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 space-y-3">
             {/* Telephone */}
@@ -679,62 +737,6 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
               </div>
             </div>
           )}
-
-          {/* Add Relative Quick Buttons */}
-          <div>
-            <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-2">
-              {t.addFamilyLineLabel}
-            </p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs sm:text-[11px] font-bold">
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                  onOpenMemberModal(person, household, 'add_ancestor');
-                }}
-                className="py-2 px-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl flex items-center justify-center gap-0.5 transition-colors cursor-pointer"
-              >
-                <Plus className="w-3 h-3 shrink-0" />
-                <span className="truncate">{t.addAncestorsAbove.replace(/^\+\s*/, '')}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                  onOpenMemberModal(person, household, 'add_spouse');
-                }}
-                className="py-2 px-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl flex items-center justify-center gap-0.5 transition-colors cursor-pointer"
-              >
-                <Plus className="w-3 h-3 shrink-0" />
-                <span className="truncate">{t.addSpouse.replace(/^\+\s*/, '')}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                  onOpenMemberModal(person, household, 'add_sibling');
-                }}
-                className="py-2 px-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl flex items-center justify-center gap-0.5 transition-colors cursor-pointer"
-              >
-                <Plus className="w-3 h-3 shrink-0" />
-                <span className="truncate">{t.addSibling.replace(/^\+\s*/, '')}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                  onOpenMemberModal(person, household, 'add_child');
-                }}
-                className="py-2 px-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl flex items-center justify-center gap-0.5 transition-colors cursor-pointer"
-              >
-                <Plus className="w-3 h-3 shrink-0" />
-                <span className="truncate">{t.addChildHousehold.replace(/^\+\s*/, '')}</span>
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* Footer Edit & Focus Actions */}

@@ -16,6 +16,7 @@ import {
   Search,
   LocateFixed,
   Pencil,
+  UserCheck,
 } from 'lucide-react';
 import type { Household, Person, Relationship, Tree, Role } from '../types/family';
 import type { TranslationDictionary } from '../locales/translations';
@@ -129,6 +130,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
 
   // Quick Find / Jump & Highlight navigation state
   const [findOpen, setFindOpen] = useState(false);
+  const [claimMode, setClaimMode] = useState(false);
   const [findQuery, setFindQuery] = useState('');
   const [highlightedPersonId, setHighlightedPersonId] = useState<string | null>(null);
   const pendingFocusPersonIdRef = useRef<string | null>(null);
@@ -315,6 +317,8 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
 
     const positions = new Map<string, PositionedNode>();
     const calculatedLinks: Array<{
+      sourceHouseholdId: string;
+      targetHouseholdId: string;
       sourceX: number;
       sourceY: number;
       targetX: number;
@@ -663,6 +667,8 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
           }
 
           calculatedLinks.push({
+            sourceHouseholdId: sourcePos.household.id,
+            targetHouseholdId: targetPos.household.id,
             sourceX,
             sourceY,
             targetX: targetPos.incomingX,
@@ -908,6 +914,43 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
     for (const h of households) map.set(h.id, h.family_name);
     return map;
   }, [households]);
+
+  // Spotlight lineage households when comparing or jumping to a relative
+  const spotlightHouseholdIds = useMemo(() => {
+    const targetPersonId = compareSource?.person.id || highlightedPersonId;
+    if (!targetPersonId) return null;
+    const startHId = personToHousehold.get(targetPersonId);
+    if (!startHId) return null;
+
+    const set = new Set<string>([startHId]);
+    const upQ = [startHId];
+    while (upQ.length > 0) {
+      const curr = upQ.shift()!;
+      for (const pId of parentHouseholdMap.get(curr) || []) {
+        if (!set.has(pId)) {
+          set.add(pId);
+          upQ.push(pId);
+        }
+      }
+    }
+    const downQ = [startHId];
+    while (downQ.length > 0) {
+      const curr = downQ.shift()!;
+      for (const cId of childrenHouseholdMap.get(curr) || []) {
+        if (!set.has(cId)) {
+          set.add(cId);
+          downQ.push(cId);
+        }
+      }
+    }
+    return set;
+  }, [
+    compareSource,
+    highlightedPersonId,
+    personToHousehold,
+    parentHouseholdMap,
+    childrenHouseholdMap,
+  ]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -1161,13 +1204,21 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
             // Compute clean orthogonal horizontal bus midway between outgoing parent point and child top
             const busY = link.busY ?? link.targetY - VERTICAL_GAP * 0.48;
             const pathData = `M ${link.sourceX} ${link.sourceY} V ${busY} H ${link.targetX} V ${link.targetY}`;
+            const isSpotlightLink =
+              !spotlightHouseholdIds ||
+              (spotlightHouseholdIds.has(link.sourceHouseholdId) &&
+                spotlightHouseholdIds.has(link.targetHouseholdId));
             return (
-              <g key={`link-${idx}`}>
+              <g
+                key={`link-${idx}`}
+                className="transition-opacity duration-200"
+                style={{ opacity: isSpotlightLink ? 1 : 0.25 }}
+              >
                 <path
                   d={pathData}
                   fill="none"
-                  stroke="#94A3B8"
-                  strokeWidth="2"
+                  stroke={spotlightHouseholdIds && isSpotlightLink ? link.color || '#0F172A' : '#94A3B8'}
+                  strokeWidth={spotlightHouseholdIds && isSpotlightLink ? '2.5' : '2'}
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
@@ -1184,14 +1235,17 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
           const isCollapsed = collapsedBranchIds.has(h.id);
           const branchColor = h.branch_color || '#0F172A';
 
+          const isDimmed = Boolean(spotlightHouseholdIds && !spotlightHouseholdIds.has(h.id));
+
           return (
             <div
               key={h.id}
               style={{
                 transform: `translate(${node.x}px, ${node.y}px)`,
                 width: `${node.width}px`,
+                opacity: isDimmed ? 0.35 : 1,
               }}
-              className="flowchart-node group absolute top-0 left-0"
+              className="flowchart-node group absolute top-0 left-0 transition-opacity duration-200"
             >
               {/* Horizontal Spouse / Former-Spouse Connectors */}
               {node.pairConnectors.map((conn, cIdx) => (
@@ -1416,6 +1470,12 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
       <div className="absolute bottom-4 left-3 sm:bottom-6 sm:left-6 z-20">
         {findOpen && (
           <div className="absolute bottom-full left-0 mb-2 w-64 sm:w-72 bg-white/95 backdrop-blur-md border border-slate-200 rounded-2xl shadow-2xl overflow-hidden">
+            {claimMode && (
+              <div className="px-3 py-2 bg-amber-50 border-b border-amber-200 text-[11px] font-bold text-amber-900 flex items-center gap-1.5">
+                <UserCheck className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                <span>{t.claimMeGuideHint}</span>
+              </div>
+            )}
             <div className="p-2 border-b border-slate-100 flex items-center gap-1.5">
               <Search className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-1" />
               <input
@@ -1430,6 +1490,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
                 type="button"
                 onClick={() => {
                   setFindOpen(false);
+                  setClaimMode(false);
                   setFindQuery('');
                 }}
                 className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
@@ -1446,14 +1507,22 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
               ) : (
                 filteredFindPersons.map((p) => {
                   const hName = p.household_id ? householdNameMap.get(p.household_id) : '';
+                  const matchedH = p.household_id
+                    ? households.find((item) => item.id === p.household_id)
+                    : undefined;
                   return (
                     <button
                       key={p.id}
                       type="button"
                       onClick={() => {
+                        const wasClaim = claimMode;
                         setFindOpen(false);
+                        setClaimMode(false);
                         setFindQuery('');
                         focusOnPerson(p.id);
+                        if (wasClaim) {
+                          setDetailTarget({ person: p, household: matchedH });
+                        }
                       }}
                       className="w-full px-3 py-2 flex items-center gap-2.5 hover:bg-slate-50 active:bg-slate-100 text-left transition-colors cursor-pointer"
                     >
@@ -1481,9 +1550,12 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
         <div className="flex items-center gap-1 bg-white/95 backdrop-blur-sm border border-slate-200 rounded-2xl p-1 shadow-lg">
           <button
             type="button"
-            onClick={() => setFindOpen((prev) => !prev)}
+            onClick={() => {
+              setClaimMode(false);
+              setFindOpen((prev) => (prev && !claimMode ? false : true));
+            }}
             className={`px-3 py-2 sm:py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
-              findOpen
+              findOpen && !claimMode
                 ? 'bg-slate-900 text-white'
                 : 'text-slate-700 hover:bg-slate-100'
             }`}
@@ -1493,22 +1565,38 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
             <span>{t.findOnTreeBtn}</span>
           </button>
 
-          {activePersonId && (
-            <>
-              <div className="w-px h-5 bg-slate-200" />
-              <button
-                type="button"
-                onClick={() => {
-                  setFindOpen(false);
-                  focusOnPerson(activePersonId);
-                }}
-                className="px-3 py-2 sm:py-1.5 rounded-xl text-xs font-bold text-emerald-700 hover:bg-emerald-50 flex items-center gap-1.5 transition-colors cursor-pointer"
-                title={t.centerOnMeBtn}
-              >
-                <LocateFixed className="w-3.5 h-3.5 shrink-0" />
-                <span>{t.centerOnMeBtn}</span>
-              </button>
-            </>
+          <div className="w-px h-5 bg-slate-200" />
+          {activePersonId ? (
+            <button
+              type="button"
+              onClick={() => {
+                setFindOpen(false);
+                setClaimMode(false);
+                focusOnPerson(activePersonId);
+              }}
+              className="px-3 py-2 sm:py-1.5 rounded-xl text-xs font-bold text-emerald-700 hover:bg-emerald-50 flex items-center gap-1.5 transition-colors cursor-pointer"
+              title={t.centerOnMeBtn}
+            >
+              <LocateFixed className="w-3.5 h-3.5 shrink-0" />
+              <span>{t.centerOnMeBtn}</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setClaimMode(true);
+                setFindOpen((prev) => (prev && claimMode ? false : true));
+              }}
+              className={`px-3 py-2 sm:py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                findOpen && claimMode
+                  ? 'bg-amber-600 text-white'
+                  : 'text-amber-700 hover:bg-amber-50'
+              }`}
+              title={t.claimMeBtn}
+            >
+              <UserCheck className="w-3.5 h-3.5 shrink-0" />
+              <span>{t.claimMeBtn}</span>
+            </button>
           )}
         </div>
       </div>

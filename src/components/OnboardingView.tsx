@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { KeyRound, PlusCircle, LogIn, Globe, Shield, ShieldAlert, Copy, Check, ArrowRight } from 'lucide-react';
+import { KeyRound, PlusCircle, LogIn, Globe, Shield, ShieldAlert, Copy, Check, ArrowRight, ChevronDown } from 'lucide-react';
 import type { Language, TranslationDictionary } from '../locales/translations';
 import { translations } from '../locales/translations';
 import type { UserSession } from '../types/family';
@@ -56,6 +56,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({
   const [city, setCity] = useState('');
   const [country, setCountry] = useState('');
   const [branchColor, setBranchColor] = useState('#0F172A');
+  const [showCreateExtras, setShowCreateExtras] = useState(false);
 
   // Join form state
   const [inviteCode, setInviteCode] = useState(() => resolvedInvite?.inviteCode || '');
@@ -364,72 +365,87 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                    {t.pinLabel} *
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="password"
-                      inputMode="numeric"
-                      pattern="\d{6}"
-                      maxLength={6}
-                      required
-                      value={createPin}
-                      onChange={(e) => setCreatePin(e.target.value.replace(/\D/g, ''))}
-                      placeholder={t.pinPlaceholder}
-                      className="w-full px-3.5 py-2.5 pl-10 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono tracking-widest focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all"
-                    />
-                    <KeyRound className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                    {t.branchColorLabel}
-                  </label>
-                  <div className="flex items-center gap-1.5 pt-1">
-                    {colorPresets.map((color) => (
-                      <button
-                        key={color}
-                        type="button"
-                        onClick={() => setBranchColor(color)}
-                        className={`w-7 h-7 rounded-full border-2 transition-transform ${
-                          branchColor === color ? 'scale-115 border-slate-900 shadow-sm' : 'border-transparent hover:scale-105'
-                        }`}
-                        style={{ backgroundColor: color }}
-                      />
-                    ))}
-                  </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                  {t.pinLabel} *
+                </label>
+                <div className="relative">
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    pattern="\d{6}"
+                    maxLength={6}
+                    required
+                    value={createPin}
+                    onChange={(e) => setCreatePin(e.target.value.replace(/\D/g, ''))}
+                    placeholder={t.pinPlaceholder}
+                    className="w-full px-3.5 py-2.5 pl-10 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono tracking-widest focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all"
+                  />
+                  <KeyRound className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                    {t.cityLabel}
-                  </label>
-                  <input
-                    type="text"
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                    placeholder={t.cityPlaceholder || "e.g. Aizawl"}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent"
+              <div className="pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateExtras((v) => !v)}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 cursor-pointer transition-colors"
+                >
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 transition-transform ${showCreateExtras ? 'rotate-180' : ''}`}
                   />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                    {t.countryLabel}
-                  </label>
-                  <input
-                    type="text"
-                    value={country}
-                    onChange={(e) => setCountry(e.target.value)}
-                    placeholder={t.countryPlaceholder || "e.g. India"}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent"
-                  />
-                </div>
+                  <span>{t.optionalLocationToggle}</span>
+                </button>
+
+                {showCreateExtras && (
+                  <div className="mt-3 p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl space-y-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                        {t.branchColorLabel}
+                      </label>
+                      <div className="flex items-center gap-1.5">
+                        {colorPresets.map((color) => (
+                          <button
+                            key={color}
+                            type="button"
+                            onClick={() => setBranchColor(color)}
+                            className={`w-7 h-7 rounded-full border-2 transition-transform cursor-pointer ${
+                              branchColor === color ? 'scale-115 border-slate-900 shadow-sm' : 'border-transparent hover:scale-105'
+                            }`}
+                            style={{ backgroundColor: color }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                          {t.cityLabel}
+                        </label>
+                        <input
+                          type="text"
+                          value={city}
+                          onChange={(e) => setCity(e.target.value)}
+                          placeholder={t.cityPlaceholder || 'e.g. Aizawl'}
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                          {t.countryLabel}
+                        </label>
+                        <input
+                          type="text"
+                          value={country}
+                          onChange={(e) => setCountry(e.target.value)}
+                          placeholder={t.countryPlaceholder || 'e.g. India'}
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <button

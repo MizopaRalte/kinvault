@@ -16,6 +16,7 @@ import {
   X,
   Smartphone,
   Pencil,
+  MoreVertical,
 } from 'lucide-react';
 
 import type { Language, TranslationDictionary } from './locales/translations';
@@ -169,6 +170,7 @@ export const App: React.FC = () => {
   // Global Admin and live telemetry state
   const [adminModalOpen, setAdminModalOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [desktopMenuOpen, setDesktopMenuOpen] = useState(false);
   const [renameModalOpen, setRenameModalOpen] = useState(false);
   const [renameInput, setRenameInput] = useState('');
   const [renameSaving, setRenameSaving] = useState(false);
@@ -674,19 +676,7 @@ export const App: React.FC = () => {
           </div>
 
           {/* Right Action Icons (Desktop) */}
-          <div className="hidden md:flex items-center gap-1.5">
-            {globalStats && (
-              <button
-                type="button"
-                onClick={() => setAdminModalOpen(true)}
-                title={t.liveStatsTooltip}
-                className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg text-[11px] font-semibold text-slate-700 transition-colors cursor-pointer"
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span>{globalStats.totalPersons} Members • {globalStats.totalTrees} Trees</span>
-              </button>
-            )}
-
+          <div className="hidden md:flex items-center gap-1.5 relative">
             <button
               type="button"
               onClick={() => loadTreeData(session, false)}
@@ -701,9 +691,10 @@ export const App: React.FC = () => {
               type="button"
               onClick={() => setShareModalOpen(true)}
               title={t.shareTab}
-              className="p-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+              className="px-2.5 py-1.5 text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
             >
-              <Share2 className="w-4 h-4" />
+              <Share2 className="w-3.5 h-3.5" />
+              <span className="hidden lg:inline">{t.shareTab}</span>
             </button>
 
             <button
@@ -714,35 +705,6 @@ export const App: React.FC = () => {
               className="p-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer disabled:opacity-50"
             >
               <Download className={`w-4 h-4 ${pdfExporting ? 'animate-bounce text-sky-600' : ''}`} />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setBackupModalOpen(true)}
-              title={t.backupTab}
-              className="p-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
-            >
-              <Shield className="w-4 h-4" />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setLockSettingsModalOpen(true)}
-              title={t.lockTab}
-              className={`p-2 rounded-xl transition-colors cursor-pointer ${
-                lockPin ? 'text-emerald-700 bg-emerald-50' : 'text-slate-500 hover:bg-slate-100'
-              }`}
-            >
-              <Lock className="w-4 h-4" />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setAdminModalOpen(true)}
-              title={t.globalAdminTitle}
-              className="p-2 text-amber-700 hover:text-amber-900 hover:bg-amber-50 rounded-xl transition-colors cursor-pointer"
-            >
-              <ShieldAlert className="w-4 h-4" />
             </button>
 
             <div className="flex items-center bg-slate-100 rounded-xl p-1 text-[11px] font-bold">
@@ -760,14 +722,109 @@ export const App: React.FC = () => {
               ))}
             </div>
 
-            <button
-              type="button"
-              onClick={handleSignOut}
-              title="Leave / Sign Out"
-              className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer ml-1"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setDesktopMenuOpen((v) => !v)}
+                title={t.moreSettingsBtn}
+                aria-label={t.moreSettingsBtn}
+                className={`p-2 rounded-xl transition-colors cursor-pointer ${
+                  desktopMenuOpen
+                    ? 'bg-slate-900 text-white'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+              >
+                <MoreVertical className="w-4 h-4" />
+              </button>
+
+              {desktopMenuOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-30"
+                    onClick={() => setDesktopMenuOpen(false)}
+                  />
+                  <div className="absolute right-0 top-full mt-2 w-60 bg-white border border-slate-200 rounded-2xl shadow-xl p-1.5 z-40 text-xs font-semibold text-slate-700 space-y-0.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDesktopMenuOpen(false);
+                        setBackupModalOpen(true);
+                      }}
+                      className="w-full px-3 py-2 rounded-xl hover:bg-slate-100 flex items-center gap-2.5 text-left transition-colors cursor-pointer"
+                    >
+                      <Shield className="w-4 h-4 text-slate-600 shrink-0" />
+                      <span>{t.backupTab}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDesktopMenuOpen(false);
+                        setLockSettingsModalOpen(true);
+                      }}
+                      className="w-full px-3 py-2 rounded-xl hover:bg-slate-100 flex items-center justify-between text-left transition-colors cursor-pointer"
+                    >
+                      <span className="flex items-center gap-2.5">
+                        <Lock className="w-4 h-4 text-slate-600 shrink-0" />
+                        <span>{t.lockTab}</span>
+                      </span>
+                      {lockPin && (
+                        <span className="text-[10px] font-bold bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded">
+                          ON
+                        </span>
+                      )}
+                    </button>
+
+                    {!isInstalledStandalone && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDesktopMenuOpen(false);
+                          setInstallGuideOpen(true);
+                        }}
+                        className="w-full px-3 py-2 rounded-xl hover:bg-slate-100 flex items-center gap-2.5 text-left transition-colors cursor-pointer"
+                      >
+                        <Smartphone className="w-4 h-4 text-slate-600 shrink-0" />
+                        <span>{t.installAppBtn}</span>
+                      </button>
+                    )}
+
+                    <div className="border-t border-slate-100 my-1" />
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDesktopMenuOpen(false);
+                        setAdminModalOpen(true);
+                      }}
+                      className="w-full px-3 py-2 rounded-xl hover:bg-amber-50 text-amber-800 flex items-center justify-between text-left transition-colors cursor-pointer"
+                    >
+                      <span className="flex items-center gap-2.5">
+                        <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0" />
+                        <span>{t.globalAdminTitle}</span>
+                      </span>
+                      {globalStats && (
+                        <span className="text-[10px] font-bold text-slate-500">
+                          {globalStats.totalPersons}/{globalStats.totalTrees}
+                        </span>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDesktopMenuOpen(false);
+                        handleSignOut();
+                      }}
+                      className="w-full px-3 py-2 rounded-xl hover:bg-rose-50 text-rose-600 flex items-center gap-2.5 text-left transition-colors cursor-pointer"
+                    >
+                      <LogOut className="w-4 h-4 shrink-0" />
+                      <span>Sign Out</span>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
 
           {/* Right Quick Actions (Mobile < md) */}

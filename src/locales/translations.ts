@@ -264,6 +264,12 @@ export interface TranslationDictionary {
   renameTreeBtn: string;
   renameTreeTitle: string;
   renameTreeHint: string;
+  optionalDetailsToggle: string;
+  optionalLocationToggle: string;
+  claimMeBtn: string;
+  claimMeGuideHint: string;
+  parentPairChoiceLabel: string;
+  moreSettingsBtn: string;
   compareRelation: string;
   comparingFromHint: string;
   relationToYou: string;
@@ -553,6 +559,12 @@ export const translations: Record<Language, TranslationDictionary> = {
     renameTreeBtn: 'Edit Tree Name',
     renameTreeTitle: 'Rename Family Tree',
     renameTreeHint: 'Update the main tree title anytime—for instance, when you discover an earlier founding ancestor.',
+    optionalDetailsToggle: 'Add Photo, Dates & Contact (Optional)',
+    optionalLocationToggle: 'Location & Branch Color (Optional)',
+    claimMeBtn: 'Claim Me',
+    claimMeGuideHint: 'Tap your name to link your profile on this device',
+    parentPairChoiceLabel: 'Which parents is this child from?',
+    moreSettingsBtn: 'More Settings',
     compareRelation: 'Compare Relation',
     comparingFromHint: 'Comparing from {name} — Tap another person on the tree',
     relationToYou: 'Your Relation',
@@ -641,7 +653,7 @@ export const translations: Record<Language, TranslationDictionary> = {
     collapseBranch: 'Thlep Rawh',
     living: 'Dam Lai',
     deceased: 'Boral Tawh',
-    membersCount: 'chhungkua',
+    membersCount: 'chhungkhat',
     householdColor: 'Peng Rawng',
     superAdminBadge: 'Siamtu (Super Admin)',
     branchAdminBadge: 'Peng Admin',
@@ -841,6 +853,12 @@ export const translations: Record<Language, TranslationDictionary> = {
     renameTreeBtn: 'Chhungkaw Hming Thlâk',
     renameTreeTitle: 'Thlahtute Chhuina Hming Thlâkna',
     renameTreeHint: 'Thlahtu hmasa zawk (pi leh pu chhawng) i hmuh chhuah belh chuan he chhungkaw bul hming hi a thlâk theih e.',
+    optionalDetailsToggle: 'Thlalak, Kum leh Phone Belh (A duh tan)',
+    optionalLocationToggle: 'Khua, Ram leh Peng Rawng (A duh tan)',
+    claimMeBtn: 'Keimah Thlang',
+    claimMeGuideHint: 'I phone nena thlunzawm tûrin i hming hmet rawh',
+    parentPairChoiceLabel: 'Tu te fa nge ni dawn?',
+    moreSettingsBtn: 'Setting Dangte',
     compareRelation: 'Inlaichinna Enna',
     comparingFromHint: '{name} aṭanga en mek — Mi dang hmet rawh',
     relationToYou: 'I Chhungkhat Nihna',
@@ -1129,6 +1147,12 @@ export const translations: Record<Language, TranslationDictionary> = {
     renameTreeBtn: 'Editar Nombre del Árbol',
     renameTreeTitle: 'Cambiar Nombre del Árbol',
     renameTreeHint: 'Actualiza el título principal cuando descubras ancestros más antiguos.',
+    optionalDetailsToggle: 'Añadir Foto, Fechas y Teléfono (Opcional)',
+    optionalLocationToggle: 'Ubicación y Color (Opcional)',
+    claimMeBtn: 'Soy Yo',
+    claimMeGuideHint: 'Toca tu nombre para vincular tu perfil',
+    parentPairChoiceLabel: '¿De qué padres es este hijo/a?',
+    moreSettingsBtn: 'Más Opciones',
     compareRelation: 'Comparar Parentesco',
     comparingFromHint: 'Comparando desde {name} — Toca otra persona en el árbol',
     relationToYou: 'Tu Parentesco',
@@ -1417,6 +1441,12 @@ export const translations: Record<Language, TranslationDictionary> = {
     renameTreeBtn: 'Stammbaum-Namen ändern',
     renameTreeTitle: 'Stammbaum umbenennen',
     renameTreeHint: 'Passe den Hauptnamen an, sobald ältere Vorfahren gefunden werden.',
+    optionalDetailsToggle: 'Foto, Daten & Kontakt hinzufügen (Optional)',
+    optionalLocationToggle: 'Ort & Zweigfarbe (Optional)',
+    claimMeBtn: 'Das bin ich',
+    claimMeGuideHint: 'Tippe auf deinen Namen, um dein Profil zu verknüpfen',
+    parentPairChoiceLabel: 'Von welchen Eltern stammt dieses Kind?',
+    moreSettingsBtn: 'Weitere Optionen',
     compareRelation: 'Verwandtschaft prüfen',
     comparingFromHint: 'Vergleich ab {name} — Tippe auf eine andere Person',
     relationToYou: 'Beziehung zu dir',

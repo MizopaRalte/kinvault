@@ -10,6 +10,7 @@ import {
   Plus,
   Heart,
   HeartCrack,
+  ChevronDown,
 } from 'lucide-react';
 import type { Household, Person, Relationship, Role } from '../types/family';
 import type { TranslationDictionary } from '../locales/translations';
@@ -190,6 +191,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
   const [siblingAvatarB64, setSiblingAvatarB64] = useState('');
   const [siblingAvatarSizeKb, setSiblingAvatarSizeKb] = useState<number | null>(null);
   const [siblingParentName, setSiblingParentName] = useState('');
+  const [showFormExtras, setShowFormExtras] = useState(false);
 
   // Synchronize modal state with props on open
   useEffect(() => {
@@ -289,6 +291,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
     setSiblingAvatarB64('');
     setSiblingAvatarSizeKb(null);
     setSiblingParentName('');
+    setShowFormExtras(false);
   }, [isOpen, person, household, initialMode, initialParentHouseholdId, initialParentIds, relationships]);
 
   if (!isOpen) return null;
@@ -562,20 +565,30 @@ export const MemberModal: React.FC<MemberModalProps> = ({
         {t.connectTargetPersonLabel}
       </label>
       <div className="flex flex-wrap gap-1.5">
-        {householdMembersList.map((m) => (
-          <button
-            key={m.id}
-            type="button"
-            onClick={() => setTargetPersonId(m.id)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
-              (targetPersonId || person?.id) === m.id
-                ? 'bg-slate-900 text-white border-slate-900'
-                : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-            }`}
-          >
-            {m.full_name}
-          </button>
-        ))}
+        {householdMembersList.map((m) => {
+          const isSelected = (targetPersonId || person?.id) === m.id;
+          return (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => setTargetPersonId(m.id)}
+              className={`pl-1.5 pr-3 py-1 rounded-full text-xs font-bold border inline-flex items-center gap-1.5 transition-colors cursor-pointer ${
+                isSelected
+                  ? 'bg-slate-900 text-white border-slate-900'
+                  : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+              }`}
+            >
+              <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-700 overflow-hidden flex items-center justify-center text-[10px] font-extrabold shrink-0">
+                {m.avatar_b64 ? (
+                  <img src={m.avatar_b64} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  m.full_name.slice(0, 1).toUpperCase()
+                )}
+              </span>
+              <span>{m.full_name}</span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -902,14 +915,20 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                                       return [...prev, pm.id];
                                     });
                                   }}
-                                  className={`px-2.5 py-1 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                                  className={`pl-1.5 pr-2.5 py-1 rounded-full text-xs font-bold border inline-flex items-center gap-1.5 transition-colors cursor-pointer ${
                                     checked
                                       ? 'bg-slate-900 text-white border-slate-900'
                                       : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
                                   }`}
                                 >
-                                  {checked ? '✓ ' : ''}
-                                  {pm.full_name}
+                                  <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-700 overflow-hidden flex items-center justify-center text-[10px] font-extrabold shrink-0">
+                                    {pm.avatar_b64 ? (
+                                      <img src={pm.avatar_b64} alt="" className="w-full h-full object-cover" />
+                                    ) : (
+                                      pm.full_name.slice(0, 1).toUpperCase()
+                                    )}
+                                  </span>
+                                  <span>{checked ? `✓ ${pm.full_name}` : pm.full_name}</span>
                                 </button>
                               );
                             })}
@@ -1229,48 +1248,121 @@ export const MemberModal: React.FC<MemberModalProps> = ({
             {/* 3. ADD CHILD / NEW FAMILY MODE */}
             {mode === 'add_child' && (
               <>
-                <p className="text-xs text-slate-500">
-                  {t.addChildNotice.replace('{name}', activeTargetPerson?.full_name || person?.full_name || 'parent')}
-                </p>
-
-                {householdMembersList.length > 1 && (
-                  <div className="space-y-3 p-3 bg-slate-50 border border-slate-200 rounded-2xl">
-                    {targetPersonSelector}
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                        {t.otherParentLabel}
+                {householdMembersList.length > 1 && (() => {
+                  const memberById = new Map(householdMembersList.map((m) => [m.id, m]));
+                  const pairCards: Array<{
+                    relId: string;
+                    p1: Person;
+                    p2: Person;
+                    isDivorced: boolean;
+                  }> = [];
+                  const seenPair = new Set<string>();
+                  for (const r of relationships) {
+                    if (r.rel_type !== 'spouse' && r.rel_type !== 'former_spouse') continue;
+                    const m1 = memberById.get(r.person_a_id);
+                    const m2 = memberById.get(r.person_b_id);
+                    if (!m1 || !m2) continue;
+                    const key = m1.id < m2.id ? `${m1.id}|${m2.id}` : `${m2.id}|${m1.id}`;
+                    if (seenPair.has(key)) continue;
+                    seenPair.add(key);
+                    const ordered = m1.id === (person?.id || '') ? [m1, m2] : m2.id === (person?.id || '') ? [m2, m1] : [m1, m2];
+                    pairCards.push({
+                      relId: r.id,
+                      p1: ordered[0],
+                      p2: ordered[1],
+                      isDivorced: r.rel_type === 'former_spouse',
+                    });
+                  }
+                  const activeId = targetPersonId || person?.id || '';
+                  return (
+                    <div className="space-y-2 p-3 bg-slate-50 border border-slate-200 rounded-2xl">
+                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                        {t.parentPairChoiceLabel}
                       </label>
-                      <div className="flex flex-wrap gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => setChildOtherParentId('')}
-                          className={`px-2.5 py-1 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
-                            childOtherParentId === ''
-                              ? 'bg-slate-900 text-white border-slate-900'
-                              : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
-                          }`}
-                        >
-                          {t.noOtherParentOption}
-                        </button>
-                        {householdMembersList
-                          .filter((m) => m.id !== (activeTargetPerson?.id || person?.id))
-                          .map((m) => (
+                      <div className="space-y-1.5">
+                        {pairCards.map((pc) => {
+                          const isSelected =
+                            (activeId === pc.p1.id && childOtherParentId === pc.p2.id) ||
+                            (activeId === pc.p2.id && childOtherParentId === pc.p1.id);
+                          return (
                             <button
-                              key={m.id}
+                              key={pc.relId}
                               type="button"
-                              onClick={() => setChildOtherParentId(m.id)}
-                              className={`px-2.5 py-1 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
-                                childOtherParentId === m.id
+                              onClick={() => {
+                                setTargetPersonId(pc.p1.id);
+                                setChildOtherParentId(pc.p2.id);
+                              }}
+                              className={`w-full px-3 py-2 rounded-xl border text-left flex items-center justify-between gap-2 transition-colors cursor-pointer ${
+                                isSelected
                                   ? 'bg-slate-900 text-white border-slate-900'
-                                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                                  : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-100'
                               }`}
                             >
-                              {m.full_name}
+                              <span className="flex items-center gap-1.5 min-w-0 flex-wrap text-xs font-bold">
+                                <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-700 overflow-hidden inline-flex items-center justify-center text-[10px] font-extrabold shrink-0">
+                                  {pc.p1.avatar_b64 ? (
+                                    <img src={pc.p1.avatar_b64} alt="" className="w-full h-full object-cover" />
+                                  ) : (
+                                    pc.p1.full_name.slice(0, 1).toUpperCase()
+                                  )}
+                                </span>
+                                <span className="truncate">{pc.p1.full_name}</span>
+                                {pc.isDivorced ? (
+                                  <HeartCrack className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                                ) : (
+                                  <Heart className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                                )}
+                                <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-700 overflow-hidden inline-flex items-center justify-center text-[10px] font-extrabold shrink-0">
+                                  {pc.p2.avatar_b64 ? (
+                                    <img src={pc.p2.avatar_b64} alt="" className="w-full h-full object-cover" />
+                                  ) : (
+                                    pc.p2.full_name.slice(0, 1).toUpperCase()
+                                  )}
+                                </span>
+                                <span className="truncate">{pc.p2.full_name}</span>
+                              </span>
                             </button>
-                          ))}
+                          );
+                        })}
+
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {householdMembersList.map((m) => {
+                            const isSingleSelected = activeId === m.id && childOtherParentId === '';
+                            return (
+                              <button
+                                key={m.id}
+                                type="button"
+                                onClick={() => {
+                                  setTargetPersonId(m.id);
+                                  setChildOtherParentId('');
+                                }}
+                                className={`pl-1.5 pr-2.5 py-1 rounded-full text-[11px] font-bold border inline-flex items-center gap-1.5 transition-colors cursor-pointer ${
+                                  isSingleSelected
+                                    ? 'bg-slate-900 text-white border-slate-900'
+                                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                                }`}
+                              >
+                                <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-700 overflow-hidden flex items-center justify-center text-[9px] font-extrabold shrink-0">
+                                  {m.avatar_b64 ? (
+                                    <img src={m.avatar_b64} alt="" className="w-full h-full object-cover" />
+                                  ) : (
+                                    m.full_name.slice(0, 1).toUpperCase()
+                                  )}
+                                </span>
+                                <span>{m.full_name} ({t.noOtherParentOption})</span>
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  );
+                })()}
+
+                {householdMembersList.length <= 1 && (
+                  <p className="text-xs text-slate-500">
+                    {t.addChildNotice.replace('{name}', activeTargetPerson?.full_name || person?.full_name || 'parent')}
+                  </p>
                 )}
 
                 <div>
@@ -1287,163 +1379,182 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                   />
                 </div>
 
-                {/* Child Photo Upload & Camera */}
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
-                    {t.personalPhoto} {t.optionalLabel}
-                  </label>
-                  <div className="flex items-center gap-3">
-                    <div className="relative w-14 h-14 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
-                      {childAvatarB64 ? (
-                        <img src={childAvatarB64} alt="Child preview" className="w-full h-full object-cover" />
-                      ) : (
-                        <Camera className="w-5 h-5 text-slate-400" />
-                      )}
-                    </div>
-                    <div className="space-y-1.5">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 rounded-lg text-xs font-semibold cursor-pointer transition-colors">
-                          <Upload className="w-3.5 h-3.5 text-slate-600" />
-                          <span>{t.uploadPhoto}</span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => handleAvatarUpload(e, setChildAvatarB64, setChildAvatarSizeKb)}
-                            className="hidden"
-                          />
-                        </label>
-                        <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 rounded-lg text-xs font-semibold cursor-pointer transition-colors">
-                          <Camera className="w-3.5 h-3.5 text-slate-600" />
-                          <span>{t.takePhoto}</span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            capture="user"
-                            onChange={(e) => handleAvatarUpload(e, setChildAvatarB64, setChildAvatarSizeKb)}
-                            className="hidden"
-                          />
-                        </label>
-                        {childAvatarB64 && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setChildAvatarB64('');
-                              setChildAvatarSizeKb(null);
-                            }}
-                            className="px-2.5 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
-                          >
-                            {t.removePhoto}
-                          </button>
-                        )}
-                      </div>
-                      {childAvatarSizeKb !== null && (
-                        <p className="text-[11px] text-slate-500">
-                          {t.compressedSizeLabel} <strong className="text-slate-800">{childAvatarSizeKb} KB</strong> (WebP)
-                        </p>
-                      )}
-                    </div>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowFormExtras((v) => !v)}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 cursor-pointer transition-colors"
+                  >
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 transition-transform ${showFormExtras ? 'rotate-180' : ''}`}
+                    />
+                    <span>{t.optionalDetailsToggle}</span>
+                  </button>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                    {t.spouseName} {t.optionalLabel}
-                  </label>
-                  <input
-                    type="text"
-                    value={childSpouseName}
-                    onChange={(e) => setChildSpouseName(e.target.value)}
-                    placeholder={t.spousePlaceholder}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                    {t.birthYear} {t.optionalLabel}
-                  </label>
-                  <input
-                    type="text"
-                    maxLength={4}
-                    value={childBirthYear}
-                    onChange={(e) => setChildBirthYear(e.target.value.replace(/\D/g, ''))}
-                    placeholder={t.birthYearPlaceholder}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
-                  />
-                </div>
-
-                {/* Additional Siblings / Children on the Same Line */}
-                {extraChildren.length > 0 && (
-                  <div className="space-y-2.5 pt-2 border-t border-slate-100">
-                    {extraChildren.map((extra, idx) => (
-                      <div
-                        key={extra.id}
-                        className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 relative"
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-                            {t.childName} #{idx + 2}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setExtraChildren((prev) => prev.filter((item) => item.id !== extra.id))
-                            }
-                            className="p-1 text-slate-400 hover:text-rose-600 rounded-lg cursor-pointer"
-                            title={t.removePhoto}
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
+                {(showFormExtras || extraChildren.length > 0) && (
+                  <div className="space-y-3 pt-1">
+                    {/* Child Photo Upload & Camera */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
+                        {t.personalPhoto} {t.optionalLabel}
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <div className="relative w-14 h-14 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
+                          {childAvatarB64 ? (
+                            <img src={childAvatarB64} alt="Child preview" className="w-full h-full object-cover" />
+                          ) : (
+                            <Camera className="w-5 h-5 text-slate-400" />
+                          )}
                         </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          <input
-                            type="text"
-                            value={extra.fullName}
-                            onChange={(e) =>
-                              setExtraChildren((prev) =>
-                                prev.map((item) =>
-                                  item.id === extra.id ? { ...item, fullName: e.target.value } : item
-                                )
-                              )
-                            }
-                            placeholder={t.childPlaceholder}
-                            className="col-span-2 px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
-                          />
-                          <input
-                            type="text"
-                            maxLength={4}
-                            value={extra.birthYear}
-                            onChange={(e) =>
-                              setExtraChildren((prev) =>
-                                prev.map((item) =>
-                                  item.id === extra.id
-                                    ? { ...item, birthYear: e.target.value.replace(/\D/g, '') }
-                                    : item
-                                )
-                              )
-                            }
-                            placeholder={t.birthYearPlaceholder}
-                            className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
-                          />
+                        <div className="space-y-1.5">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 rounded-lg text-xs font-semibold cursor-pointer transition-colors">
+                              <Upload className="w-3.5 h-3.5 text-slate-600" />
+                              <span>{t.uploadPhoto}</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => handleAvatarUpload(e, setChildAvatarB64, setChildAvatarSizeKb)}
+                                className="hidden"
+                              />
+                            </label>
+                            <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 rounded-lg text-xs font-semibold cursor-pointer transition-colors">
+                              <Camera className="w-3.5 h-3.5 text-slate-600" />
+                              <span>{t.takePhoto}</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                capture="user"
+                                onChange={(e) => handleAvatarUpload(e, setChildAvatarB64, setChildAvatarSizeKb)}
+                                className="hidden"
+                              />
+                            </label>
+                            {childAvatarB64 && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setChildAvatarB64('');
+                                  setChildAvatarSizeKb(null);
+                                }}
+                                className="px-2.5 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
+                              >
+                                {t.removePhoto}
+                              </button>
+                            )}
+                          </div>
+                          {childAvatarSizeKb !== null && (
+                            <p className="text-[11px] text-slate-500">
+                              {t.compressedSizeLabel} <strong className="text-slate-800">{childAvatarSizeKb} KB</strong> (WebP)
+                            </p>
+                          )}
                         </div>
                       </div>
-                    ))}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                          {t.spouseName} {t.optionalLabel}
+                        </label>
+                        <input
+                          type="text"
+                          value={childSpouseName}
+                          onChange={(e) => setChildSpouseName(e.target.value)}
+                          placeholder={t.spousePlaceholder}
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                          {t.birthYear} {t.optionalLabel}
+                        </label>
+                        <input
+                          type="text"
+                          maxLength={4}
+                          value={childBirthYear}
+                          onChange={(e) => setChildBirthYear(e.target.value.replace(/\D/g, ''))}
+                          placeholder={t.birthYearPlaceholder}
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Additional Siblings / Children on the Same Line */}
+                    {extraChildren.length > 0 && (
+                      <div className="space-y-2.5 pt-2 border-t border-slate-100">
+                        {extraChildren.map((extra, idx) => (
+                          <div
+                            key={extra.id}
+                            className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 relative"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                                {t.childName} #{idx + 2}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setExtraChildren((prev) => prev.filter((item) => item.id !== extra.id))
+                                }
+                                className="p-1 text-slate-400 hover:text-rose-600 rounded-lg cursor-pointer"
+                                title={t.removePhoto}
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2">
+                              <input
+                                type="text"
+                                value={extra.fullName}
+                                onChange={(e) =>
+                                  setExtraChildren((prev) =>
+                                    prev.map((item) =>
+                                      item.id === extra.id ? { ...item, fullName: e.target.value } : item
+                                    )
+                                  )
+                                }
+                                placeholder={t.childPlaceholder}
+                                className="col-span-2 px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+                              />
+                              <input
+                                type="text"
+                                maxLength={4}
+                                value={extra.birthYear}
+                                onChange={(e) =>
+                                  setExtraChildren((prev) =>
+                                    prev.map((item) =>
+                                      item.id === extra.id
+                                        ? { ...item, birthYear: e.target.value.replace(/\D/g, '') }
+                                        : item
+                                    )
+                                  )
+                                }
+                                placeholder={t.birthYearPlaceholder}
+                                className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setExtraChildren((prev) => [
+                          ...prev,
+                          { id: crypto.randomUUID(), fullName: '', birthYear: '' },
+                        ])
+                      }
+                      className="w-full py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>{t.addAnotherChildBtn}</span>
+                    </button>
                   </div>
                 )}
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    setExtraChildren((prev) => [
-                      ...prev,
-                      { id: crypto.randomUUID(), fullName: '', birthYear: '' },
-                    ])
-                  }
-                  className="w-full py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>{t.addAnotherChildBtn}</span>
-                </button>
               </>
             )}
 
@@ -1468,91 +1579,6 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                     placeholder={t.spousePlaceholder}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
                   />
-                </div>
-
-                {/* Spouse Photo Upload & Camera */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
-                    {t.personalPhoto} {t.optionalLabel}
-                  </label>
-                  <div className="flex items-center gap-3">
-                    <div className="relative w-14 h-14 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
-                      {spouseAvatarB64 ? (
-                        <img src={spouseAvatarB64} alt="Spouse preview" className="w-full h-full object-cover" />
-                      ) : (
-                        <Camera className="w-5 h-5 text-slate-400" />
-                      )}
-                    </div>
-                    <div className="space-y-1.5">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 rounded-lg text-xs font-semibold cursor-pointer transition-colors">
-                          <Upload className="w-3.5 h-3.5 text-slate-600" />
-                          <span>{t.uploadPhoto}</span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => handleAvatarUpload(e, setSpouseAvatarB64, setSpouseAvatarSizeKb)}
-                            className="hidden"
-                          />
-                        </label>
-                        <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 rounded-lg text-xs font-semibold cursor-pointer transition-colors">
-                          <Camera className="w-3.5 h-3.5 text-slate-600" />
-                          <span>{t.takePhoto}</span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            capture="user"
-                            onChange={(e) => handleAvatarUpload(e, setSpouseAvatarB64, setSpouseAvatarSizeKb)}
-                            className="hidden"
-                          />
-                        </label>
-                        {spouseAvatarB64 && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSpouseAvatarB64('');
-                              setSpouseAvatarSizeKb(null);
-                            }}
-                            className="px-2.5 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
-                          >
-                            {t.removePhoto}
-                          </button>
-                        )}
-                      </div>
-                      {spouseAvatarSizeKb !== null && (
-                        <p className="text-[11px] text-slate-500">
-                          {t.compressedSizeLabel} <strong className="text-slate-800">{spouseAvatarSizeKb} KB</strong> (WebP)
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                      {t.birthYear}
-                    </label>
-                    <input
-                      type="text"
-                      maxLength={4}
-                      value={spouseBirthYear}
-                      onChange={(e) => setSpouseBirthYear(e.target.value.replace(/\D/g, ''))}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                      {t.phoneNumber}
-                    </label>
-                    <input
-                      type="tel"
-                      value={spousePhone}
-                      onChange={(e) => setSpousePhone(e.target.value)}
-                      placeholder="+91..."
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
-                    />
-                  </div>
                 </div>
 
                 {/* Marriage Status Selector (Married vs Divorced / Former Spouse) */}
@@ -1599,6 +1625,108 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                     </label>
                   )}
                 </div>
+
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setShowFormExtras((v) => !v)}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 cursor-pointer transition-colors"
+                  >
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 transition-transform ${showFormExtras ? 'rotate-180' : ''}`}
+                    />
+                    <span>{t.optionalDetailsToggle}</span>
+                  </button>
+                </div>
+
+                {showFormExtras && (
+                  <div className="space-y-3 pt-1">
+                    {/* Spouse Photo Upload & Camera */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
+                        {t.personalPhoto} {t.optionalLabel}
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <div className="relative w-14 h-14 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
+                          {spouseAvatarB64 ? (
+                            <img src={spouseAvatarB64} alt="Spouse preview" className="w-full h-full object-cover" />
+                          ) : (
+                            <Camera className="w-5 h-5 text-slate-400" />
+                          )}
+                        </div>
+                        <div className="space-y-1.5">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 rounded-lg text-xs font-semibold cursor-pointer transition-colors">
+                              <Upload className="w-3.5 h-3.5 text-slate-600" />
+                              <span>{t.uploadPhoto}</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => handleAvatarUpload(e, setSpouseAvatarB64, setSpouseAvatarSizeKb)}
+                                className="hidden"
+                              />
+                            </label>
+                            <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 rounded-lg text-xs font-semibold cursor-pointer transition-colors">
+                              <Camera className="w-3.5 h-3.5 text-slate-600" />
+                              <span>{t.takePhoto}</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                capture="user"
+                                onChange={(e) => handleAvatarUpload(e, setSpouseAvatarB64, setSpouseAvatarSizeKb)}
+                                className="hidden"
+                              />
+                            </label>
+                            {spouseAvatarB64 && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSpouseAvatarB64('');
+                                  setSpouseAvatarSizeKb(null);
+                                }}
+                                className="px-2.5 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
+                              >
+                                {t.removePhoto}
+                              </button>
+                            )}
+                          </div>
+                          {spouseAvatarSizeKb !== null && (
+                            <p className="text-[11px] text-slate-500">
+                              {t.compressedSizeLabel} <strong className="text-slate-800">{spouseAvatarSizeKb} KB</strong> (WebP)
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                          {t.birthYear}
+                        </label>
+                        <input
+                          type="text"
+                          maxLength={4}
+                          value={spouseBirthYear}
+                          onChange={(e) => setSpouseBirthYear(e.target.value.replace(/\D/g, ''))}
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                          {t.phoneNumber}
+                        </label>
+                        <input
+                          type="tel"
+                          value={spousePhone}
+                          onChange={(e) => setSpousePhone(e.target.value)}
+                          placeholder="+91..."
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
               </>
             )}
 
@@ -1622,7 +1750,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                     placeholder={t.fatherPlaceholder}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
                   />
-                  {ancestorFather.trim() && (
+                  {showFormExtras && ancestorFather.trim() && (
                     <div className="flex items-center gap-2 mt-2">
                       <label className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-medium cursor-pointer transition-colors">
                         <Upload className="w-3 h-3 text-slate-500" />
@@ -1675,7 +1803,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                     placeholder={t.motherPlaceholder}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
                   />
-                  {ancestorMother.trim() && (
+                  {showFormExtras && ancestorMother.trim() && (
                     <div className="flex items-center gap-2 mt-2">
                       <label className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-medium cursor-pointer transition-colors">
                         <Upload className="w-3 h-3 text-slate-500" />
@@ -1718,17 +1846,32 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                    {t.newFamilyName}
-                  </label>
-                  <input
-                    type="text"
-                    value={ancestorFamilyName}
-                    onChange={(e) => setAncestorFamilyName(e.target.value)}
-                    placeholder={t.newFamilyPlaceholder}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
-                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowFormExtras((v) => !v)}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 cursor-pointer transition-colors"
+                  >
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 transition-transform ${showFormExtras ? 'rotate-180' : ''}`}
+                    />
+                    <span>{t.optionalDetailsToggle}</span>
+                  </button>
                 </div>
+
+                {showFormExtras && (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                      {t.newFamilyName}
+                    </label>
+                    <input
+                      type="text"
+                      value={ancestorFamilyName}
+                      onChange={(e) => setAncestorFamilyName(e.target.value)}
+                      placeholder={t.newFamilyPlaceholder}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    />
+                  </div>
+                )}
               </>
             )}
 
@@ -1755,117 +1898,134 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                   />
                 </div>
 
-                {/* Sibling Photo Upload & Camera */}
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
-                    {t.personalPhoto} {t.optionalLabel}
-                  </label>
-                  <div className="flex items-center gap-3">
-                    <div className="relative w-14 h-14 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
-                      {siblingAvatarB64 ? (
-                        <img src={siblingAvatarB64} alt="Sibling preview" className="w-full h-full object-cover" />
-                      ) : (
-                        <Camera className="w-5 h-5 text-slate-400" />
-                      )}
-                    </div>
-                    <div className="space-y-1.5">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 rounded-lg text-xs font-semibold cursor-pointer transition-colors">
-                          <Upload className="w-3.5 h-3.5 text-slate-600" />
-                          <span>{t.uploadPhoto}</span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => handleAvatarUpload(e, setSiblingAvatarB64, setSiblingAvatarSizeKb)}
-                            className="hidden"
-                          />
-                        </label>
-                        <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 rounded-lg text-xs font-semibold cursor-pointer transition-colors">
-                          <Camera className="w-3.5 h-3.5 text-slate-600" />
-                          <span>{t.takePhoto}</span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            capture="user"
-                            onChange={(e) => handleAvatarUpload(e, setSiblingAvatarB64, setSiblingAvatarSizeKb)}
-                            className="hidden"
-                          />
-                        </label>
-                        {siblingAvatarB64 && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSiblingAvatarB64('');
-                              setSiblingAvatarSizeKb(null);
-                            }}
-                            className="px-2.5 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
-                          >
-                            {t.removePhoto}
-                          </button>
-                        )}
+                  <button
+                    type="button"
+                    onClick={() => setShowFormExtras((v) => !v)}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 cursor-pointer transition-colors"
+                  >
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 transition-transform ${showFormExtras ? 'rotate-180' : ''}`}
+                    />
+                    <span>{t.optionalDetailsToggle}</span>
+                  </button>
+                </div>
+
+                {showFormExtras && (
+                  <div className="space-y-3 pt-1">
+                    {/* Sibling Photo Upload & Camera */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
+                        {t.personalPhoto} {t.optionalLabel}
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <div className="relative w-14 h-14 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
+                          {siblingAvatarB64 ? (
+                            <img src={siblingAvatarB64} alt="Sibling preview" className="w-full h-full object-cover" />
+                          ) : (
+                            <Camera className="w-5 h-5 text-slate-400" />
+                          )}
+                        </div>
+                        <div className="space-y-1.5">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 rounded-lg text-xs font-semibold cursor-pointer transition-colors">
+                              <Upload className="w-3.5 h-3.5 text-slate-600" />
+                              <span>{t.uploadPhoto}</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => handleAvatarUpload(e, setSiblingAvatarB64, setSiblingAvatarSizeKb)}
+                                className="hidden"
+                              />
+                            </label>
+                            <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 rounded-lg text-xs font-semibold cursor-pointer transition-colors">
+                              <Camera className="w-3.5 h-3.5 text-slate-600" />
+                              <span>{t.takePhoto}</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                capture="user"
+                                onChange={(e) => handleAvatarUpload(e, setSiblingAvatarB64, setSiblingAvatarSizeKb)}
+                                className="hidden"
+                              />
+                            </label>
+                            {siblingAvatarB64 && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSiblingAvatarB64('');
+                                  setSiblingAvatarSizeKb(null);
+                                }}
+                                className="px-2.5 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
+                              >
+                                {t.removePhoto}
+                              </button>
+                            )}
+                          </div>
+                          {siblingAvatarSizeKb !== null && (
+                            <p className="text-[11px] text-slate-500">
+                              {t.compressedSizeLabel} <strong className="text-slate-800">{siblingAvatarSizeKb} KB</strong> (WebP)
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      {siblingAvatarSizeKb !== null && (
-                        <p className="text-[11px] text-slate-500">
-                          {t.compressedSizeLabel} <strong className="text-slate-800">{siblingAvatarSizeKb} KB</strong> (WebP)
-                        </p>
-                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                          {t.birthYear}
+                        </label>
+                        <input
+                          type="text"
+                          maxLength={4}
+                          value={siblingBirthYear}
+                          onChange={(e) => setSiblingBirthYear(e.target.value.replace(/\D/g, ''))}
+                          placeholder={t.birthYearPlaceholder}
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                          {t.phoneNumber}
+                        </label>
+                        <input
+                          type="tel"
+                          value={siblingPhone}
+                          onChange={(e) => setSiblingPhone(e.target.value)}
+                          placeholder="+91..."
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                        {t.spouseName} {t.optionalLabel}
+                      </label>
+                      <input
+                        type="text"
+                        value={siblingSpouseName}
+                        onChange={(e) => setSiblingSpouseName(e.target.value)}
+                        placeholder={t.spousePlaceholder}
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                        {t.optionalParentsNotice}
+                      </label>
+                      <input
+                        type="text"
+                        value={siblingParentName}
+                        onChange={(e) => setSiblingParentName(e.target.value)}
+                        placeholder={t.optionalParentsPlaceholder}
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
+                      />
                     </div>
                   </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                      {t.birthYear}
-                    </label>
-                    <input
-                      type="text"
-                      maxLength={4}
-                      value={siblingBirthYear}
-                      onChange={(e) => setSiblingBirthYear(e.target.value.replace(/\D/g, ''))}
-                      placeholder={t.birthYearPlaceholder}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                      {t.phoneNumber}
-                    </label>
-                    <input
-                      type="tel"
-                      value={siblingPhone}
-                      onChange={(e) => setSiblingPhone(e.target.value)}
-                      placeholder="+91..."
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                    {t.spouseName} {t.optionalLabel}
-                  </label>
-                  <input
-                    type="text"
-                    value={siblingSpouseName}
-                    onChange={(e) => setSiblingSpouseName(e.target.value)}
-                    placeholder={t.spousePlaceholder}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                    {t.optionalParentsNotice}
-                  </label>
-                  <input
-                    type="text"
-                    value={siblingParentName}
-                    onChange={(e) => setSiblingParentName(e.target.value)}
-                    placeholder={t.optionalParentsPlaceholder}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
-                  />
-                </div>
+                )}
               </>
             )}
 
