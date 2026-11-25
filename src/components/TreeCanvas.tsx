@@ -16,7 +16,6 @@ import {
   Search,
   LocateFixed,
   Pencil,
-  UserCheck,
 } from 'lucide-react';
 import type { Household, Person, Relationship, Tree, Role, PresenceUser } from '../types/family';
 import type { TranslationDictionary } from '../locales/translations';
@@ -138,7 +137,6 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
 
   // Quick Find / Jump & Highlight navigation state
   const [findOpen, setFindOpen] = useState(false);
-  const [claimMode, setClaimMode] = useState(false);
   const [findQuery, setFindQuery] = useState('');
   const [highlightedPersonId, setHighlightedPersonId] = useState<string | null>(null);
   const pendingFocusPersonIdRef = useRef<string | null>(null);
@@ -1531,12 +1529,6 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
       <div className="absolute bottom-4 left-3 sm:bottom-6 sm:left-6 z-20">
         {findOpen && (
           <div className="absolute bottom-full left-0 mb-2 w-64 sm:w-72 bg-white/95 backdrop-blur-md border border-slate-200 rounded-2xl shadow-2xl overflow-hidden">
-            {claimMode && (
-              <div className="px-3 py-2 bg-amber-50 border-b border-amber-200 text-[11px] font-bold text-amber-900 flex items-center gap-1.5">
-                <UserCheck className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                <span>{t.claimMeGuideHint}</span>
-              </div>
-            )}
             <div className="p-2 border-b border-slate-100 flex items-center gap-1.5">
               <Search className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-1" />
               <input
@@ -1551,7 +1543,6 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
                 type="button"
                 onClick={() => {
                   setFindOpen(false);
-                  setClaimMode(false);
                   setFindQuery('');
                 }}
                 className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
@@ -1568,22 +1559,14 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
               ) : (
                 filteredFindPersons.map((p) => {
                   const hName = p.household_id ? householdNameMap.get(p.household_id) : '';
-                  const matchedH = p.household_id
-                    ? households.find((item) => item.id === p.household_id)
-                    : undefined;
                   return (
                     <button
                       key={p.id}
                       type="button"
                       onClick={() => {
-                        const wasClaim = claimMode;
                         setFindOpen(false);
-                        setClaimMode(false);
                         setFindQuery('');
                         focusOnPerson(p.id);
-                        if (wasClaim) {
-                          setDetailTarget({ person: p, household: matchedH });
-                        }
                       }}
                       className="w-full px-3 py-2 flex items-center gap-2.5 hover:bg-slate-50 active:bg-slate-100 text-left transition-colors cursor-pointer"
                     >
@@ -1611,12 +1594,9 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
         <div className="flex items-center gap-1 bg-white/95 backdrop-blur-sm border border-slate-200 rounded-2xl p-1 shadow-lg">
           <button
             type="button"
-            onClick={() => {
-              setClaimMode(false);
-              setFindOpen((prev) => (prev && !claimMode ? false : true));
-            }}
+            onClick={() => setFindOpen((prev) => !prev)}
             className={`px-3 py-2 sm:py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
-              findOpen && !claimMode
+              findOpen
                 ? 'bg-slate-900 text-white'
                 : 'text-slate-700 hover:bg-slate-100'
             }`}
@@ -1626,38 +1606,22 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
             <span>{t.findOnTreeBtn}</span>
           </button>
 
-          <div className="w-px h-5 bg-slate-200" />
-          {activePersonId ? (
-            <button
-              type="button"
-              onClick={() => {
-                setFindOpen(false);
-                setClaimMode(false);
-                focusOnPerson(activePersonId);
-              }}
-              className="px-3 py-2 sm:py-1.5 rounded-xl text-xs font-bold text-emerald-700 hover:bg-emerald-50 flex items-center gap-1.5 transition-colors cursor-pointer"
-              title={t.centerOnMeBtn}
-            >
-              <LocateFixed className="w-3.5 h-3.5 shrink-0" />
-              <span>{t.centerOnMeBtn}</span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => {
-                setClaimMode(true);
-                setFindOpen((prev) => (prev && claimMode ? false : true));
-              }}
-              className={`px-3 py-2 sm:py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
-                findOpen && claimMode
-                  ? 'bg-amber-600 text-white'
-                  : 'text-amber-700 hover:bg-amber-50'
-              }`}
-              title={t.claimMeBtn}
-            >
-              <UserCheck className="w-3.5 h-3.5 shrink-0" />
-              <span>{t.claimMeBtn}</span>
-            </button>
+          {activePersonId && (
+            <>
+              <div className="w-px h-5 bg-slate-200" />
+              <button
+                type="button"
+                onClick={() => {
+                  setFindOpen(false);
+                  focusOnPerson(activePersonId);
+                }}
+                className="px-3 py-2 sm:py-1.5 rounded-xl text-xs font-bold text-emerald-700 hover:bg-emerald-50 flex items-center gap-1.5 transition-colors cursor-pointer"
+                title={t.centerOnMeBtn}
+              >
+                <LocateFixed className="w-3.5 h-3.5 shrink-0" />
+                <span>{t.centerOnMeBtn}</span>
+              </button>
+            </>
           )}
         </div>
       </div>
