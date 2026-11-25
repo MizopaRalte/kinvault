@@ -761,7 +761,7 @@ export const translations: Record<Language, TranslationDictionary> = {
     pinSaved: 'Lock PIN dah fel a ni e.',
     unlockBtn: 'Hawng Rawh',
 
-    exportPdfBtn: 'PDF Zau Takin Download Rawh',
+    exportPdfBtn: 'PDF-a download-na',
     exportingPdf: 'Vector PDF buatsaih mek a ni...',
     pdfExportSuccess: 'Panoramic PDF download fel e!',
 
