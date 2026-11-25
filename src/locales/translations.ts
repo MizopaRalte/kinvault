@@ -704,7 +704,7 @@ export const translations: Record<Language, TranslationDictionary> = {
     present: 'Tun thleng',
     expandAll: 'Tizau Vek Rawh',
     compactView: 'Chhui Tawi (Chhuan 2)',
-    focusBranch: 'He Peng Chauh Enna',
+    focusBranch: 'Thlahtu Bul Enna',
     showFullTree: 'Chhungkua Zawng Zawng Enna',
     parentsLabel: 'Nu & Pa',
     spouseLabel: 'Kawppui',

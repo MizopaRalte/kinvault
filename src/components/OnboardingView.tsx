@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { KeyRound, PlusCircle, LogIn, Globe, Shield, ShieldAlert, Sparkles, Copy, Check, ArrowRight } from 'lucide-react';
+import { KeyRound, PlusCircle, LogIn, Globe, Shield, ShieldAlert, Copy, Check, ArrowRight } from 'lucide-react';
 import type { Language, TranslationDictionary } from '../locales/translations';
 import { translations } from '../locales/translations';
 import type { UserSession } from '../types/family';
@@ -441,7 +441,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({
                   <span className="inline-block animate-pulse">{t.loading}</span>
                 ) : (
                   <>
-                    <Sparkles className="w-4 h-4 text-sky-400" />
+                    <PlusCircle className="w-4 h-4 text-sky-400" />
                     {t.createTreeBtn}
                   </>
                 )}

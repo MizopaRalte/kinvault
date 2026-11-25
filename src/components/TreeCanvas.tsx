@@ -8,7 +8,6 @@ import {
   Minus,
   Heart,
   HeartCrack,
-  Sparkles,
   Trees,
   ChevronsDownUp,
   ChevronsUpDown,
@@ -1023,7 +1022,6 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
         </div>
       ) : (
         <div className="hidden md:flex absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-white/90 backdrop-blur-md border border-slate-200/80 shadow-xs rounded-full px-4 py-1.5 text-[11px] text-slate-600 font-medium items-center gap-1.5 pointer-events-none">
-          <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
           <span>{households.length <= 2 ? t.treeCanvasGuide : t.clickPersonHint}</span>
         </div>
       )}
