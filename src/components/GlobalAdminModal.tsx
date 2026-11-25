@@ -450,6 +450,41 @@ export const GlobalAdminModal: React.FC<GlobalAdminModalProps> = ({
     }
   };
 
+  const handleAdminSetRole = async (
+    treeId: string,
+    personId: string,
+    role: 'super_admin' | 'branch_admin' | 'member'
+  ) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/admin/trees', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Admin-Token': adminToken,
+        },
+        body: JSON.stringify({
+          action: 'set_person_role',
+          treeId,
+          personId,
+          role,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update role');
+
+      setSuccessMsg('Member role updated.');
+      setTimeout(() => setSuccessMsg(null), 2500);
+      await handleInspectTree(treeId);
+      onDataChanged?.();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to update role');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleInitTotpSetup = async () => {
     setLoading(true);
     setError(null);
@@ -1176,7 +1211,24 @@ export const GlobalAdminModal: React.FC<GlobalAdminModalProps> = ({
                               </p>
                             </div>
 
-                            <div className="flex items-center gap-1 shrink-0">
+                            <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+                              <select
+                                aria-label={`Role for ${p.full_name}`}
+                                value={p.role}
+                                disabled={loading}
+                                onChange={(e) =>
+                                  handleAdminSetRole(
+                                    inspectedTree.tree.id,
+                                    p.id,
+                                    e.target.value as 'super_admin' | 'branch_admin' | 'member'
+                                  )
+                                }
+                                className="px-2 py-1 text-[11px] font-semibold bg-white border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-900 cursor-pointer"
+                              >
+                                <option value="member">Member</option>
+                                <option value="branch_admin">Branch Admin</option>
+                                <option value="super_admin">Super Admin (All)</option>
+                              </select>
                               {p.household_id && (
                                 <button
                                   type="button"

@@ -446,9 +446,8 @@ export const MemberModal: React.FC<MemberModalProps> = ({
   };
 
   // Role Promotion / Demotion Action
-  const handleToggleRole = async () => {
-    if (!person) return;
-    const targetRole = person.role === 'branch_admin' ? 'member' : 'branch_admin';
+  const handleSetRole = async (targetRole: Role) => {
+    if (!person || person.role === targetRole) return;
     setError(null);
     setLoading(true);
     try {
@@ -830,34 +829,84 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                   </div>
                 )}
 
-                {/* Role Promotion Button */}
-                {person && canManageRole && person.role !== 'super_admin' && (
-                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                    <div>
-                      <span className="text-xs font-bold text-slate-800">
-                        {t.roleLabel} {person.role === 'branch_admin' ? t.branchAdminBadge : t.memberBadge}
+                {/* Role Assignment Controls */}
+                {person &&
+                  canManageRole &&
+                  person.id !== _activePersonId &&
+                  (userRole === 'super_admin' || person.role !== 'super_admin') && (
+                    <div className="pt-2 border-t border-slate-100 space-y-2">
+                      <span className="block text-xs font-bold text-slate-800">
+                        {t.roleLabel}{' '}
+                        {person.role === 'super_admin'
+                          ? t.superAdminBadge
+                          : person.role === 'branch_admin'
+                          ? t.branchAdminBadge
+                          : t.memberBadge}
                       </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleToggleRole}
-                      disabled={loading}
-                      className="px-3 py-1.5 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-bold text-slate-700 transition-colors flex items-center gap-1.5 cursor-pointer"
-                    >
-                      {person.role === 'branch_admin' ? (
-                        <>
-                          <ShieldAlert className="w-3.5 h-3.5 text-slate-500" />
-                          {t.demoteToMember}
-                        </>
+
+                      {userRole === 'super_admin' ? (
+                        <div className="grid grid-cols-3 gap-1.5">
+                          <button
+                            type="button"
+                            disabled={loading}
+                            onClick={() => handleSetRole('member')}
+                            className={`py-1.5 px-2 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer ${
+                              person.role === 'member'
+                                ? 'bg-slate-900 text-white border-slate-900'
+                                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            {t.memberBadge}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={loading}
+                            onClick={() => handleSetRole('branch_admin')}
+                            className={`py-1.5 px-2 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer ${
+                              person.role === 'branch_admin'
+                                ? 'bg-sky-600 text-white border-sky-600'
+                                : 'bg-white text-sky-800 border-sky-200 hover:bg-sky-50'
+                            }`}
+                          >
+                            {t.branchAdminBadge}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={loading}
+                            onClick={() => handleSetRole('super_admin')}
+                            className={`py-1.5 px-2 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer ${
+                              person.role === 'super_admin'
+                                ? 'bg-amber-600 text-white border-amber-600'
+                                : 'bg-white text-amber-800 border-amber-200 hover:bg-amber-50'
+                            }`}
+                          >
+                            {t.superAdminBadge}
+                          </button>
+                        </div>
                       ) : (
-                        <>
-                          <ShieldCheck className="w-3.5 h-3.5 text-sky-600" />
-                          {t.promoteBranchAdmin}
-                        </>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleSetRole(person.role === 'branch_admin' ? 'member' : 'branch_admin')
+                          }
+                          disabled={loading}
+                          className="px-3 py-1.5 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-bold text-slate-700 transition-colors flex items-center gap-1.5 cursor-pointer"
+                        >
+                          {person.role === 'branch_admin' ? (
+                            <>
+                              <ShieldAlert className="w-3.5 h-3.5 text-slate-500" />
+                              {t.demoteToMember}
+                            </>
+                          ) : (
+                            <>
+                              <ShieldCheck className="w-3.5 h-3.5 text-sky-600" />
+                              {t.promoteBranchAdmin}
+                            </>
+                          )}
+                        </button>
                       )}
-                    </button>
-                  </div>
-                )}
+                    </div>
+                  )}
               </>
             )}
 

@@ -725,8 +725,14 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
         const targetPersonId = p.targetPersonId as string;
         const newRole = p.role as string;
 
-        if (!targetPersonId || (newRole !== 'branch_admin' && newRole !== 'member')) {
-          return new Response(JSON.stringify({ error: 'Valid targetPersonId and role (branch_admin or member) required.' }), { status: 400 });
+        if (
+          !targetPersonId ||
+          (newRole !== 'super_admin' && newRole !== 'branch_admin' && newRole !== 'member')
+        ) {
+          return new Response(
+            JSON.stringify({ error: 'Valid targetPersonId and role (super_admin, branch_admin, or member) required.' }),
+            { status: 400 }
+          );
         }
 
         const canManage = await canManageRole(env.DB, treeId, caller, targetPersonId, newRole);

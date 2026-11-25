@@ -182,6 +182,7 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
       treeId?: string;
       personId?: string;
       householdId?: string;
+      role?: string;
       newPin?: string;
       totpCode?: string;
       secret?: string;
@@ -489,6 +490,29 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
 
       return new Response(
         JSON.stringify({ success: true, treeId, deletedPersonId: personId }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (action === 'set_person_role') {
+      const { treeId, personId, role } = body;
+      if (
+        !treeId ||
+        !personId ||
+        (role !== 'super_admin' && role !== 'branch_admin' && role !== 'member')
+      ) {
+        return new Response(
+          JSON.stringify({ error: 'Valid treeId, personId, and role (super_admin, branch_admin, or member) required.' }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+
+      await env.DB.prepare('UPDATE persons SET role = ?, updated_at = ? WHERE id = ? AND tree_id = ?')
+        .bind(role, Date.now(), personId, treeId)
+        .run();
+
+      return new Response(
+        JSON.stringify({ success: true, treeId, personId, role }),
         { status: 200, headers: { 'Content-Type': 'application/json' } }
       );
     }
