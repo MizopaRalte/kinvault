@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Copy, Check, Share2, MessageCircle, KeyRound, QrCode } from 'lucide-react';
+import { X, Copy, Check, Share2, MessageCircle, KeyRound, QrCode, Link2 } from 'lucide-react';
 import type { Tree } from '../types/family';
 import type { TranslationDictionary } from '../locales/translations';
 
@@ -8,6 +8,7 @@ interface ShareModalProps {
   onClose: () => void;
   tree: Tree;
   pin: string;
+  onPinChange?: (pin: string) => void;
   t: TranslationDictionary;
 }
 
@@ -16,15 +17,30 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   onClose,
   tree,
   pin,
+  onPinChange,
   t,
 }) => {
+  const [pinInput, setPinInput] = useState(() => pin.replace(/\D/g, '').slice(0, 6));
+  const [includePinInLink, setIncludePinInLink] = useState(true);
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedPin, setCopiedPin] = useState(false);
 
   if (!isOpen) return null;
 
-  const joinUrl = `${window.location.origin}?join=${tree.invite_code}`;
+  const cleanPin = pinInput.replace(/\D/g, '').slice(0, 6);
+  const hasValidPin = /^\d{6}$/.test(cleanPin);
+
+  const joinUrl =
+    includePinInLink && hasValidPin
+      ? `${window.location.origin}/?join=${tree.invite_code}#pin=${cleanPin}`
+      : `${window.location.origin}/?join=${tree.invite_code}`;
+
+  const handlePinInputChange = (raw: string) => {
+    const nextPin = raw.replace(/\D/g, '').slice(0, 6);
+    setPinInput(nextPin);
+    onPinChange?.(nextPin);
+  };
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(joinUrl);
@@ -39,16 +55,21 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   };
 
   const handleCopyPin = () => {
-    navigator.clipboard.writeText(pin);
+    if (!hasValidPin) return;
+    navigator.clipboard.writeText(cleanPin);
     setCopiedPin(true);
     setTimeout(() => setCopiedPin(false), 2000);
   };
 
   // Build WhatsApp pre-filled text
-  const shareText = t.whatsAppMessage
-    .replace('{code}', tree.invite_code)
-    .replace('{pin}', pin || '******')
-    .replace('{link}', joinUrl);
+  const shareText = hasValidPin
+    ? t.whatsAppMessage
+        .replace('{code}', tree.invite_code)
+        .replace('{pin}', cleanPin)
+        .replace('{link}', joinUrl)
+    : t.whatsAppMessageNoPin
+        .replace('{code}', tree.invite_code)
+        .replace('{link}', joinUrl);
 
   const whatsAppUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
 
@@ -75,7 +96,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
 
           {/* Invite Code & PIN Displays */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center flex flex-col justify-between">
               <span className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
                 {t.inviteCodeLabel}
               </span>
@@ -92,29 +113,47 @@ export const ShareModal: React.FC<ShareModalProps> = ({
               </button>
             </div>
 
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center flex flex-col justify-between">
               <span className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
                 {t.pinLabel}
               </span>
-              <span className="block font-mono text-xl font-bold tracking-widest text-slate-900 mb-2">
-                {pin || '••••••'}
-              </span>
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="\d{6}"
+                maxLength={6}
+                value={cleanPin}
+                onChange={(e) => handlePinInputChange(e.target.value)}
+                placeholder={t.pinPlaceholder}
+                aria-label={t.pinLabel}
+                className="w-full bg-white border border-slate-200 rounded-lg py-0.5 px-2 font-mono text-xl font-bold tracking-widest text-center text-slate-900 mb-2 focus:outline-none focus:ring-2 focus:ring-slate-900"
+              />
               <button
                 type="button"
                 onClick={handleCopyPin}
-                className="w-full py-1 px-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 shadow-2xs transition-colors cursor-pointer"
+                disabled={!hasValidPin}
+                className="w-full py-1 px-2 bg-white hover:bg-slate-100 disabled:opacity-45 disabled:cursor-not-allowed text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 shadow-2xs transition-colors cursor-pointer"
               >
                 {copiedPin ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <KeyRound className="w-3.5 h-3.5" />}
-                {copiedPin ? t.copied : 'Copy PIN'}
+                {copiedPin ? t.copied : t.copyPinBtn}
               </button>
             </div>
           </div>
 
+          {!hasValidPin && (
+            <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+              {t.enterPinToShareHint}
+            </p>
+          )}
+
           {/* Direct Link */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-              {t.copyInviteLink}
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                <Link2 className="w-3.5 h-3.5 text-slate-500" />
+                <span>{t.copyInviteLink}</span>
+              </label>
+            </div>
             <div className="flex items-center gap-2">
               <input
                 type="text"
@@ -128,9 +167,19 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                 className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
               >
                 {copiedLink ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                {copiedLink ? t.copied : 'Copy'}
+                {copiedLink ? t.copied : t.copyBtn}
               </button>
             </div>
+
+            <label className="mt-2.5 flex items-center gap-2 text-xs text-slate-600 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={includePinInLink}
+                onChange={(e) => setIncludePinInLink(e.target.checked)}
+                className="w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer"
+              />
+              <span>{t.includePinInLink}</span>
+            </label>
           </div>
 
           {/* 1-Tap WhatsApp Share Button */}
@@ -145,9 +194,9 @@ export const ShareModal: React.FC<ShareModalProps> = ({
           </a>
 
           {/* Security note */}
-          <div className="flex items-center justify-center gap-1.5 text-xs text-slate-400 pt-2">
-            <QrCode className="w-3.5 h-3.5" />
-            <span>Only relatives with the 6-digit PIN can view or join this tree.</span>
+          <div className="flex items-center justify-center gap-1.5 text-xs text-slate-400 pt-1 text-center">
+            <QrCode className="w-3.5 h-3.5 shrink-0" />
+            <span>{t.shareSecurityNote}</span>
           </div>
         </div>
       </div>

@@ -1,16 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { KeyRound, PlusCircle, LogIn, Globe, Shield, ShieldAlert, Sparkles, Copy, Check, ArrowRight } from 'lucide-react';
 import type { Language, TranslationDictionary } from '../locales/translations';
 import { translations } from '../locales/translations';
 import type { UserSession } from '../types/family';
 import { RecoveryModal } from './RecoveryModal';
 
+export interface InitialInviteParams {
+  inviteCode: string;
+  pin: string;
+}
+
 interface OnboardingViewProps {
-  onSessionReady: (session: UserSession) => void;
+  onSessionReady: (session: UserSession, pin?: string) => void;
   lang: Language;
   onLanguageChange: (lang: Language) => void;
   deviceId: string;
   onOpenAdmin?: () => void;
+  initialInvite?: InitialInviteParams | null;
+}
+
+function readInviteFromLocation(): InitialInviteParams | null {
+  if (typeof window === 'undefined') return null;
+  const params = new URLSearchParams(window.location.search);
+  const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  const inviteCode = (params.get('join') || params.get('code') || '').trim().toUpperCase();
+  const pin = (hashParams.get('pin') || params.get('pin') || '').replace(/\D/g, '').slice(0, 6);
+  if (!inviteCode && !pin) return null;
+  return { inviteCode, pin };
 }
 
 export const OnboardingView: React.FC<OnboardingViewProps> = ({
@@ -19,12 +35,17 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({
   onLanguageChange,
   deviceId,
   onOpenAdmin,
+  initialInvite,
 }) => {
   const t: TranslationDictionary = translations[lang] || translations.en;
-  const [mode, setMode] = useState<'create' | 'join'>(() => {
-    const params = new URLSearchParams(window.location.search);
-    return params.get('join') || params.get('code') ? 'join' : 'create';
-  });
+  const [resolvedInvite] = useState<InitialInviteParams | null>(() => initialInvite ?? readInviteFromLocation());
+  const hasAutoJoinCreds =
+    Boolean(resolvedInvite?.inviteCode && resolvedInvite.inviteCode.length === 8) &&
+    Boolean(resolvedInvite?.pin && /^\d{6}$/.test(resolvedInvite.pin));
+
+  const [mode, setMode] = useState<'create' | 'join'>(() =>
+    resolvedInvite?.inviteCode ? 'join' : 'create'
+  );
 
   // Create form state
   const [treeName, setTreeName] = useState('');
@@ -35,23 +56,62 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({
   const [branchColor, setBranchColor] = useState('#0F172A');
 
   // Join form state
-  const [inviteCode, setInviteCode] = useState(() => {
-    const params = new URLSearchParams(window.location.search);
-    return (params.get('join') || params.get('code') || '').trim().toUpperCase();
-  });
-  const [joinPin, setJoinPin] = useState('');
+  const [inviteCode, setInviteCode] = useState(() => resolvedInvite?.inviteCode || '');
+  const [joinPin, setJoinPin] = useState(() => resolvedInvite?.pin || '');
 
   // UI state
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(hasAutoJoinCreds);
   const [error, setError] = useState<string | null>(null);
+  const didAutoJoinRef = useRef(false);
 
   // PUK recovery and creation notice states
   const [createdPukData, setCreatedPukData] = useState<{
     pukCode: string;
     session: UserSession;
+    pin: string;
   } | null>(null);
   const [copiedPuk, setCopiedPuk] = useState(false);
   const [isRecoveryOpen, setIsRecoveryOpen] = useState(false);
+
+  useEffect(() => {
+    if (!hasAutoJoinCreds || didAutoJoinRef.current || !resolvedInvite) return;
+    didAutoJoinRef.current = true;
+
+    const cleanCode = resolvedInvite.inviteCode;
+    const cleanPin = resolvedInvite.pin;
+
+    fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        inviteCode: cleanCode,
+        pin: cleanPin,
+        deviceId,
+      }),
+    })
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to authenticate');
+        }
+        onSessionReady(
+          {
+            token: data.token,
+            treeId: data.tree.id,
+            inviteCode: data.tree.inviteCode,
+            treeName: data.tree.name,
+            deviceId,
+            activePersonId: data.claimedPerson?.id,
+            role: data.claimedPerson?.role || 'member',
+          },
+          cleanPin
+        );
+      })
+      .catch((err: unknown) => {
+        setError(err instanceof Error ? err.message : t.errorOccurred);
+        setLoading(false);
+      });
+  }, [hasAutoJoinCreds, resolvedInvite, deviceId, onSessionReady, t.errorOccurred]);
 
 
 
@@ -104,9 +164,9 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({
       };
 
       if (data.pukCode) {
-        setCreatedPukData({ pukCode: data.pukCode, session: newSession });
+        setCreatedPukData({ pukCode: data.pukCode, session: newSession, pin: createPin.trim() });
       } else {
-        onSessionReady(newSession);
+        onSessionReady(newSession, createPin.trim());
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t.errorOccurred);
@@ -145,15 +205,18 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({
         throw new Error(data.error || 'Failed to authenticate');
       }
 
-      onSessionReady({
-        token: data.token,
-        treeId: data.tree.id,
-        inviteCode: data.tree.inviteCode,
-        treeName: data.tree.name,
-        deviceId,
-        activePersonId: data.claimedPerson?.id,
-        role: data.claimedPerson?.role || 'member',
-      });
+      onSessionReady(
+        {
+          token: data.token,
+          treeId: data.tree.id,
+          inviteCode: data.tree.inviteCode,
+          treeName: data.tree.name,
+          deviceId,
+          activePersonId: data.claimedPerson?.id,
+          role: data.claimedPerson?.role || 'member',
+        },
+        joinPin.trim()
+      );
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t.errorOccurred);
     } finally {
@@ -434,7 +497,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({
                 className="w-full mt-4 py-3 px-4 bg-slate-900 hover:bg-slate-800 active:bg-slate-950 text-white font-semibold text-sm rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 {loading ? (
-                  <span className="inline-block animate-pulse">{t.loading}</span>
+                  <span className="inline-block animate-pulse">{t.joiningViaLink}</span>
                 ) : (
                   <>
                     <LogIn className="w-4 h-4 text-sky-400" />
@@ -497,7 +560,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({
 
             <button
               type="button"
-              onClick={() => onSessionReady(createdPukData.session)}
+              onClick={() => onSessionReady(createdPukData.session, createdPukData.pin)}
               className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
             >
               <span>Continue to Family Tree</span>

@@ -144,9 +144,16 @@ export interface TranslationDictionary {
   shareSubtitle: string;
   copyInviteLink: string;
   copyInviteCode: string;
+  copyPinBtn: string;
+  copyBtn: string;
   copied: string;
   shareWhatsApp: string;
   whatsAppMessage: string;
+  whatsAppMessageNoPin: string;
+  includePinInLink: string;
+  enterPinToShareHint: string;
+  shareSecurityNote: string;
+  joiningViaLink: string;
 
   // Backup & Restore
   backupTitle: string;
@@ -394,12 +401,19 @@ export const translations: Record<Language, TranslationDictionary> = {
     clickPersonHint: 'Tap any person portrait to view phone, address & family details',
 
     shareTitle: 'Invite Your Family',
-    shareSubtitle: 'Relatives need the 8-character code and 6-digit PIN to join.',
+    shareSubtitle: 'Relatives can join with 1 tap using the direct link, or with the 8-character code and 6-digit PIN.',
     copyInviteLink: 'Copy Direct Link',
     copyInviteCode: 'Copy Invite Code',
+    copyPinBtn: 'Copy PIN',
+    copyBtn: 'Copy',
     copied: 'Copied to clipboard!',
     shareWhatsApp: 'Share on WhatsApp',
-    whatsAppMessage: "Join our family tree on KinVault! Use invite code: {code} and PIN: {pin}. Click here: {link}",
+    whatsAppMessage: "Join our family tree on KinVault! Tap this link to open directly: {link}\n(Invite Code: {code} | PIN: {pin})",
+    whatsAppMessageNoPin: "Join our family tree on KinVault! Open this link: {link} and enter Invite Code: {code} (ask me for the 6-digit PIN).",
+    includePinInLink: 'Include PIN in link (1-tap join)',
+    enterPinToShareHint: 'Enter the 6-digit PIN to copy it or embed it in the 1-tap link.',
+    shareSecurityNote: 'Anyone with this 1-tap link (or code + PIN) can join and add their family details.',
+    joiningViaLink: 'Joining family tree...',
 
     backupTitle: 'Password-Encrypted Vault Backup',
     backupSubtitle: 'Export an encrypted .fam backup file with all family photos to store safely on your device or Google Drive.',
@@ -638,12 +652,19 @@ export const translations: Record<Language, TranslationDictionary> = {
     clickPersonHint: 'Mi thlalak/hming hmet la, phone leh chenna a lang ang',
 
     shareTitle: 'Chhungte Sâwmna',
-    shareSubtitle: 'Code hawrawp 8 leh PIN number 6 hmangin chhungkua an zawm thei ang.',
+    shareSubtitle: 'Link hi hmetin emaw Code hawrawp 8 leh PIN number 6 hmangin chhungkua an zawm nghal thei ang.',
     copyInviteLink: 'Link Copy Rawh',
     copyInviteCode: 'Invite Code Copy Rawh',
+    copyPinBtn: 'PIN Copy Rawh',
+    copyBtn: 'Copy',
     copied: 'Copy fel e!',
     shareWhatsApp: 'WhatsApp-ah Thawn Rawh',
-    whatsAppMessage: "Kan chhungkaw thlahtute chanchin KinVault-ah lo zawm ve rawh le! Sâwmna code: {code} leh PIN: {pin} a ni e. Hetah hian hmet rawh: {link}",
+    whatsAppMessage: "Kan chhungkaw thlahtute chanchin KinVault-ah lo zawm ve rawh le! He link hi hmet la a lut nghal ang: {link}\n(Code: {code} | PIN: {pin})",
+    whatsAppMessageNoPin: "Kan chhungkaw thlahtute chanchin KinVault-ah lo zawm ve rawh le! Hetah hian hmet rawh: {link} (Code: {code}, PIN nambar 6 chu min lo zawt dawn nia).",
+    includePinInLink: 'Link-ah PIN telh nghal rawh (1-tap join)',
+    enterPinToShareHint: 'Copy emaw link-a telh tûrin i PIN nambar 6 chhu lut rawh.',
+    shareSecurityNote: 'He link (emaw code + PIN) neitu te chuan chhungkaw chanchin an rawn belh ve thei ang.',
+    joiningViaLink: 'Chhungkaw thlah ziahna zawm mek a ni...',
 
     backupTitle: 'Password-a Vawnṭhatna (.fam)',
     backupSubtitle: 'Chhungkaw thlalak leh thlahtute chanchin zawng zawng password hmanga vawng ṭhain i khawlah emaw Google Drive-ah i dah thei ang.',
@@ -882,12 +903,19 @@ export const translations: Record<Language, TranslationDictionary> = {
     clickPersonHint: 'Toca cualquier persona para ver su teléfono y dirección',
 
     shareTitle: 'Invitar a la Familia',
-    shareSubtitle: 'Tus familiares necesitan el código de 8 caracteres y el PIN de 6 dígitos.',
+    shareSubtitle: 'Tus familiares pueden entrar con un toque usando el enlace o con el código de 8 caracteres y el PIN de 6 dígitos.',
     copyInviteLink: 'Copiar Enlace Directo',
     copyInviteCode: 'Copiar Código',
+    copyPinBtn: 'Copiar PIN',
+    copyBtn: 'Copiar',
     copied: '¡Copiado al portapapeles!',
     shareWhatsApp: 'Compartir en WhatsApp',
-    whatsAppMessage: "¡Únete a nuestro árbol familiar en KinVault! Usa el código de invitación: {code} y el PIN: {pin}. Entra aquí: {link}",
+    whatsAppMessage: "¡Únete a nuestro árbol familiar en KinVault! Toca este enlace para entrar directo: {link}\n(Código: {code} | PIN: {pin})",
+    whatsAppMessageNoPin: "¡Únete a nuestro árbol familiar en KinVault! Entra aquí: {link} con el código: {code} (pídeme el PIN de 6 dígitos).",
+    includePinInLink: 'Incluir PIN en el enlace (1 toque)',
+    enterPinToShareHint: 'Ingresa tu PIN de 6 dígitos para copiarlo o incluirlo en el enlace.',
+    shareSecurityNote: 'Cualquier familiar con este enlace (o código + PIN) podrá unirse y añadir sus datos.',
+    joiningViaLink: 'Uniéndose al árbol familiar...',
 
     backupTitle: 'Copia de Seguridad Cifrada (.fam)',
     backupSubtitle: 'Exporta un archivo .fam protegido con contraseña con todas las fotos para guardarlo en tu equipo o Google Drive.',
@@ -1126,12 +1154,19 @@ export const translations: Record<Language, TranslationDictionary> = {
     clickPersonHint: 'Auf eine Person tippen für Telefon, Adresse & Details',
 
     shareTitle: 'Familie einladen',
-    shareSubtitle: 'Verwandte benötigen den 8-stelligen Code und die 6-stellige PIN zum Beitreten.',
+    shareSubtitle: 'Verwandte können direkt über den Link oder mit dem 8-stelligen Code und der 6-stelligen PIN beitreten.',
     copyInviteLink: 'Direktlink kopieren',
     copyInviteCode: 'Einladungscode kopieren',
+    copyPinBtn: 'PIN kopieren',
+    copyBtn: 'Kopieren',
     copied: 'In die Zwischenablage kopiert!',
     shareWhatsApp: 'Über WhatsApp teilen',
-    whatsAppMessage: "Tritt unserem Stammbaum auf KinVault bei! Einladungscode: {code}, PIN: {pin}. Hier klicken: {link}",
+    whatsAppMessage: "Tritt unserem Stammbaum auf KinVault bei! Tippe auf diesen Link für den direkten Zugang: {link}\n(Code: {code} | PIN: {pin})",
+    whatsAppMessageNoPin: "Tritt unserem Stammbaum auf KinVault bei! Öffne {link} mit Einladungscode: {code} (frag mich nach der 6-stelligen PIN).",
+    includePinInLink: 'PIN im Link einbetten (1-Klick-Beitritt)',
+    enterPinToShareHint: 'Gib die 6-stellige PIN ein, um sie zu kopieren oder im Link einzubetten.',
+    shareSecurityNote: 'Jeder Verwandte mit diesem Link (oder Code + PIN) kann beitreten und seine Familiendaten ergänzen.',
+    joiningViaLink: 'Trete dem Stammbaum bei...',
 
     backupTitle: 'Verschlüsseltes Vault-Backup (.fam)',
     backupSubtitle: 'Exportiere eine passwortgeschützte .fam-Datei mit allen Familienfotos für dein Gerät oder Google Drive.',

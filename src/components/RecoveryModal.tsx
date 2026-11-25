@@ -9,7 +9,7 @@ interface RecoveryModalProps {
   t: TranslationDictionary;
   deviceId: string;
   initialInviteCode?: string;
-  onSessionReady: (session: UserSession) => void;
+  onSessionReady: (session: UserSession, pin?: string) => void;
 }
 
 export const RecoveryModal: React.FC<RecoveryModalProps> = ({
@@ -88,15 +88,18 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
 
       setSuccess(true);
       setTimeout(() => {
-        onSessionReady({
-          token: data.token,
-          treeId: data.tree.id,
-          inviteCode: data.tree.inviteCode,
-          treeName: data.tree.name,
-          deviceId,
-          activePersonId: data.claimedPerson?.id,
-          role: data.claimedPerson?.role || 'member',
-        });
+        onSessionReady(
+          {
+            token: data.token,
+            treeId: data.tree.id,
+            inviteCode: data.tree.inviteCode,
+            treeName: data.tree.name,
+            deviceId,
+            activePersonId: data.claimedPerson?.id,
+            role: data.claimedPerson?.role || 'member',
+          },
+          cleanPin
+        );
         onClose();
       }, 1200);
     } catch (err: unknown) {

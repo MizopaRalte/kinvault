@@ -30,7 +30,7 @@ import {
 } from './utils/offlineCache';
 import { exportTreeToPdf } from './utils/pdfExport';
 
-import { OnboardingView } from './components/OnboardingView';
+import { OnboardingView, type InitialInviteParams } from './components/OnboardingView';
 import { TreeCanvas } from './components/TreeCanvas';
 import { DirectoryView } from './components/DirectoryView';
 import { MemberModal } from './components/MemberModal';
@@ -38,6 +38,16 @@ import { ShareModal } from './components/ShareModal';
 import { BackupModal } from './components/BackupModal';
 import { GlobalAdminModal } from './components/GlobalAdminModal';
 import { InstallAppBanner, type BeforeInstallPromptEvent } from './components/InstallAppBanner';
+
+function parseInviteFromUrl(): InitialInviteParams | null {
+  if (typeof window === 'undefined') return null;
+  const params = new URLSearchParams(window.location.search);
+  const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  const inviteCode = (params.get('join') || params.get('code') || '').trim().toUpperCase();
+  const pin = (hashParams.get('pin') || params.get('pin') || '').replace(/\D/g, '').slice(0, 6);
+  if (!inviteCode && !pin) return null;
+  return { inviteCode, pin };
+}
 
 export const App: React.FC = () => {
   // Language state
@@ -61,8 +71,37 @@ export const App: React.FC = () => {
     return id;
   });
 
-  // Session state
-  const [session, setSession] = useState<UserSession | null>(() => getSession());
+  // URL invite params (captured once on boot before URL cleanup)
+  const [initialInvite] = useState<InitialInviteParams | null>(() => parseInviteFromUrl());
+
+  // Session state (discard cached session if opening a link to a different tree)
+  const [session, setSession] = useState<UserSession | null>(() => {
+    const saved = getSession();
+    if (saved && initialInvite?.inviteCode && saved.inviteCode !== initialInvite.inviteCode) {
+      return null;
+    }
+    return saved;
+  });
+
+  // Volatile in-memory PIN (never persisted to localStorage or DB)
+  const [sessionPin, setSessionPin] = useState<string>(() => {
+    const saved = getSession();
+    if (
+      saved &&
+      initialInvite?.inviteCode === saved.inviteCode &&
+      /^\d{6}$/.test(initialInvite.pin)
+    ) {
+      return initialInvite.pin;
+    }
+    return '';
+  });
+
+  // Clean ?join=... and #pin=... from address bar after boot
+  useEffect(() => {
+    if (initialInvite) {
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [initialInvite]);
 
   // Tree data state
   const [treeData, setTreeData] = useState<TreeData | null>(null);
@@ -255,14 +294,16 @@ export const App: React.FC = () => {
   }, [session, loadTreeData]);
 
   // Session ready callback
-  const handleSessionReady = (newSession: UserSession) => {
+  const handleSessionReady = (newSession: UserSession, enteredPin?: string) => {
     setSession(newSession);
+    setSessionPin(enteredPin || '');
     saveSession(newSession);
   };
 
   // Sign out / disconnect tree
   const handleSignOut = () => {
     setSession(null);
+    setSessionPin('');
     saveSession(null);
     setTreeData(null);
   };
@@ -410,6 +451,7 @@ export const App: React.FC = () => {
           onLanguageChange={handleLanguageChange}
           deviceId={deviceId}
           onOpenAdmin={() => setAdminModalOpen(true)}
+          initialInvite={initialInvite}
         />
         <GlobalAdminModal
           isOpen={adminModalOpen}
@@ -880,12 +922,13 @@ export const App: React.FC = () => {
       />
 
       {/* Share & Invite Modal */}
-      {treeData && (
+      {treeData && shareModalOpen && (
         <ShareModal
           isOpen={shareModalOpen}
           onClose={() => setShareModalOpen(false)}
           tree={treeData.tree}
-          pin=""
+          pin={sessionPin}
+          onPinChange={setSessionPin}
           t={t}
         />
       )}
