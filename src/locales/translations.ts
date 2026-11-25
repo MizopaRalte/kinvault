@@ -287,6 +287,13 @@ export interface TranslationDictionary {
   kinshipExtended: string;
   kinshipNoLink: string;
   kinshipDescriptionTemplate: string;
+  kinshipGenSame: string;
+  kinshipGenAboveSingular: string;
+  kinshipGenAbovePlural: string;
+  kinshipGenBelowSingular: string;
+  kinshipGenBelowPlural: string;
+  kinshipAncestorGen: string;
+  kinshipDescendantGen: string;
 }
 
 export const translations: Record<Language, TranslationDictionary> = {
@@ -563,6 +570,13 @@ export const translations: Record<Language, TranslationDictionary> = {
     kinshipExtended: 'Extended Family ({steps} steps)',
     kinshipNoLink: 'Not yet linked in tree',
     kinshipDescriptionTemplate: '{target} is {source}\'s {relation}.',
+    kinshipGenSame: 'Same Generation',
+    kinshipGenAboveSingular: '1 Generation Above',
+    kinshipGenAbovePlural: '{n} Generations Above',
+    kinshipGenBelowSingular: '1 Generation Below',
+    kinshipGenBelowPlural: '{n} Generations Below',
+    kinshipAncestorGen: '{times}x Great-Grandparent',
+    kinshipDescendantGen: '{times}x Great-Grandchild',
   },
 
   mz: {
@@ -823,21 +837,28 @@ export const translations: Record<Language, TranslationDictionary> = {
     kinshipGreatGrandparent: 'Pi leh Pu Chhawng',
     kinshipGreatGrandchild: 'Tuchhuan',
     kinshipSibling: 'Unau (Unaupa / Unaunu)',
-    kinshipAuntUncle: 'Patea / Putea / Ni / Nutei (Uncle / Aunt)',
-    kinshipNieceNephew: 'Tu / Vah (Niece / Nephew)',
-    kinshipGreatAuntUncle: 'Pi / Pu Peng (Great-Aunt / Uncle)',
-    kinshipGreatNieceNephew: 'Tu Peng (Great-Niece / Nephew)',
-    kinshipCousin: 'Unau Fa ({ordinal} Cousin)',
-    kinshipCousinRemoved: 'Unau Fa ({ordinal} Cousin, {removed} Removed)',
+    kinshipAuntUncle: 'Patea / Putea / Ni / Nutei',
+    kinshipNieceNephew: 'Tu / Vah',
+    kinshipGreatAuntUncle: 'Pi / Pu Peng',
+    kinshipGreatNieceNephew: 'Tu Peng',
+    kinshipCousin: 'Unau Peng ({ordinal} Cousin)',
+    kinshipCousinRemoved: 'Unau Peng ({ordinal} Cousin, {removed})',
     kinshipSpouse: 'Kawppui (Nupui / Pasal)',
-    kinshipParentInLaw: 'Puzawn / Pizawn (In-Law)',
+    kinshipParentInLaw: 'Puzawn / Pizawn',
     kinshipChildInLaw: 'Mo / Makpa',
-    kinshipSiblingInLaw: 'Unau Kawppui (In-Law)',
-    kinshipAuntUncleByMarriage: 'Patea / Nutei (Kawppui aṭanga inlaichin)',
-    kinshipByMarriageSuffix: '(Nupui/Pasal aṭanga inlaichin)',
-    kinshipExtended: 'Chhungkhat Hla (Peng {steps})',
+    kinshipSiblingInLaw: 'Unau Kawppui',
+    kinshipAuntUncleByMarriage: 'Patea / Putea / Ni / Nutei (Kawppui lam)',
+    kinshipByMarriageSuffix: '(Kawppui lam aṭangin)',
+    kinshipExtended: 'Chhungkhat Inzawm (Peng {steps})',
     kinshipNoLink: 'Tree-ah inzawmna a la awm lo',
     kinshipDescriptionTemplate: '{target} hi {source} tan {relation} a ni.',
+    kinshipGenSame: 'Chhuan Thuhmun (Ṭhangrual)',
+    kinshipGenAboveSingular: 'Chhuan 1 Chung Lam',
+    kinshipGenAbovePlural: 'Chhuan {n} Chung Lam',
+    kinshipGenBelowSingular: 'Chhuan 1 Hnuai Lam',
+    kinshipGenBelowPlural: 'Chhuan {n} Hnuai Lam',
+    kinshipAncestorGen: 'Thlahtu (Chhuan {gen})',
+    kinshipDescendantGen: 'Tuchhuan (Chhuan {gen})',
   },
 
   es: {
@@ -1113,6 +1134,13 @@ export const translations: Record<Language, TranslationDictionary> = {
     kinshipExtended: 'Familia Extendida ({steps} pasos)',
     kinshipNoLink: 'Aún sin vínculo en el árbol',
     kinshipDescriptionTemplate: '{target} es {relation} de {source}.',
+    kinshipGenSame: 'Misma Generación',
+    kinshipGenAboveSingular: '1 Generación Arriba',
+    kinshipGenAbovePlural: '{n} Generaciones Arriba',
+    kinshipGenBelowSingular: '1 Generación Abajo',
+    kinshipGenBelowPlural: '{n} Generaciones Abajo',
+    kinshipAncestorGen: 'Tatarabuelo/a ({gen}ª gen.)',
+    kinshipDescendantGen: 'Tataranieto/a ({gen}ª gen.)',
   },
 
   de: {
@@ -1388,5 +1416,12 @@ export const translations: Record<Language, TranslationDictionary> = {
     kinshipExtended: 'Erweiterte Familie ({steps} Schritte)',
     kinshipNoLink: 'Noch nicht verbunden',
     kinshipDescriptionTemplate: '{target} ist {relation} von {source}.',
+    kinshipGenSame: 'Gleiche Generation',
+    kinshipGenAboveSingular: '1 Generation darüber',
+    kinshipGenAbovePlural: '{n} Generationen darüber',
+    kinshipGenBelowSingular: '1 Generation tiefer',
+    kinshipGenBelowPlural: '{n} Generationen tiefer',
+    kinshipAncestorGen: 'Ur-{times}-Großelternteil',
+    kinshipDescendantGen: 'Ur-{times}-Enkelkind',
   },
 };

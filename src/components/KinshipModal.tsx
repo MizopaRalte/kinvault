@@ -1,7 +1,7 @@
 import React from 'react';
 import { X, ArrowLeftRight, GitCompare, ArrowRight } from 'lucide-react';
 import type { Person, Household } from '../types/family';
-import type { KinshipResult } from '../utils/kinshipCalculator';
+import { formatGenerationLabel, type KinshipResult } from '../utils/kinshipCalculator';
 import type { TranslationDictionary } from '../locales/translations';
 
 interface KinshipModalProps {
@@ -35,13 +35,15 @@ export const KinshipModal: React.FC<KinshipModalProps> = ({
     .replace('{source}', personA.full_name)
     .replace('{relation}', result.label);
 
+  const generationBadge = formatGenerationLabel(result.generationDiff, t);
+
   return (
     <div
-      className="fixed inset-0 bg-slate-950/65 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto"
+      className="fixed inset-0 bg-slate-950/65 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 overflow-y-auto"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full overflow-hidden my-8"
+        className="bg-white rounded-t-3xl sm:rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full overflow-hidden my-0 sm:my-8 max-h-[92dvh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -118,8 +120,15 @@ export const KinshipModal: React.FC<KinshipModalProps> = ({
             </div>
 
             {/* Big Relationship Highlight */}
-            <div className="w-full bg-slate-900 text-white rounded-xl px-4 py-3 text-center space-y-1 shadow-sm">
+            <div className="w-full bg-slate-900 text-white rounded-xl px-4 py-3 text-center space-y-1.5 shadow-sm">
               <p className="text-sm sm:text-base font-extrabold tracking-tight">{result.label}</p>
+              {generationBadge && (
+                <div>
+                  <span className="inline-block px-2.5 py-0.5 rounded-full bg-white/15 border border-white/10 text-[11px] font-bold text-sky-200">
+                    {generationBadge}
+                  </span>
+                </div>
+              )}
               <p className="text-xs text-slate-300 leading-snug">{description}</p>
             </div>
           </div>

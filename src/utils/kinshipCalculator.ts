@@ -6,7 +6,23 @@ export interface KinshipResult {
   label: string;
   reverseLabel: string;
   viaMarriage: boolean;
+  generationDiff?: number;
   path: Person[];
+}
+
+export function formatGenerationLabel(
+  genDiff: number | undefined,
+  t: TranslationDictionary
+): string | null {
+  if (genDiff === undefined) return null;
+  if (genDiff === 0) return t.kinshipGenSame;
+  if (genDiff > 0) {
+    const template = genDiff === 1 ? t.kinshipGenAboveSingular : t.kinshipGenAbovePlural;
+    return template.replace('{n}', String(genDiff));
+  }
+  const abs = Math.abs(genDiff);
+  const template = abs === 1 ? t.kinshipGenBelowSingular : t.kinshipGenBelowPlural;
+  return template.replace('{n}', String(abs));
 }
 
 function toOrdinal(n: number): string {
@@ -106,8 +122,12 @@ function labelForConsanguinity(dA: number, dB: number, t: TranslationDictionary)
   if (dA === 2 && dB === 0) return t.kinshipGrandparent;
   if (dA === 0 && dB === 3) return t.kinshipGreatGrandchild;
   if (dA === 3 && dB === 0) return t.kinshipGreatGrandparent;
-  if (dA === 0 && dB > 3) return `${dB - 2}x ${t.kinshipGreatGrandchild}`;
-  if (dA > 3 && dB === 0) return `${dA - 2}x ${t.kinshipGreatGrandparent}`;
+  if (dA === 0 && dB > 3) {
+    return t.kinshipDescendantGen.replace('{times}', String(dB - 2)).replace('{gen}', String(dB));
+  }
+  if (dA > 3 && dB === 0) {
+    return t.kinshipAncestorGen.replace('{times}', String(dA - 2)).replace('{gen}', String(dA));
+  }
 
   if (dA === 1 && dB === 1) return t.kinshipSibling;
   if (dA === 1 && dB === 2) return t.kinshipNieceNephew;
@@ -217,6 +237,7 @@ export function calculateKinship(
       label: t.kinshipSelf,
       reverseLabel: t.kinshipSelf,
       viaMarriage: false,
+      generationDiff: 0,
       path: toPersons([sourceId]),
     };
   }
@@ -228,6 +249,7 @@ export function calculateKinship(
       label: t.kinshipSpouse,
       reverseLabel: t.kinshipSpouse,
       viaMarriage: true,
+      generationDiff: 0,
       path: toPersons([sourceId, targetId]),
     };
   }
@@ -238,6 +260,7 @@ export function calculateKinship(
       label: t.kinshipFormerSpouse,
       reverseLabel: t.kinshipFormerSpouse,
       viaMarriage: true,
+      generationDiff: 0,
       path: toPersons([sourceId, targetId]),
     };
   }
@@ -250,78 +273,175 @@ export function calculateKinship(
       label: blood.label,
       reverseLabel: blood.reverseLabel,
       viaMarriage: false,
+      generationDiff: blood.dA - blood.dB,
       path: toPersons(blood.pathIds),
     };
   }
 
-  // 3. One Marriage Hop: A's Blood Relative -> B (Spouse of A's blood relative)
-  const targetSpouses = graph.spousesMap.get(targetId) || new Set<string>();
-  for (const spId of targetSpouses) {
-    const spBlood = findDirectBloodMatch(sourceId, spId, graph, t);
-    if (spBlood) {
-      let label = `${spBlood.label} ${t.kinshipByMarriageSuffix}`;
-      let reverseLabel = `${spBlood.reverseLabel} ${t.kinshipByMarriageSuffix}`;
+  // 3 & 4. One Marriage Hop (check active spouses first, then former spouses)
+  const checkDirectMarriageHops = (useFormer: boolean): KinshipResult | null => {
+    const spSourceMap = useFormer ? graph.formerSpousesMap : graph.spousesMap;
 
-      if (spBlood.dA === 1 && spBlood.dB === 1) {
-        label = t.kinshipSiblingInLaw;
-        reverseLabel = t.kinshipSiblingInLaw;
-      } else if (spBlood.dA === 0 && spBlood.dB === 1) {
-        label = t.kinshipChildInLaw;
-        reverseLabel = t.kinshipParentInLaw;
-      } else if (spBlood.dA === 2 && spBlood.dB === 1) {
-        label = t.kinshipAuntUncleByMarriage;
-        reverseLabel = `${t.kinshipNieceNephew} ${t.kinshipByMarriageSuffix}`;
+    // 3. A's Blood Relative -> B (Spouse / Former Spouse of A's blood relative)
+    const targetSpouses = spSourceMap.get(targetId) || new Set<string>();
+    for (const spId of targetSpouses) {
+      const spBlood = findDirectBloodMatch(sourceId, spId, graph, t);
+      if (spBlood) {
+        let label = `${spBlood.label} ${t.kinshipByMarriageSuffix}`;
+        let reverseLabel = `${spBlood.reverseLabel} ${t.kinshipByMarriageSuffix}`;
+
+        if (!useFormer && spBlood.dA === 1 && spBlood.dB === 1) {
+          label = t.kinshipSiblingInLaw;
+          reverseLabel = t.kinshipSiblingInLaw;
+        } else if (!useFormer && spBlood.dA === 0 && spBlood.dB === 1) {
+          label = t.kinshipChildInLaw;
+          reverseLabel = t.kinshipParentInLaw;
+        } else if (!useFormer && spBlood.dA === 2 && spBlood.dB === 1) {
+          label = t.kinshipAuntUncleByMarriage;
+          reverseLabel = `${t.kinshipNieceNephew} ${t.kinshipByMarriageSuffix}`;
+        }
+
+        return {
+          key: `marriage_target_${useFormer ? 'former_' : ''}${spBlood.dA}_${spBlood.dB}`,
+          label,
+          reverseLabel,
+          viaMarriage: true,
+          generationDiff: spBlood.dA - spBlood.dB,
+          path: toPersons([...spBlood.pathIds, targetId]),
+        };
       }
+    }
 
-      return {
-        key: `marriage_target_${spBlood.dA}_${spBlood.dB}`,
-        label,
-        reverseLabel,
-        viaMarriage: true,
-        path: toPersons([...spBlood.pathIds, targetId]),
-      };
+    // 4. A's Spouse / Former Spouse -> Blood Relative B
+    const sourceSpouses = spSourceMap.get(sourceId) || new Set<string>();
+    for (const spId of sourceSpouses) {
+      const spBlood = findDirectBloodMatch(spId, targetId, graph, t);
+      if (spBlood) {
+        let label = `${spBlood.label} ${t.kinshipByMarriageSuffix}`;
+        let reverseLabel = `${spBlood.reverseLabel} ${t.kinshipByMarriageSuffix}`;
+
+        if (!useFormer && spBlood.dA === 1 && spBlood.dB === 0) {
+          label = t.kinshipParentInLaw;
+          reverseLabel = t.kinshipChildInLaw;
+        } else if (!useFormer && spBlood.dA === 1 && spBlood.dB === 1) {
+          label = t.kinshipSiblingInLaw;
+          reverseLabel = t.kinshipSiblingInLaw;
+        } else if (!useFormer && spBlood.dA === 1 && spBlood.dB === 2) {
+          label = `${t.kinshipNieceNephew} ${t.kinshipByMarriageSuffix}`;
+          reverseLabel = t.kinshipAuntUncleByMarriage;
+        }
+
+        return {
+          key: `marriage_source_${useFormer ? 'former_' : ''}${spBlood.dA}_${spBlood.dB}`,
+          label,
+          reverseLabel,
+          viaMarriage: true,
+          generationDiff: spBlood.dA - spBlood.dB,
+          path: toPersons([sourceId, ...spBlood.pathIds]),
+        };
+      }
+    }
+
+    return null;
+  };
+
+  const activeHopMatch = checkDirectMarriageHops(false);
+  if (activeHopMatch) return activeHopMatch;
+
+  // 4b. Ancestor-Spouse / Co-Parent Lineage Bridge
+  // Handles paths like Child -> Parent -> Parent's Spouse/Former Spouse -> Grandparent
+  const ancA = getAncestors(sourceId, graph.parentsMap);
+  const ancB = getAncestors(targetId, graph.parentsMap);
+  let bestBridge: {
+    dAEff: number;
+    dBEff: number;
+    score: number;
+    penalty: number;
+    pathIds: string[];
+  } | null = null;
+
+  for (const [ancId, infoA] of ancA.entries()) {
+    if (infoA.dist < 1) continue;
+    const partners: Array<{ id: string; isFormer: boolean }> = [
+      ...Array.from(graph.spousesMap.get(ancId) || []).map((id) => ({ id, isFormer: false })),
+      ...Array.from(graph.formerSpousesMap.get(ancId) || []).map((id) => ({ id, isFormer: true })),
+    ];
+    for (const partner of partners) {
+      const spBlood = findDirectBloodMatch(partner.id, targetId, graph, t);
+      if (!spBlood) continue;
+      const dAEff = infoA.dist + spBlood.dA;
+      const dBEff = spBlood.dB;
+      const pathIds = [...infoA.path, ...spBlood.pathIds];
+      const penalty = partner.isFormer ? 1 : 0;
+      const score = pathIds.length - 1;
+      if (
+        !bestBridge ||
+        penalty < bestBridge.penalty ||
+        (penalty === bestBridge.penalty && score < bestBridge.score)
+      ) {
+        bestBridge = { dAEff, dBEff, score, penalty, pathIds };
+      }
     }
   }
 
-  // 4. One Marriage Hop: A's Spouse -> Blood Relative B
-  const sourceSpouses = graph.spousesMap.get(sourceId) || new Set<string>();
-  for (const spId of sourceSpouses) {
-    const spBlood = findDirectBloodMatch(spId, targetId, graph, t);
-    if (spBlood) {
-      let label = `${spBlood.label} ${t.kinshipByMarriageSuffix}`;
-      let reverseLabel = `${spBlood.reverseLabel} ${t.kinshipByMarriageSuffix}`;
-
-      if (spBlood.dA === 1 && spBlood.dB === 0) {
-        label = t.kinshipParentInLaw;
-        reverseLabel = t.kinshipChildInLaw;
-      } else if (spBlood.dA === 1 && spBlood.dB === 1) {
-        label = t.kinshipSiblingInLaw;
-        reverseLabel = t.kinshipSiblingInLaw;
-      } else if (spBlood.dA === 1 && spBlood.dB === 2) {
-        label = `${t.kinshipNieceNephew} ${t.kinshipByMarriageSuffix}`;
-        reverseLabel = t.kinshipAuntUncleByMarriage;
+  for (const [ancId, infoB] of ancB.entries()) {
+    if (infoB.dist < 1) continue;
+    const partners: Array<{ id: string; isFormer: boolean }> = [
+      ...Array.from(graph.spousesMap.get(ancId) || []).map((id) => ({ id, isFormer: false })),
+      ...Array.from(graph.formerSpousesMap.get(ancId) || []).map((id) => ({ id, isFormer: true })),
+    ];
+    for (const partner of partners) {
+      const spBlood = findDirectBloodMatch(sourceId, partner.id, graph, t);
+      if (!spBlood) continue;
+      const dAEff = spBlood.dA;
+      const dBEff = spBlood.dB + infoB.dist;
+      const pathIds = [...spBlood.pathIds, ...[...infoB.path].reverse()];
+      const penalty = partner.isFormer ? 1 : 0;
+      const score = pathIds.length - 1;
+      if (
+        !bestBridge ||
+        penalty < bestBridge.penalty ||
+        (penalty === bestBridge.penalty && score < bestBridge.score)
+      ) {
+        bestBridge = { dAEff, dBEff, score, penalty, pathIds };
       }
-
-      return {
-        key: `marriage_source_${spBlood.dA}_${spBlood.dB}`,
-        label,
-        reverseLabel,
-        viaMarriage: true,
-        path: toPersons([sourceId, ...spBlood.pathIds]),
-      };
     }
   }
+
+  if (bestBridge) {
+    const baseLabel = labelForConsanguinity(bestBridge.dAEff, bestBridge.dBEff, t);
+    const baseReverse = labelForConsanguinity(bestBridge.dBEff, bestBridge.dAEff, t);
+    return {
+      key: `ancestor_marriage_${bestBridge.dAEff}_${bestBridge.dBEff}`,
+      label: `${baseLabel} ${t.kinshipByMarriageSuffix}`,
+      reverseLabel: `${baseReverse} ${t.kinshipByMarriageSuffix}`,
+      viaMarriage: true,
+      generationDiff: bestBridge.dAEff - bestBridge.dBEff,
+      path: toPersons(bestBridge.pathIds),
+    };
+  }
+
+  const formerHopMatch = checkDirectMarriageHops(true);
+  if (formerHopMatch) return formerHopMatch;
 
   // 5. Fallback: Shortest path across extended marriage/family graph
   const anyPath = findShortestAnyPath(sourceId, targetId, graph);
   if (anyPath) {
     const steps = anyPath.length - 1;
+    let netGen = 0;
+    for (let i = 0; i < anyPath.length - 1; i++) {
+      const curr = anyPath[i];
+      const next = anyPath[i + 1];
+      if (graph.parentsMap.get(curr)?.has(next)) netGen += 1;
+      else if (graph.childrenMap.get(curr)?.has(next)) netGen -= 1;
+    }
     const extLabel = t.kinshipExtended.replace('{steps}', String(steps));
     return {
       key: `extended_${steps}`,
       label: extLabel,
       reverseLabel: extLabel,
       viaMarriage: true,
+      generationDiff: netGen,
       path: toPersons(anyPath),
     };
   }

@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import type { Person, Household, Relationship, Role } from '../types/family';
 import type { TranslationDictionary } from '../locales/translations';
-import { calculateKinship } from '../utils/kinshipCalculator';
+import { calculateKinship, formatGenerationLabel } from '../utils/kinshipCalculator';
 import { compressAvatar } from '../utils/imageCompress';
 
 interface PersonDetailModalProps {
@@ -368,12 +368,20 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
                 )}
               </div>
 
-              {relationToYou && (
-                <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 border border-indigo-200 text-indigo-900 rounded-xl text-[11px] font-bold">
-                  <GitCompare className="w-3 h-3 text-indigo-600 shrink-0" />
-                  <span>{t.relationToYou}: {relationToYou.label}</span>
-                </div>
-              )}
+              {relationToYou && (() => {
+                const genBadge = formatGenerationLabel(relationToYou.generationDiff, t);
+                return (
+                  <div className="mt-2 inline-flex flex-wrap items-center gap-1.5 px-2.5 py-1 bg-indigo-50 border border-indigo-200 text-indigo-900 rounded-xl text-[11px] font-bold">
+                    <GitCompare className="w-3 h-3 text-indigo-600 shrink-0" />
+                    <span>{t.relationToYou}: {relationToYou.label}</span>
+                    {genBadge && (
+                      <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-800 rounded-md text-[10px]">
+                        {genBadge}
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           </div>
 
