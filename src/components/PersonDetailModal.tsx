@@ -13,9 +13,11 @@ import {
   UserCheck,
   Focus,
   Camera,
+  GitCompare,
 } from 'lucide-react';
 import type { Person, Household, Relationship } from '../types/family';
 import type { TranslationDictionary } from '../locales/translations';
+import { calculateKinship } from '../utils/kinshipCalculator';
 
 interface PersonDetailModalProps {
   person: Person | null;
@@ -25,10 +27,12 @@ interface PersonDetailModalProps {
   relationships: Relationship[];
   t: TranslationDictionary;
   deviceId: string;
+  activePersonId?: string;
   onClose: () => void;
   onSelectPerson: (person: Person, household?: Household) => void;
   onOpenMemberModal: (person?: Person, household?: Household, initialMode?: string) => void;
   onFocusBranch?: (householdId: string) => void;
+  onStartCompare?: (person: Person, household?: Household) => void;
   onPreviewPhoto?: (photoUrl: string) => void;
 }
 
@@ -40,10 +44,12 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
   relationships,
   t,
   deviceId,
+  activePersonId,
   onClose,
   onSelectPerson,
   onOpenMemberModal,
   onFocusBranch,
+  onStartCompare,
   onPreviewPhoto,
 }) => {
   const familyConnections = useMemo(() => {
@@ -87,6 +93,12 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
       children: Array.from(childIds).map((id) => personMap.get(id)).filter((p): p is Person => !!p),
     };
   }, [person, allPersons, relationships]);
+
+  const relationToYou = useMemo(() => {
+    if (!person || !activePersonId || activePersonId === person.id) return null;
+    const res = calculateKinship(activePersonId, person.id, allPersons, relationships, t);
+    return res.key === 'none' ? null : res;
+  }, [person, activePersonId, allPersons, relationships, t]);
 
   if (!person) return null;
 
@@ -193,6 +205,13 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
                   </span>
                 )}
               </div>
+
+              {relationToYou && (
+                <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 border border-indigo-200 text-indigo-900 rounded-xl text-[11px] font-bold">
+                  <GitCompare className="w-3 h-3 text-indigo-600 shrink-0" />
+                  <span>{t.relationToYou}: {relationToYou.label}</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -476,19 +495,35 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
             )}
           </div>
 
-          {household && onFocusBranch && (
-            <button
-              type="button"
-              onClick={() => {
-                onFocusBranch(household.id);
-                onClose();
-              }}
-              className="px-3 py-1.5 bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-800 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <Focus className="w-3.5 h-3.5" />
-              <span>{t.focusBranch}</span>
-            </button>
-          )}
+          <div className="flex items-center gap-2 flex-wrap">
+            {onStartCompare && (
+              <button
+                type="button"
+                onClick={() => {
+                  onStartCompare(person, household);
+                  onClose();
+                }}
+                className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-800 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <GitCompare className="w-3.5 h-3.5" />
+                <span>{t.compareRelation}</span>
+              </button>
+            )}
+
+            {household && onFocusBranch && (
+              <button
+                type="button"
+                onClick={() => {
+                  onFocusBranch(household.id);
+                  onClose();
+                }}
+                className="px-3 py-1.5 bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-800 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Focus className="w-3.5 h-3.5" />
+                <span>{t.focusBranch}</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

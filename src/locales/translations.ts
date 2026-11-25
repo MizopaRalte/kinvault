@@ -223,6 +223,39 @@ export interface TranslationDictionary {
   installIosStep2: string;
   installFallbackHint: string;
   gotItBtn: string;
+
+  // Drill-down & Kinship Calculator
+  parentsOnlyView: string;
+  kidsCountLabel: string;
+  compareRelation: string;
+  comparingFromHint: string;
+  relationToYou: string;
+  kinshipResultTitle: string;
+  kinshipPathTitle: string;
+  kinshipSwapBtn: string;
+  kinshipSelf: string;
+  kinshipParent: string;
+  kinshipChild: string;
+  kinshipGrandparent: string;
+  kinshipGrandchild: string;
+  kinshipGreatGrandparent: string;
+  kinshipGreatGrandchild: string;
+  kinshipSibling: string;
+  kinshipAuntUncle: string;
+  kinshipNieceNephew: string;
+  kinshipGreatAuntUncle: string;
+  kinshipGreatNieceNephew: string;
+  kinshipCousin: string;
+  kinshipCousinRemoved: string;
+  kinshipSpouse: string;
+  kinshipParentInLaw: string;
+  kinshipChildInLaw: string;
+  kinshipSiblingInLaw: string;
+  kinshipAuntUncleByMarriage: string;
+  kinshipByMarriageSuffix: string;
+  kinshipExtended: string;
+  kinshipNoLink: string;
+  kinshipDescriptionTemplate: string;
 }
 
 export const translations: Record<Language, TranslationDictionary> = {
@@ -436,6 +469,38 @@ export const translations: Record<Language, TranslationDictionary> = {
     installIosStep2: '2. Scroll down and tap "Add to Home Screen".',
     installFallbackHint: 'Open your browser menu (⋮) and choose "Install app" or "Add to Home screen".',
     gotItBtn: 'Got It',
+
+    parentsOnlyView: 'Parents Only',
+    kidsCountLabel: 'Kids',
+    compareRelation: 'Compare Relation',
+    comparingFromHint: 'Comparing from {name} — Tap another person on the tree',
+    relationToYou: 'Your Relation',
+    kinshipResultTitle: 'Family Relationship',
+    kinshipPathTitle: 'Connection Path',
+    kinshipSwapBtn: 'Swap Perspective',
+    kinshipSelf: 'Self (Same Person)',
+    kinshipParent: 'Parent',
+    kinshipChild: 'Child',
+    kinshipGrandparent: 'Grandparent',
+    kinshipGrandchild: 'Grandchild',
+    kinshipGreatGrandparent: 'Great-Grandparent',
+    kinshipGreatGrandchild: 'Great-Grandchild',
+    kinshipSibling: 'Sibling (Brother / Sister)',
+    kinshipAuntUncle: 'Aunt / Uncle',
+    kinshipNieceNephew: 'Niece / Nephew',
+    kinshipGreatAuntUncle: 'Great-Aunt / Great-Uncle',
+    kinshipGreatNieceNephew: 'Great-Niece / Great-Nephew',
+    kinshipCousin: '{ordinal} Cousin',
+    kinshipCousinRemoved: '{ordinal} Cousin ({removed} Removed)',
+    kinshipSpouse: 'Spouse (Husband / Wife)',
+    kinshipParentInLaw: 'Parent-in-Law',
+    kinshipChildInLaw: 'Child-in-Law',
+    kinshipSiblingInLaw: 'Sibling-in-Law',
+    kinshipAuntUncleByMarriage: 'Aunt / Uncle (by marriage)',
+    kinshipByMarriageSuffix: '(by marriage)',
+    kinshipExtended: 'Extended Family ({steps} steps)',
+    kinshipNoLink: 'Not yet linked in tree',
+    kinshipDescriptionTemplate: '{target} is {source}\'s {relation}.',
   },
 
   mz: {
@@ -648,6 +713,38 @@ export const translations: Record<Language, TranslationDictionary> = {
     installIosStep2: '2. "Add to Home Screen" (+) tih kha thlang rawh.',
     installFallbackHint: 'Browser menu (⋮) hawng la, "Install app" emaw "Add to Home screen" thlang rawh.',
     gotItBtn: 'Ka Hrethiam E',
+
+    parentsOnlyView: 'Nu & Pa Chauh',
+    kidsCountLabel: 'Fate',
+    compareRelation: 'Inlaichinna Enna',
+    comparingFromHint: '{name} aṭanga en mek — Mi dang hmet rawh',
+    relationToYou: 'I Chhungkhat Nihna',
+    kinshipResultTitle: 'Chhungkaw Inlaichinna',
+    kinshipPathTitle: 'Inzawm Dan',
+    kinshipSwapBtn: 'Thlâk Lêt Rawh',
+    kinshipSelf: 'Nangmah (Mi thuhmun)',
+    kinshipParent: 'Nu / Pa',
+    kinshipChild: 'Fa',
+    kinshipGrandparent: 'Pi / Pu',
+    kinshipGrandchild: 'Tu',
+    kinshipGreatGrandparent: 'Pi leh Pu Chhawng',
+    kinshipGreatGrandchild: 'Tuchhuan',
+    kinshipSibling: 'Unau (Unaupa / Unaunu)',
+    kinshipAuntUncle: 'Patea / Putea / Ni / Nutei (Uncle / Aunt)',
+    kinshipNieceNephew: 'Tu / Vah (Niece / Nephew)',
+    kinshipGreatAuntUncle: 'Pi / Pu Peng (Great-Aunt / Uncle)',
+    kinshipGreatNieceNephew: 'Tu Peng (Great-Niece / Nephew)',
+    kinshipCousin: 'Unau Fa ({ordinal} Cousin)',
+    kinshipCousinRemoved: 'Unau Fa ({ordinal} Cousin, {removed} Removed)',
+    kinshipSpouse: 'Kawppui (Nupui / Pasal)',
+    kinshipParentInLaw: 'Puzawn / Pizawn (In-Law)',
+    kinshipChildInLaw: 'Mo / Makpa',
+    kinshipSiblingInLaw: 'Unau Kawppui (In-Law)',
+    kinshipAuntUncleByMarriage: 'Patea / Nutei (Kawppui aṭanga inlaichin)',
+    kinshipByMarriageSuffix: '(Nupui/Pasal aṭanga inlaichin)',
+    kinshipExtended: 'Chhungkhat Hla (Peng {steps})',
+    kinshipNoLink: 'Tree-ah inzawmna a la awm lo',
+    kinshipDescriptionTemplate: '{target} hi {source} tan {relation} a ni.',
   },
 
   es: {
@@ -860,6 +957,38 @@ export const translations: Record<Language, TranslationDictionary> = {
     installIosStep2: '2. Desplázate y elige "Añadir a pantalla de inicio".',
     installFallbackHint: 'Abre el menú del navegador (⋮) y selecciona "Instalar aplicación".',
     gotItBtn: 'Entendido',
+
+    parentsOnlyView: 'Solo Padres',
+    kidsCountLabel: 'Hijos',
+    compareRelation: 'Comparar Parentesco',
+    comparingFromHint: 'Comparando desde {name} — Toca otra persona en el árbol',
+    relationToYou: 'Tu Parentesco',
+    kinshipResultTitle: 'Parentesco Familiar',
+    kinshipPathTitle: 'Ruta de Conexión',
+    kinshipSwapBtn: 'Invertir Perspectiva',
+    kinshipSelf: 'Misma Persona',
+    kinshipParent: 'Padre / Madre',
+    kinshipChild: 'Hijo / Hija',
+    kinshipGrandparent: 'Abuelo / Abuela',
+    kinshipGrandchild: 'Nieto / Nieta',
+    kinshipGreatGrandparent: 'Bisabuelo / Bisabuela',
+    kinshipGreatGrandchild: 'Bisnieto / Bisnieta',
+    kinshipSibling: 'Hermano / Hermana',
+    kinshipAuntUncle: 'Tío / Tía',
+    kinshipNieceNephew: 'Sobrino / Sobrina',
+    kinshipGreatAuntUncle: 'Tío Abuelo / Tía Abuela',
+    kinshipGreatNieceNephew: 'Sobrino Nieto / Sobrina Nieta',
+    kinshipCousin: 'Primo/a ({ordinal})',
+    kinshipCousinRemoved: 'Primo/a ({ordinal}, {removed} grado)',
+    kinshipSpouse: 'Cónyuge (Esposo / Esposa)',
+    kinshipParentInLaw: 'Suegro / Suegra',
+    kinshipChildInLaw: 'Yerno / Nuera',
+    kinshipSiblingInLaw: 'Cuñado / Cuñada',
+    kinshipAuntUncleByMarriage: 'Tío / Tía (por matrimonio)',
+    kinshipByMarriageSuffix: '(por matrimonio)',
+    kinshipExtended: 'Familia Extendida ({steps} pasos)',
+    kinshipNoLink: 'Aún sin vínculo en el árbol',
+    kinshipDescriptionTemplate: '{target} es {relation} de {source}.',
   },
 
   de: {
@@ -1072,5 +1201,37 @@ export const translations: Record<Language, TranslationDictionary> = {
     installIosStep2: '2. Scrolle nach unten und tippe auf „Zum Home-Bildschirm“.',
     installFallbackHint: 'Öffne das Browser-Menü (⋮) und wähle „App installieren“.',
     gotItBtn: 'Verstanden',
+
+    parentsOnlyView: 'Nur Eltern',
+    kidsCountLabel: 'Kinder',
+    compareRelation: 'Verwandtschaft prüfen',
+    comparingFromHint: 'Vergleich ab {name} — Tippe auf eine andere Person',
+    relationToYou: 'Beziehung zu dir',
+    kinshipResultTitle: 'Verwandtschaftsgrad',
+    kinshipPathTitle: 'Verbindungspfad',
+    kinshipSwapBtn: 'Perspektive tauschen',
+    kinshipSelf: 'Selbst (Gleiche Person)',
+    kinshipParent: 'Elternteil',
+    kinshipChild: 'Kind',
+    kinshipGrandparent: 'Großelternteil',
+    kinshipGrandchild: 'Enkelkind',
+    kinshipGreatGrandparent: 'Urgroßelternteil',
+    kinshipGreatGrandchild: 'Urenkelkind',
+    kinshipSibling: 'Geschwister',
+    kinshipAuntUncle: 'Tante / Onkel',
+    kinshipNieceNephew: 'Nichte / Neffe',
+    kinshipGreatAuntUncle: 'Großtante / Großonkel',
+    kinshipGreatNieceNephew: 'Großnichte / Großneffe',
+    kinshipCousin: 'Cousin/e ({ordinal})',
+    kinshipCousinRemoved: 'Cousin/e ({ordinal}, {removed} versetzt)',
+    kinshipSpouse: 'Ehepartner / Partner',
+    kinshipParentInLaw: 'Schwiegereltern',
+    kinshipChildInLaw: 'Schwiegerkind',
+    kinshipSiblingInLaw: 'Schwager / Schwägerin',
+    kinshipAuntUncleByMarriage: 'Tante / Onkel (angeheiratet)',
+    kinshipByMarriageSuffix: '(angeheiratet)',
+    kinshipExtended: 'Erweiterte Familie ({steps} Schritte)',
+    kinshipNoLink: 'Noch nicht verbunden',
+    kinshipDescriptionTemplate: '{target} ist {relation} von {source}.',
   },
 };

@@ -12,10 +12,13 @@ import {
   ChevronsDownUp,
   ChevronsUpDown,
   X,
+  GitCompare,
 } from 'lucide-react';
 import type { Household, Person, Relationship, Tree, Role } from '../types/family';
 import type { TranslationDictionary } from '../locales/translations';
 import { PersonDetailModal } from './PersonDetailModal';
+import { KinshipModal } from './KinshipModal';
+import { calculateKinship, type KinshipResult } from '../utils/kinshipCalculator';
 
 interface TreeCanvasProps {
   tree: Tree;
@@ -89,8 +92,14 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
   const [focusedHouseholdId, setFocusedHouseholdId] = useState<string | null>(null);
   const didAutoCollapseRef = useRef(false);
 
-  // Detail & photo inspection state
+  // Detail, comparison & photo inspection state
   const [detailTarget, setDetailTarget] = useState<{ person: Person; household?: Household } | null>(null);
+  const [compareSource, setCompareSource] = useState<{ person: Person; household?: Household } | null>(null);
+  const [kinshipState, setKinshipState] = useState<{
+    personA: Person;
+    personB: Person;
+    result: KinshipResult;
+  } | null>(null);
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
 
   // Group persons by household
@@ -188,51 +197,27 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
     };
   }, [households, relationships, personToHousehold]);
 
-  // Auto-collapse deeper generations if tree starts very large (>10 households)
+  // Default Parents-First Drill-Down: on initial load, collapse all child branches under root parents
   useEffect(() => {
-    if (!didAutoCollapseRef.current && households.length > 10) {
+    if (!didAutoCollapseRef.current && households.length > 1) {
       didAutoCollapseRef.current = true;
       const toCollapse = new Set<string>();
-      const queue: Array<{ id: string; depth: number }> = rootHouseholdIds.map((id) => ({ id, depth: 0 }));
-      const visited = new Set<string>();
-
-      while (queue.length > 0) {
-        const current = queue.shift()!;
-        if (visited.has(current.id)) continue;
-        visited.add(current.id);
-        const children = childrenHouseholdMap.get(current.id);
+      for (const h of households) {
+        const children = childrenHouseholdMap.get(h.id);
         if (children && children.size > 0) {
-          if (current.depth >= 1) {
-            toCollapse.add(current.id);
-          } else {
-            for (const cId of children) {
-              queue.push({ id: cId, depth: current.depth + 1 });
-            }
-          }
+          toCollapse.add(h.id);
         }
       }
       setCollapsedBranchIds(toCollapse);
     }
-  }, [households.length, rootHouseholdIds, childrenHouseholdMap]);
+  }, [households, childrenHouseholdMap]);
 
-  const handleCompactView = () => {
+  const handleParentsOnlyView = () => {
     const toCollapse = new Set<string>();
-    const queue: Array<{ id: string; depth: number }> = rootHouseholdIds.map((id) => ({ id, depth: 0 }));
-    const visited = new Set<string>();
-
-    while (queue.length > 0) {
-      const current = queue.shift()!;
-      if (visited.has(current.id)) continue;
-      visited.add(current.id);
-      const children = childrenHouseholdMap.get(current.id);
+    for (const h of households) {
+      const children = childrenHouseholdMap.get(h.id);
       if (children && children.size > 0) {
-        if (current.depth >= 1) {
-          toCollapse.add(current.id);
-        } else {
-          for (const cId of children) {
-            queue.push({ id: cId, depth: current.depth + 1 });
-          }
-        }
+        toCollapse.add(h.id);
       }
     }
     setCollapsedBranchIds(toCollapse);
@@ -626,6 +611,20 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
     });
   };
 
+  const handlePersonClick = (person: Person, household: Household) => {
+    if (compareSource) {
+      const result = calculateKinship(compareSource.person.id, person.id, persons, relationships, t);
+      setKinshipState({
+        personA: compareSource.person,
+        personB: person,
+        result,
+      });
+      setCompareSource(null);
+      return;
+    }
+    setDetailTarget({ person, household });
+  };
+
   const formatYearSpan = (p: Person) => {
     if (!p.birth_year && !p.death_year) {
       return p.is_living ? t.living : t.deceased;
@@ -670,7 +669,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
             </div>
           </div>
 
-          {households.length > 2 && (
+          {households.length > 1 && (
             <div className="flex sm:hidden items-center gap-1 shrink-0">
               <button
                 type="button"
@@ -682,8 +681,8 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
               </button>
               <button
                 type="button"
-                onClick={handleCompactView}
-                title={t.compactView}
+                onClick={handleParentsOnlyView}
+                title={t.parentsOnlyView}
                 className="p-1.5 bg-white/15 hover:bg-white/25 rounded-lg text-white cursor-pointer"
               >
                 <ChevronsDownUp className="w-3.5 h-3.5" />
@@ -694,7 +693,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
 
         {/* Drill-Down Controls (Desktop / Focus Reset on Mobile) */}
         <div className="flex flex-wrap items-center gap-1.5 pointer-events-auto">
-          {households.length > 2 && (
+          {households.length > 1 && (
             <div className="hidden sm:flex items-center gap-1.5">
               <button
                 type="button"
@@ -707,11 +706,11 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
 
               <button
                 type="button"
-                onClick={handleCompactView}
+                onClick={handleParentsOnlyView}
                 className="px-2.5 py-1.5 bg-white/95 hover:bg-white border border-slate-200 rounded-xl shadow-xs text-[11px] font-bold text-slate-700 flex items-center gap-1 cursor-pointer transition-colors"
               >
                 <ChevronsDownUp className="w-3.5 h-3.5 text-slate-500" />
-                <span>{t.compactView}</span>
+                <span>{t.parentsOnlyView}</span>
               </button>
             </div>
           )}
@@ -729,11 +728,29 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
         </div>
       </div>
 
-      {/* Friendly Relationship Hint Pill */}
-      <div className="hidden md:flex absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-white/90 backdrop-blur-md border border-slate-200/80 shadow-xs rounded-full px-4 py-1.5 text-[11px] text-slate-600 font-medium items-center gap-1.5 pointer-events-none">
-        <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-        <span>{households.length <= 2 ? t.treeCanvasGuide : t.clickPersonHint}</span>
-      </div>
+      {/* Compare Mode Banner (when selecting second profile) */}
+      {compareSource ? (
+        <div className="absolute top-16 sm:top-4 left-3 right-3 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 z-20 bg-indigo-600 text-white shadow-xl rounded-2xl sm:rounded-full px-4 py-2 text-xs font-bold flex items-center justify-between sm:justify-center gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <GitCompare className="w-4 h-4 shrink-0 animate-pulse" />
+            <span className="truncate">
+              {t.comparingFromHint.replace('{name}', compareSource.person.full_name)}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setCompareSource(null)}
+            className="px-2.5 py-1 bg-white/20 hover:bg-white/30 rounded-full text-[11px] font-bold cursor-pointer shrink-0"
+          >
+            {t.cancel}
+          </button>
+        </div>
+      ) : (
+        <div className="hidden md:flex absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-white/90 backdrop-blur-md border border-slate-200/80 shadow-xs rounded-full px-4 py-1.5 text-[11px] text-slate-600 font-medium items-center gap-1.5 pointer-events-none">
+          <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+          <span>{households.length <= 2 ? t.treeCanvasGuide : t.clickPersonHint}</span>
+        </div>
+      )}
 
       {/* Pan/Zoom Canvas Viewport */}
       <div
@@ -836,8 +853,10 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
                         {/* Circular Portrait */}
                         <button
                           type="button"
-                          onClick={() => setDetailTarget({ person, household: h })}
-                          className="relative rounded-full bg-white shadow-md hover:shadow-xl hover:scale-105 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-slate-900"
+                          onClick={() => handlePersonClick(person, h)}
+                          className={`relative rounded-full bg-white shadow-md hover:shadow-xl hover:scale-105 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-slate-900 ${
+                            compareSource?.person.id === person.id ? 'ring-4 ring-indigo-500 ring-offset-2' : ''
+                          }`}
                           style={{
                             width: `${AVATAR_SIZE}px`,
                             height: `${AVATAR_SIZE}px`,
@@ -872,7 +891,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
                         {/* Name & Year Span (clickable to open details) */}
                         <button
                           type="button"
-                          onClick={() => setDetailTarget({ person, household: h })}
+                          onClick={() => handlePersonClick(person, h)}
                           className="mt-2 px-1.5 py-0.5 rounded-lg hover:bg-white/90 transition-colors cursor-pointer max-w-full"
                         >
                           <p className="text-xs font-extrabold text-slate-900 leading-tight line-clamp-2">
@@ -897,9 +916,9 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
                   type="button"
                   onClick={() => toggleCollapse(h.id)}
                   title={isCollapsed ? t.expandBranch : t.collapseBranch}
-                  className={`absolute -translate-x-1/2 z-20 rounded-full flex items-center justify-center gap-0.5 font-bold text-[10px] shadow-sm transition-all cursor-pointer ${
+                  className={`absolute -translate-x-1/2 z-20 rounded-full flex items-center justify-center gap-1 font-bold text-[10px] shadow-sm transition-all cursor-pointer whitespace-nowrap ${
                     isCollapsed
-                      ? 'px-2 py-0.5 bg-slate-900 text-white hover:bg-slate-800 scale-105'
+                      ? 'px-2.5 py-0.5 bg-slate-900 text-white hover:bg-slate-800 scale-105'
                       : 'w-5 h-5 bg-white text-slate-600 border border-slate-300 hover:bg-slate-100'
                   }`}
                   style={{
@@ -910,7 +929,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
                   {isCollapsed ? (
                     <>
                       <Plus className="w-3 h-3" />
-                      <span>{node.hiddenDescendantsCount}</span>
+                      <span>{node.hiddenDescendantsCount} {t.kidsCountLabel}</span>
                     </>
                   ) : (
                     <Minus className="w-3 h-3" />
@@ -1005,6 +1024,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
         relationships={relationships}
         t={t}
         deviceId={deviceId}
+        activePersonId={activePersonId}
         onClose={() => setDetailTarget(null)}
         onSelectPerson={(p, h) => setDetailTarget({ person: p, household: h })}
         onOpenMemberModal={onOpenMemberModal}
@@ -1012,7 +1032,33 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
           setFocusedHouseholdId(hId);
           setCollapsedBranchIds(new Set());
         }}
+        onStartCompare={(p, h) => setCompareSource({ person: p, household: h })}
         onPreviewPhoto={(url) => setPreviewPhoto(url)}
+      />
+
+      {/* Profile-to-Profile Kinship Comparison Result Modal */}
+      <KinshipModal
+        personA={kinshipState?.personA || null}
+        personB={kinshipState?.personB || null}
+        result={kinshipState?.result || null}
+        households={households}
+        t={t}
+        onClose={() => setKinshipState(null)}
+        onSwap={() => {
+          if (!kinshipState) return;
+          const swappedResult = calculateKinship(
+            kinshipState.personB.id,
+            kinshipState.personA.id,
+            persons,
+            relationships,
+            t
+          );
+          setKinshipState({
+            personA: kinshipState.personB,
+            personB: kinshipState.personA,
+            result: swappedResult,
+          });
+        }}
       />
 
       {/* Fullscreen Photo Preview Modal */}
