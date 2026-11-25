@@ -934,7 +934,16 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
 
     if (response.ok && action !== 'delete_self_tree') {
       try {
-        const actorName = caller?.full_name || 'Member';
+        const rawVisitor = request.headers.get('X-Visitor-Name') || '';
+        let decodedVisitor = '';
+        if (rawVisitor) {
+          try {
+            decodedVisitor = decodeURIComponent(rawVisitor).trim().slice(0, 60);
+          } catch {
+            decodedVisitor = rawVisitor.trim().slice(0, 60);
+          }
+        }
+        const actorName = caller?.full_name || decodedVisitor || 'Member';
         const summary = summarizeMutation(action, p);
         await env.DB.prepare(
           `INSERT INTO tree_events (tree_id, last_mutated_at, actor_name, summary)

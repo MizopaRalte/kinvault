@@ -275,6 +275,15 @@ export interface TranslationDictionary {
   presenceEditingLabel: string;
   presenceAddingLabel: string;
   presenceBrowsingTree: string;
+  identifyYourselfTitle: string;
+  identifyYourselfSubtitle: string;
+  enterVisitorNameLabel: string;
+  visitorNamePlaceholder: string;
+  continueWithNameBtn: string;
+  pickProfileOnTreeLabel: string;
+  setYourNameHint: string;
+  joinNameOptionalLabel: string;
+  searchYourNamePlaceholder: string;
   compareRelation: string;
   comparingFromHint: string;
   relationToYou: string;
@@ -575,6 +584,15 @@ export const translations: Record<Language, TranslationDictionary> = {
     presenceEditingLabel: 'Editing',
     presenceAddingLabel: 'Adding',
     presenceBrowsingTree: 'Browsing tree',
+    identifyYourselfTitle: 'Who are you?',
+    identifyYourselfSubtitle: 'Enter your name so family members know who is online, or claim your profile below.',
+    enterVisitorNameLabel: 'Your Name',
+    visitorNamePlaceholder: 'e.g. Lalnunzira Ralte',
+    continueWithNameBtn: 'Save My Name',
+    pickProfileOnTreeLabel: 'Or tap your name on the tree',
+    setYourNameHint: 'Set your name',
+    joinNameOptionalLabel: 'Your Name (Shown to family)',
+    searchYourNamePlaceholder: 'Search your name...',
     compareRelation: 'Compare Relation',
     comparingFromHint: 'Comparing from {name} — Tap another person on the tree',
     relationToYou: 'Your Relation',
@@ -874,6 +892,15 @@ export const translations: Record<Language, TranslationDictionary> = {
     presenceEditingLabel: 'Siamṭha mek',
     presenceAddingLabel: 'Belh mek',
     presenceBrowsingTree: 'Tree en kual mek',
+    identifyYourselfTitle: 'Tunge i nih?',
+    identifyYourselfSubtitle: 'Midangin i hming an hmuh theih nan i hming ziak rawh, a nih loh leh hnuai lamah hian i hming thlang rawh.',
+    enterVisitorNameLabel: 'I Hming',
+    visitorNamePlaceholder: 'Entirnan: Lalnunzira Ralte',
+    continueWithNameBtn: 'Ka Hming Save Rawh',
+    pickProfileOnTreeLabel: 'A nih loh leh i profile hmet rawh',
+    setYourNameHint: 'I hming dah rawh',
+    joinNameOptionalLabel: 'I Hming (Midangin an hmuh tur)',
+    searchYourNamePlaceholder: 'I hming zawng rawh...',
     compareRelation: 'Inlaichinna Enna',
     comparingFromHint: '{name} aṭanga en mek — Mi dang hmet rawh',
     relationToYou: 'I Chhungkhat Nihna',
@@ -1173,6 +1200,15 @@ export const translations: Record<Language, TranslationDictionary> = {
     presenceEditingLabel: 'Editando',
     presenceAddingLabel: 'Añadiendo',
     presenceBrowsingTree: 'Explorando el árbol',
+    identifyYourselfTitle: '¿Quién eres?',
+    identifyYourselfSubtitle: 'Escribe tu nombre para que tu familia sepa quién está en línea, o reclama tu perfil abajo.',
+    enterVisitorNameLabel: 'Tu Nombre',
+    visitorNamePlaceholder: 'ej. Lalnunzira Ralte',
+    continueWithNameBtn: 'Guardar Mi Nombre',
+    pickProfileOnTreeLabel: 'O toca tu perfil en el árbol',
+    setYourNameHint: 'Pon tu nombre',
+    joinNameOptionalLabel: 'Tu Nombre (Visible para la familia)',
+    searchYourNamePlaceholder: 'Buscar tu nombre...',
     compareRelation: 'Comparar Parentesco',
     comparingFromHint: 'Comparando desde {name} — Toca otra persona en el árbol',
     relationToYou: 'Tu Parentesco',
@@ -1472,6 +1508,15 @@ export const translations: Record<Language, TranslationDictionary> = {
     presenceEditingLabel: 'Bearbeitet',
     presenceAddingLabel: 'Fügt hinzu',
     presenceBrowsingTree: 'Schaut den Stammbaum an',
+    identifyYourselfTitle: 'Wer bist du?',
+    identifyYourselfSubtitle: 'Gib deinen Namen ein, damit die Familie sieht, wer online ist, oder wähle unten dein Profil.',
+    enterVisitorNameLabel: 'Dein Name',
+    visitorNamePlaceholder: 'z.B. Lalnunzira Ralte',
+    continueWithNameBtn: 'Namen speichern',
+    pickProfileOnTreeLabel: 'Oder wähle dein Profil im Stammbaum',
+    setYourNameHint: 'Namen festlegen',
+    joinNameOptionalLabel: 'Dein Name (Für die Familie sichtbar)',
+    searchYourNamePlaceholder: 'Deinen Namen suchen...',
     compareRelation: 'Verwandtschaft prüfen',
     comparingFromHint: 'Vergleich ab {name} — Tippe auf eine andere Person',
     relationToYou: 'Beziehung zu dir',

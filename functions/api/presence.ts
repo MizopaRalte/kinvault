@@ -49,6 +49,7 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
       activeHouseholdId?: string;
       activity?: string;
       targetName?: string;
+      guestName?: string;
       leave?: boolean;
     };
 
@@ -79,7 +80,8 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
     }
 
     const personId = caller?.id || '';
-    const displayName = caller?.full_name || 'Guest';
+    const cleanGuest = typeof body.guestName === 'string' ? body.guestName.trim().slice(0, 60) : '';
+    const displayName = caller?.full_name || cleanGuest || 'Guest';
     const activeHouseholdId = typeof body.activeHouseholdId === 'string' ? body.activeHouseholdId.slice(0, 64) : '';
     const activity =
       body.activity === 'editing' || body.activity === 'adding' ? body.activity : 'viewing';

@@ -182,6 +182,11 @@ export const App: React.FC = () => {
   const lastEventTsRef = useRef<number>(0);
   const ownMutationTsRef = useRef<number>(0);
   const activityToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const didPromptIdentifyRef = useRef<boolean>(false);
+  const [identifyModalOpen, setIdentifyModalOpen] = useState(false);
+  const [visitorNameInput, setVisitorNameInput] = useState('');
+  const [identifySearch, setIdentifySearch] = useState('');
+  const [identifySaving, setIdentifySaving] = useState(false);
   const [renameModalOpen, setRenameModalOpen] = useState(false);
   const [renameInput, setRenameInput] = useState('');
   const [renameSaving, setRenameSaving] = useState(false);
@@ -315,10 +320,11 @@ export const App: React.FC = () => {
         }
 
         const data = (await res.json()) as TreeData;
+        let resolvedSession = currentSession;
 
         // Auto-claim personalized invite target if unclaimed & not super_admin
         const autoClaimId = pendingClaimRef.current;
-        if (autoClaimId && currentSession.activePersonId !== autoClaimId) {
+        if (autoClaimId && resolvedSession.activePersonId !== autoClaimId) {
           pendingClaimRef.current = '';
           const claimTarget = data.persons.find((p) => p.id === autoClaimId);
           if (claimTarget && !claimTarget.claimed_device_id && claimTarget.role !== 'super_admin') {
@@ -327,7 +333,7 @@ export const App: React.FC = () => {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
-                  Authorization: `Bearer ${currentSession.token}`,
+                  Authorization: `Bearer ${resolvedSession.token}`,
                 },
                 body: JSON.stringify({
                   action: 'claim_profile',
@@ -335,16 +341,17 @@ export const App: React.FC = () => {
                 }),
               });
               if (claimRes.ok) {
-                const updatedSession: UserSession = {
-                  ...currentSession,
+                resolvedSession = {
+                  ...resolvedSession,
                   activePersonId: claimTarget.id,
                   role: claimTarget.role,
+                  guestName: undefined,
                 };
-                setSession(updatedSession);
-                saveSession(updatedSession);
+                setSession(resolvedSession);
+                saveSession(resolvedSession);
                 data.persons = data.persons.map((p) =>
                   p.id === claimTarget.id
-                    ? { ...p, claimed_device_id: currentSession.deviceId }
+                    ? { ...p, claimed_device_id: resolvedSession.deviceId }
                     : p
                 );
               }
@@ -358,18 +365,25 @@ export const App: React.FC = () => {
         setIsOfflineSnapshot(false);
 
         // Cache snapshot in IndexedDB for offline access
-        await saveOfflineTree(currentSession.treeId, data);
+        await saveOfflineTree(resolvedSession.treeId, data);
 
         // Update active profile role and treeName in session if changed
-        const me = currentSession.activePersonId
-          ? data.persons.find((p) => p.id === currentSession.activePersonId)
+        const me = resolvedSession.activePersonId
+          ? data.persons.find((p) => p.id === resolvedSession.activePersonId)
           : undefined;
-        const nextRole = me ? me.role : currentSession.role;
-        const nextTreeName = data.tree?.name || currentSession.treeName;
-        if (nextRole !== currentSession.role || nextTreeName !== currentSession.treeName) {
-          const updatedSession = { ...currentSession, role: nextRole, treeName: nextTreeName };
-          setSession(updatedSession);
-          saveSession(updatedSession);
+        const nextRole = me ? me.role : resolvedSession.role;
+        const nextTreeName = data.tree?.name || resolvedSession.treeName;
+        if (nextRole !== resolvedSession.role || nextTreeName !== resolvedSession.treeName) {
+          resolvedSession = { ...resolvedSession, role: nextRole, treeName: nextTreeName };
+          setSession(resolvedSession);
+          saveSession(resolvedSession);
+        }
+
+        if (!resolvedSession.activePersonId && !resolvedSession.guestName && !didPromptIdentifyRef.current) {
+          didPromptIdentifyRef.current = true;
+          setVisitorNameInput('');
+          setIdentifySearch('');
+          setIdentifyModalOpen(true);
         }
       } catch (err: unknown) {
         console.warn('Network fetch failed, attempting to load offline cache:', err);
@@ -419,6 +433,8 @@ export const App: React.FC = () => {
         body: JSON.stringify({ leave: true }),
       }).catch(() => {});
     }
+    didPromptIdentifyRef.current = false;
+    setIdentifyModalOpen(false);
     setSession(null);
     updateSessionPin('', oldCode);
     saveSession(null);
@@ -437,6 +453,8 @@ export const App: React.FC = () => {
     };
     if (session.activePersonId) {
       headers['X-Person-Id'] = session.activePersonId;
+    } else if (session.guestName) {
+      headers['X-Visitor-Name'] = encodeURIComponent(session.guestName);
     }
 
     const res = await fetch('/api/mutate', {
@@ -488,7 +506,10 @@ export const App: React.FC = () => {
         const res = await fetch('/api/presence', {
           method: 'POST',
           headers,
-          body: JSON.stringify(effectivePresenceCtx),
+          body: JSON.stringify({
+            ...effectivePresenceCtx,
+            guestName: session.guestName,
+          }),
         });
         if (!res.ok || cancelled) return;
         const data = (await res.json()) as {
@@ -745,9 +766,33 @@ export const App: React.FC = () => {
                     )}
                   </span>
                 ) : (
-                  <span className="text-slate-400 italic text-[11px] truncate">
-                    Guest Device
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setVisitorNameInput(session.guestName || '');
+                      setIdentifySearch('');
+                      setIdentifyModalOpen(true);
+                    }}
+                    className={
+                      session.guestName
+                        ? 'inline-flex items-center gap-1 font-semibold text-slate-700 hover:text-slate-900 truncate cursor-pointer'
+                        : 'inline-flex items-center gap-1 text-sky-700 hover:text-sky-900 font-semibold text-[11px] bg-sky-50 hover:bg-sky-100 border border-sky-200 px-2 py-0.5 rounded-full truncate cursor-pointer transition-colors'
+                    }
+                    title={t.identifyYourselfTitle}
+                  >
+                    {session.guestName ? (
+                      <>
+                        <UserCheck className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                        <span className="truncate">{session.guestName}</span>
+                        <Pencil className="w-2.5 h-2.5 text-slate-400 shrink-0" />
+                      </>
+                    ) : (
+                      <>
+                        <span>{t.setYourNameHint}</span>
+                        <Pencil className="w-2.5 h-2.5 shrink-0" />
+                      </>
+                    )}
+                  </button>
                 )}
               </div>
             </div>
@@ -1354,6 +1399,7 @@ export const App: React.FC = () => {
             ...session,
             activePersonId: claimedPerson.id,
             role: claimedPerson.role,
+            guestName: undefined,
           };
           setSession(updatedSession);
           saveSession(updatedSession);
@@ -1542,6 +1588,136 @@ export const App: React.FC = () => {
           }
         }}
       />
+
+      {/* Who Are You / Identify Visitor Modal */}
+      {identifyModalOpen && (
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full p-6 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3 shrink-0">
+              <div className="flex items-center gap-2">
+                <UserCheck className="w-5 h-5 text-sky-600" />
+                <h3 className="font-bold text-slate-900 text-sm">{t.identifyYourselfTitle}</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIdentifyModalOpen(false)}
+                className="text-slate-400 hover:text-slate-700 text-xs font-bold cursor-pointer p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600 mb-4 leading-relaxed shrink-0">
+              {t.identifyYourselfSubtitle}
+            </p>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const clean = visitorNameInput.trim().slice(0, 60);
+                const updated: UserSession = {
+                  ...session,
+                  guestName: clean || undefined,
+                };
+                setSession(updated);
+                saveSession(updated);
+                setIdentifyModalOpen(false);
+              }}
+              className="space-y-3 shrink-0"
+            >
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                  {t.enterVisitorNameLabel}
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    autoFocus
+                    maxLength={60}
+                    value={visitorNameInput}
+                    onChange={(e) => setVisitorNameInput(e.target.value)}
+                    placeholder={t.visitorNamePlaceholder}
+                    className="flex-1 min-w-0 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!visitorNameInput.trim()}
+                    className="px-4 py-2 bg-slate-900 hover:bg-slate-800 disabled:opacity-45 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer shrink-0"
+                  >
+                    {t.continueWithNameBtn}
+                  </button>
+                </div>
+              </div>
+            </form>
+
+            {treeData && treeData.persons.some((p) => !p.claimed_device_id && p.role !== 'super_admin') && (
+              <div className="mt-5 pt-4 border-t border-slate-100 flex-1 min-h-0 flex flex-col">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 shrink-0">
+                  {t.pickProfileOnTreeLabel}
+                </p>
+                <div className="relative mb-2.5 shrink-0">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    value={identifySearch}
+                    onChange={(e) => setIdentifySearch(e.target.value)}
+                    placeholder={t.searchYourNamePlaceholder}
+                    className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  />
+                </div>
+                <div className="overflow-y-auto space-y-1.5 pr-1 max-h-48">
+                  {treeData.persons
+                    .filter((p) => {
+                      if (p.claimed_device_id || p.role === 'super_admin') return false;
+                      const q = identifySearch.trim().toLowerCase();
+                      return !q || p.full_name.toLowerCase().includes(q);
+                    })
+                    .slice(0, 30)
+                    .map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        disabled={identifySaving}
+                        onClick={async () => {
+                          setIdentifySaving(true);
+                          try {
+                            await handleMutate('claim_profile', { personId: p.id });
+                            const updated: UserSession = {
+                              ...session,
+                              activePersonId: p.id,
+                              role: p.role,
+                              guestName: undefined,
+                            };
+                            setSession(updated);
+                            saveSession(updated);
+                            setIdentifyModalOpen(false);
+                          } catch (err) {
+                            alert(err instanceof Error ? err.message : 'Failed to claim profile');
+                          } finally {
+                            setIdentifySaving(false);
+                          }
+                        }}
+                        className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 rounded-xl text-left transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-slate-900 truncate">{p.full_name}</p>
+                          {(p.birth_year || p.death_year) && (
+                            <p className="text-[10px] text-slate-500">
+                              {p.birth_year || '?'} – {p.death_year || (p.is_living === 0 ? '?' : t.present)}
+                            </p>
+                          )}
+                        </div>
+                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full shrink-0">
+                          {t.claimMeBtn}
+                        </span>
+                      </button>
+                    ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* PWA Install Prompt Banner */}
       <InstallAppBanner

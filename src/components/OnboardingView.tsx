@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { KeyRound, PlusCircle, LogIn, Globe, Shield, ShieldAlert, Copy, Check, ArrowRight, ChevronDown } from 'lucide-react';
+import { KeyRound, PlusCircle, LogIn, Globe, Shield, ShieldAlert, Copy, Check, ArrowRight, ChevronDown, User } from 'lucide-react';
 import type { Language, TranslationDictionary } from '../locales/translations';
 import { translations } from '../locales/translations';
 import type { UserSession } from '../types/family';
@@ -60,6 +60,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({
 
   // Join form state
   const [inviteCode, setInviteCode] = useState(() => resolvedInvite?.inviteCode || '');
+  const [joinName, setJoinName] = useState('');
   const [joinPin, setJoinPin] = useState(() => resolvedInvite?.pin || '');
 
   // UI state
@@ -216,6 +217,10 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({
           treeName: data.tree.name,
           deviceId,
           activePersonId: data.claimedPerson?.id,
+          guestName:
+            !data.claimedPerson?.id && joinName.trim()
+              ? joinName.trim().slice(0, 60)
+              : undefined,
           role: data.claimedPerson?.role || 'member',
         },
         joinPin.trim()
@@ -478,6 +483,23 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({
                   placeholder={t.inviteCodePlaceholder}
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base font-mono uppercase tracking-widest text-center focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                  {t.joinNameOptionalLabel}
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    maxLength={60}
+                    value={joinName}
+                    onChange={(e) => setJoinName(e.target.value)}
+                    placeholder={t.visitorNamePlaceholder}
+                    className="w-full px-3.5 py-2.5 pl-10 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent"
+                  />
+                  <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                </div>
               </div>
 
               <div>

@@ -60,6 +60,7 @@ export interface UserSession {
   treeName: string;
   deviceId: string;
   activePersonId?: string;
+  guestName?: string;
   role?: Role;
 }
 
