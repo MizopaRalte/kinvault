@@ -243,6 +243,14 @@ export interface TranslationDictionary {
   addAnotherChildBtn: string;
   connectTargetPersonLabel: string;
   transferParentsFromSpouse: string;
+  formerSpouseLabel: string;
+  markDivorcedBtn: string;
+  restoreMarriageBtn: string;
+  spouseStatusLabel: string;
+  marriedStatusOption: string;
+  divorcedStatusOption: string;
+  markPreviousDivorcedCheck: string;
+  kinshipFormerSpouse: string;
   compareRelation: string;
   comparingFromHint: string;
   relationToYou: string;
@@ -504,6 +512,14 @@ export const translations: Record<Language, TranslationDictionary> = {
     addAnotherChildBtn: 'Add Another Child (Same Line)',
     connectTargetPersonLabel: 'Connect to which person?',
     transferParentsFromSpouse: 'Move parent line from {name} onto this profile',
+    formerSpouseLabel: 'Former Spouse',
+    markDivorcedBtn: 'Divorced',
+    restoreMarriageBtn: 'Mark Married',
+    spouseStatusLabel: 'Relationship Status',
+    marriedStatusOption: 'Married (Current Spouse)',
+    divorcedStatusOption: 'Divorced / Former Spouse',
+    markPreviousDivorcedCheck: 'Mark current spouse ({name}) as divorced',
+    kinshipFormerSpouse: 'Former Spouse (Divorced)',
     compareRelation: 'Compare Relation',
     comparingFromHint: 'Comparing from {name} — Tap another person on the tree',
     relationToYou: 'Your Relation',
@@ -764,6 +780,14 @@ export const translations: Record<Language, TranslationDictionary> = {
     addAnotherChildBtn: 'Fa Dang Belh Leh Rawh',
     connectTargetPersonLabel: 'Tu tan nge kan zawm ang?',
     transferParentsFromSpouse: '{name} aṭangin nu leh pa inzawmna he profile-ah sawn rawh',
+    formerSpouseLabel: 'Kawppui Hlui',
+    markDivorcedBtn: 'Inṭhen',
+    restoreMarriageBtn: 'Innei Anga Dah',
+    spouseStatusLabel: 'Inneihna Dinhmun',
+    marriedStatusOption: 'Innei Lai (Kawppui)',
+    divorcedStatusOption: 'Inṭhen Tawh (Kawppui Hlui)',
+    markPreviousDivorcedCheck: 'Kawppui lai ({name}) hi inṭhen tawh angin dah rawh',
+    kinshipFormerSpouse: 'Nupui / Pasal Hlui (Inṭhen Tawh)',
     compareRelation: 'Inlaichinna Enna',
     comparingFromHint: '{name} aṭanga en mek — Mi dang hmet rawh',
     relationToYou: 'I Chhungkhat Nihna',
@@ -1024,6 +1048,14 @@ export const translations: Record<Language, TranslationDictionary> = {
     addAnotherChildBtn: 'Añadir Otro Hijo (Misma Fila)',
     connectTargetPersonLabel: '¿Conectar a qué persona?',
     transferParentsFromSpouse: 'Mover línea de padres de {name} a este perfil',
+    formerSpouseLabel: 'Ex-Cónyuge',
+    markDivorcedBtn: 'Divorcio',
+    restoreMarriageBtn: 'Marcar Casados',
+    spouseStatusLabel: 'Estado Civil',
+    marriedStatusOption: 'Casados (Cónyuge Actual)',
+    divorcedStatusOption: 'Divorciados / Ex-Cónyuge',
+    markPreviousDivorcedCheck: 'Marcar a su cónyuge actual ({name}) como divorciado/a',
+    kinshipFormerSpouse: 'Ex-Cónyuge (Divorciado/a)',
     compareRelation: 'Comparar Parentesco',
     comparingFromHint: 'Comparando desde {name} — Toca otra persona en el árbol',
     relationToYou: 'Tu Parentesco',
@@ -1284,6 +1316,14 @@ export const translations: Record<Language, TranslationDictionary> = {
     addAnotherChildBtn: 'Weiteres Kind hinzufügen (Gleiche Zeile)',
     connectTargetPersonLabel: 'Mit welcher Person verbinden?',
     transferParentsFromSpouse: 'Elternlinie von {name} auf dieses Profil übertragen',
+    formerSpouseLabel: 'Ex-Partner',
+    markDivorcedBtn: 'Geschieden',
+    restoreMarriageBtn: 'Als verheiratet markieren',
+    spouseStatusLabel: 'Beziehungsstatus',
+    marriedStatusOption: 'Verheiratet (Aktuell)',
+    divorcedStatusOption: 'Geschieden / Ex-Partner',
+    markPreviousDivorcedCheck: 'Aktuellen Partner ({name}) als geschieden markieren',
+    kinshipFormerSpouse: 'Ex-Partner (Geschieden)',
     compareRelation: 'Verwandtschaft prüfen',
     comparingFromHint: 'Vergleich ab {name} — Tippe auf eine andere Person',
     relationToYou: 'Beziehung zu dir',

@@ -36,7 +36,7 @@ export interface Person {
   updated_at: number;
 }
 
-export type RelationshipType = 'parent_child' | 'spouse';
+export type RelationshipType = 'parent_child' | 'spouse' | 'former_spouse';
 
 export interface Relationship {
   id: string;

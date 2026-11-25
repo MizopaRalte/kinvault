@@ -104,6 +104,19 @@ export const MemberModal: React.FC<MemberModalProps> = ({
     return householdMembersList.find((item) => item.id === targetPersonId) || person;
   }, [householdMembersList, targetPersonId, person]);
 
+  const existingActiveSpouse = useMemo(() => {
+    const targetId = activeTargetPerson?.id;
+    if (!targetId) return null;
+    const rel = relationships.find(
+      (r) =>
+        r.rel_type === 'spouse' &&
+        (r.person_a_id === targetId || r.person_b_id === targetId)
+    );
+    if (!rel) return null;
+    const spId = rel.person_a_id === targetId ? rel.person_b_id : rel.person_a_id;
+    return allPersons.find((item) => item.id === spId) || null;
+  }, [activeTargetPerson, relationships, allPersons]);
+
   const spouseWithSelectedParents = useMemo(() => {
     if (!person || !selectedParentHouseholdId) return null;
     const parentMemberIds = new Set(
@@ -129,6 +142,8 @@ export const MemberModal: React.FC<MemberModalProps> = ({
   const [spousePhone, setSpousePhone] = useState('');
   const [spouseAvatarB64, setSpouseAvatarB64] = useState('');
   const [spouseAvatarSizeKb, setSpouseAvatarSizeKb] = useState<number | null>(null);
+  const [spouseRelType, setSpouseRelType] = useState<'spouse' | 'former_spouse'>('spouse');
+  const [markPreviousDivorced, setMarkPreviousDivorced] = useState<boolean>(true);
 
   // Add ancestors above state
   const [ancestorFather, setAncestorFather] = useState('');
@@ -216,6 +231,8 @@ export const MemberModal: React.FC<MemberModalProps> = ({
     setSpousePhone('');
     setSpouseAvatarB64('');
     setSpouseAvatarSizeKb(null);
+    setSpouseRelType('spouse');
+    setMarkPreviousDivorced(true);
     setAncestorFather('');
     setAncestorMother('');
     setAncestorFamilyName('');
@@ -352,6 +369,9 @@ export const MemberModal: React.FC<MemberModalProps> = ({
           birthYear: spouseBirthYear.trim(),
           phoneE164: spousePhone.trim(),
           avatarB64: spouseAvatarB64 || undefined,
+          relType: spouseRelType,
+          markPreviousDivorced:
+            spouseRelType === 'spouse' && Boolean(existingActiveSpouse) && markPreviousDivorced,
         });
       } else if (mode === 'add_ancestor') {
         if (!ancestorFather.trim() && !ancestorMother.trim()) {
@@ -1249,6 +1269,51 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
                     />
                   </div>
+                </div>
+
+                {/* Marriage Status Selector (Married vs Divorced / Former Spouse) */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                    {t.spouseStatusLabel}
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSpouseRelType('spouse')}
+                      className={`py-2 px-3 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                        spouseRelType === 'spouse'
+                          ? 'bg-slate-900 text-white border-slate-900'
+                          : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      {t.marriedStatusOption}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSpouseRelType('former_spouse')}
+                      className={`py-2 px-3 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                        spouseRelType === 'former_spouse'
+                          ? 'bg-rose-600 text-white border-rose-600'
+                          : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      {t.divorcedStatusOption}
+                    </button>
+                  </div>
+
+                  {spouseRelType === 'spouse' && existingActiveSpouse && (
+                    <label className="mt-2.5 p-2.5 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2 text-xs font-semibold text-amber-900 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={markPreviousDivorced}
+                        onChange={(e) => setMarkPreviousDivorced(e.target.checked)}
+                        className="mt-0.5 w-4 h-4 rounded border-amber-300 text-amber-600 focus:ring-amber-600 cursor-pointer"
+                      />
+                      <span>
+                        {t.markPreviousDivorcedCheck.replace('{name}', existingActiveSpouse.full_name)}
+                      </span>
+                    </label>
+                  )}
                 </div>
               </>
             )}

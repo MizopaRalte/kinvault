@@ -21,7 +21,7 @@ export interface DbRelationship {
   tree_id: string;
   person_a_id: string;
   person_b_id: string;
-  rel_type: 'parent_child' | 'spouse';
+  rel_type: 'parent_child' | 'spouse' | 'former_spouse';
 }
 
 export interface DbHousehold {

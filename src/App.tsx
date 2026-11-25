@@ -888,6 +888,12 @@ export const App: React.FC = () => {
                   avatar_b64: avatarB64,
                 });
               }}
+              onToggleSpouseStatus={async (relationshipId, status) => {
+                await handleMutate('update_spouse_status', {
+                  relationshipId,
+                  status,
+                });
+              }}
               onLayoutCalculated={(layouts) => setNodeLayouts(layouts)}
             />
           ) : (

@@ -7,6 +7,7 @@ import {
   Plus,
   Minus,
   Heart,
+  HeartCrack,
   Sparkles,
   Trees,
   ChevronsDownUp,
@@ -31,6 +32,7 @@ interface TreeCanvasProps {
   deviceId: string;
   onOpenMemberModal: (person?: Person, household?: Household, initialMode?: string) => void;
   onUpdatePersonAvatar?: (person: Person, avatarB64: string) => Promise<void>;
+  onToggleSpouseStatus?: (relationshipId: string, status: 'spouse' | 'former_spouse') => Promise<void>;
   onLayoutCalculated?: (layouts: Map<string, { x: number; y: number; width: number; height: number }>) => void;
 }
 
@@ -39,6 +41,13 @@ interface HouseholdNodeData {
   household: Household;
   members: Person[];
   children?: HouseholdNodeData[];
+}
+
+interface PairConnector {
+  leftX: number;
+  rightX: number;
+  centerX: number;
+  isDivorced: boolean;
 }
 
 interface PositionedNode {
@@ -55,6 +64,7 @@ interface PositionedNode {
   outgoingX: number;
   outgoingY: number;
   personCentersX: number[];
+  pairConnectors: PairConnector[];
   hiddenDescendantsCount: number;
   hasChildren: boolean;
 }
@@ -78,6 +88,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
   deviceId,
   onOpenMemberModal,
   onUpdatePersonAvatar,
+  onToggleSpouseStatus,
   onLayoutCalculated,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -328,7 +339,40 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
       };
     }
 
-    const getNodeGeometry = (h: Household, members: Person[]) => {
+    const pairRelTypeMap = new Map<string, 'spouse' | 'former_spouse'>();
+    const spouseDegreeMap = new Map<string, number>();
+    const pairKey = (id1: string, id2: string) => (id1 < id2 ? `${id1}|${id2}` : `${id2}|${id1}`);
+    for (const rel of relationships) {
+      if (rel.rel_type === 'spouse' || rel.rel_type === 'former_spouse') {
+        pairRelTypeMap.set(pairKey(rel.person_a_id, rel.person_b_id), rel.rel_type);
+        spouseDegreeMap.set(rel.person_a_id, (spouseDegreeMap.get(rel.person_a_id) || 0) + 1);
+        spouseDegreeMap.set(rel.person_b_id, (spouseDegreeMap.get(rel.person_b_id) || 0) + 1);
+      }
+    }
+
+    const arrangeMembers = (rawMembers: Person[]): Person[] => {
+      if (rawMembers.length <= 2) return rawMembers;
+      // Place pivot person (with multiple marriages or bloodline) between former spouses (left) and current spouses (right)
+      const pivot =
+        rawMembers.find((m) => (spouseDegreeMap.get(m.id) || 0) >= 2) ||
+        rawMembers.find((m) => bloodlineChildIds.has(m.id)) ||
+        rawMembers[0];
+      const formerList: Person[] = [];
+      const currentList: Person[] = [];
+      for (const m of rawMembers) {
+        if (m.id === pivot.id) continue;
+        const relType = pairRelTypeMap.get(pairKey(pivot.id, m.id));
+        if (relType === 'former_spouse') {
+          formerList.push(m);
+        } else {
+          currentList.push(m);
+        }
+      }
+      return [...formerList, pivot, ...currentList];
+    };
+
+    const getNodeGeometry = (h: Household, rawMembers: Person[]) => {
+      const members = arrangeMembers(rawMembers);
       const count = members.length;
       if (count <= 1) {
         const width = SINGLE_NODE_WIDTH;
@@ -336,6 +380,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
         return {
           width,
           height: NODE_HEIGHT,
+          orderedMembers: members,
           isCouple: false,
           heartX: centerX,
           heartY: AVATAR_SIZE / 2,
@@ -343,6 +388,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
           outgoingOffsetX: centerX,
           outgoingOffsetY: NODE_HEIGHT,
           personCentersX: count === 1 ? [centerX] : [],
+          pairConnectors: [] as PairConnector[],
         };
       }
 
@@ -352,6 +398,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
         const rightCenter = PERSON_COL_WIDTH + COUPLE_GAP + PERSON_COL_WIDTH / 2;
         const heartX = width / 2;
         const heartY = AVATAR_SIZE / 2;
+        const isDivorced = pairRelTypeMap.get(pairKey(members[0].id, members[1].id)) === 'former_spouse';
 
         // Drop parent line onto whichever spouse is the bloodline child
         const isRightBloodline = !bloodlineChildIds.has(members[0].id) && bloodlineChildIds.has(members[1].id);
@@ -360,6 +407,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
         return {
           width,
           height: NODE_HEIGHT,
+          orderedMembers: members,
           isCouple: true,
           heartX,
           heartY,
@@ -367,36 +415,70 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
           outgoingOffsetX: heartX,
           outgoingOffsetY: heartY + 14,
           personCentersX: [leftCenter, rightCenter],
+          pairConnectors: [
+            {
+              leftX: leftCenter,
+              rightX: rightCenter,
+              centerX: heartX,
+              isDivorced,
+            },
+          ],
         };
       }
 
-      // 3+ members in same household
-      const gap = 28;
+      // 3+ members in same household (e.g. Former Spouse </3 Pivot <3 Current Spouse)
+      const gap = COUPLE_GAP;
       const width = count * PERSON_COL_WIDTH + (count - 1) * gap;
       const centers: number[] = [];
       for (let i = 0; i < count; i++) {
         centers.push(i * (PERSON_COL_WIDTH + gap) + PERSON_COL_WIDTH / 2);
       }
+      const pairConnectors: PairConnector[] = [];
+      for (let i = 0; i < count - 1; i++) {
+        const relType = pairRelTypeMap.get(pairKey(members[i].id, members[i + 1].id));
+        pairConnectors.push({
+          leftX: centers[i],
+          rightX: centers[i + 1],
+          centerX: (centers[i] + centers[i + 1]) / 2,
+          isDivorced: relType === 'former_spouse',
+        });
+      }
+
       const bloodlineIdx = members.findIndex((m) => bloodlineChildIds.has(m.id));
-      const incomingOffsetX = bloodlineIdx >= 0 ? centers[bloodlineIdx] : centers[0];
-      const heartX = (centers[0] + centers[1]) / 2;
+      const pivotIdx = bloodlineIdx >= 0 ? bloodlineIdx : Math.floor(count / 2);
+      const incomingOffsetX = centers[pivotIdx];
+      const activeConn = pairConnectors.find((c) => !c.isDivorced);
+      const heartX = activeConn ? activeConn.centerX : centers[pivotIdx];
       const heartY = AVATAR_SIZE / 2;
 
       return {
         width,
         height: NODE_HEIGHT,
+        orderedMembers: members,
         isCouple: true,
         heartX,
         heartY,
         incomingOffsetX,
         outgoingOffsetX: heartX,
-        outgoingOffsetY: NODE_HEIGHT,
+        outgoingOffsetY: activeConn ? heartY + 14 : NODE_HEIGHT,
         personCentersX: centers,
+        pairConnectors,
       };
     };
 
+    let maxRenderedWidth = 290;
+    for (const h of householdMap.values()) {
+      const mCount = (householdMembers.get(h.id) || []).length;
+      if (mCount >= 3) {
+        maxRenderedWidth = Math.max(
+          maxRenderedWidth,
+          mCount * PERSON_COL_WIDTH + (mCount - 1) * COUPLE_GAP
+        );
+      }
+    }
+
     let globalXOffset = 0;
-    const maxPossibleNodeWidth = 290;
+    const maxPossibleNodeWidth = maxRenderedWidth;
     const siblingGap = 36;
 
     for (const rootId of activeRoots) {
@@ -436,7 +518,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
           width: geom.width,
           height: geom.height,
           household: h,
-          members,
+          members: geom.orderedMembers,
           isCouple: geom.isCouple,
           heartX: posX + geom.heartX,
           heartY: posY + geom.heartY,
@@ -444,6 +526,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
           outgoingX: posX + geom.outgoingOffsetX,
           outgoingY: posY + geom.outgoingOffsetY,
           personCentersX: geom.personCentersX,
+          pairConnectors: geom.pairConnectors,
           hiddenDescendantsCount: descendantCountMap.get(h.id) || 0,
           hasChildren: childrenCount > 0,
         });
@@ -479,7 +562,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
           width: geom.width,
           height: geom.height,
           household: h,
-          members,
+          members: geom.orderedMembers,
           isCouple: geom.isCouple,
           heartX: disconnectedX + geom.heartX,
           heartY: geom.heartY,
@@ -487,6 +570,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
           outgoingX: disconnectedX + geom.outgoingOffsetX,
           outgoingY: geom.outgoingOffsetY,
           personCentersX: geom.personCentersX,
+          pairConnectors: geom.pairConnectors,
           hiddenDescendantsCount: descendantCountMap.get(h.id) || 0,
           hasChildren: childrenCount > 0,
         });
@@ -504,6 +588,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
     childrenHouseholdMap,
     bloodlineChildIds,
     descendantCountMap,
+    relationships,
   ]);
 
   // Report simplified layout for PDF exporter
@@ -817,31 +902,42 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
               }}
               className="flowchart-node group absolute top-0 left-0"
             >
-              {/* Horizontal Spouse Heart Connector (when 2+ members) */}
-              {node.isCouple && members.length >= 2 && (
-                <>
+              {/* Horizontal Spouse / Former-Spouse Connectors */}
+              {node.pairConnectors.map((conn, cIdx) => (
+                <React.Fragment key={`conn-${h.id}-${cIdx}`}>
                   <div
-                    className="absolute h-[2px] bg-slate-300 pointer-events-none"
+                    className={`absolute pointer-events-none ${
+                      conn.isDivorced
+                        ? 'border-t-2 border-dashed border-rose-300'
+                        : 'h-[2px] bg-slate-300'
+                    }`}
                     style={{
-                      left: `${node.personCentersX[0]}px`,
-                      width: `${node.personCentersX[1] - node.personCentersX[0]}px`,
+                      left: `${conn.leftX}px`,
+                      width: `${conn.rightX - conn.leftX}px`,
                       top: `${AVATAR_SIZE / 2}px`,
                     }}
                   />
                   <div
-                    className="absolute -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white border border-slate-200 shadow-xs flex items-center justify-center z-10"
+                    className={`absolute -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white border shadow-xs flex items-center justify-center z-10 ${
+                      conn.isDivorced ? 'border-rose-200' : 'border-slate-200'
+                    }`}
                     style={{
-                      left: `${node.heartX - node.x}px`,
+                      left: `${conn.centerX}px`,
                       top: `${AVATAR_SIZE / 2}px`,
                     }}
+                    title={conn.isDivorced ? t.divorcedStatusOption : t.marriedStatusOption}
                   >
-                    <Heart
-                      className="w-3.5 h-3.5"
-                      style={{ color: branchColor, fill: branchColor }}
-                    />
+                    {conn.isDivorced ? (
+                      <HeartCrack className="w-3.5 h-3.5 text-rose-500" />
+                    ) : (
+                      <Heart
+                        className="w-3.5 h-3.5"
+                        style={{ color: branchColor, fill: branchColor }}
+                      />
+                    )}
                   </div>
-                </>
-              )}
+                </React.Fragment>
+              ))}
 
               {/* Person Portraits Row */}
               {members.length === 0 ? (
@@ -857,7 +953,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
                 <div
                   className="relative flex items-start justify-center"
                   style={{
-                    gap: node.isCouple && members.length === 2 ? `${COUPLE_GAP}px` : '28px',
+                    gap: `${COUPLE_GAP}px`,
                   }}
                 >
                   {members.map((person) => {
@@ -1085,6 +1181,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
         onSelectPerson={(p, h) => setDetailTarget({ person: p, household: h })}
         onOpenMemberModal={onOpenMemberModal}
         onUpdatePersonAvatar={onUpdatePersonAvatar}
+        onToggleSpouseStatus={onToggleSpouseStatus}
         onFocusBranch={(hId) => {
           setFocusedHouseholdId(hId);
           setCollapsedBranchIds(new Set());

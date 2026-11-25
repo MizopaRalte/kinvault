@@ -433,6 +433,8 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
         const phoneE164 = p.phoneE164 || '';
         const nicknameOrMaiden = p.nicknameOrMaiden || '';
         const avatarB64 = p.avatarB64 || '';
+        const relType = p.relType === 'former_spouse' ? 'former_spouse' : 'spouse';
+        const markPreviousDivorced = Boolean(p.markPreviousDivorced);
 
         if (!personId || !spouseFullName) {
           return new Response(JSON.stringify({ error: 'Person ID and spouse full name are required.' }), { status: 400 });
@@ -453,22 +455,63 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
 
         const spousePersonId = crypto.randomUUID();
         const spouseRelId = crypto.randomUUID();
+        const batchStatements: D1PreparedStatement[] = [];
 
-        await env.DB.batch([
+        if (markPreviousDivorced && relType === 'spouse') {
+          batchStatements.push(
+            env.DB.prepare(
+              `UPDATE relationships SET rel_type = 'former_spouse' WHERE tree_id = ? AND rel_type = 'spouse' AND (person_a_id = ? OR person_b_id = ?)`
+            ).bind(treeId, personId, personId)
+          );
+        }
+
+        batchStatements.push(
           env.DB.prepare(
             `INSERT INTO persons (id, tree_id, household_id, full_name, nickname_or_maiden, phone_e164, birth_year, death_year, is_living, avatar_b64, role, claimed_device_id, updated_at)
              VALUES (?, ?, ?, ?, ?, ?, ?, '', 1, ?, 'member', '', ?)`
           ).bind(spousePersonId, treeId, person.household_id, spouseFullName, nicknameOrMaiden, phoneE164, birthYear, avatarB64, now),
           env.DB.prepare(
             `INSERT INTO relationships (id, tree_id, person_a_id, person_b_id, rel_type)
-             VALUES (?, ?, ?, ?, 'spouse')`
-          ).bind(spouseRelId, treeId, personId, spousePersonId),
-        ]);
+             VALUES (?, ?, ?, ?, ?)`
+          ).bind(spouseRelId, treeId, personId, spousePersonId, relType)
+        );
+
+        await env.DB.batch(batchStatements);
 
         return new Response(
-          JSON.stringify({ success: true, spousePersonId }),
+          JSON.stringify({ success: true, spousePersonId, relType }),
           { status: 201 }
         );
+      }
+
+      case 'update_spouse_status': {
+        const relationshipId = p.relationshipId as string;
+        const status = p.status === 'former_spouse' ? 'former_spouse' : p.status === 'spouse' ? 'spouse' : null;
+
+        if (!relationshipId || !status) {
+          return new Response(JSON.stringify({ error: 'Valid relationshipId and status (spouse or former_spouse) required.' }), { status: 400 });
+        }
+
+        const existingRel = await env.DB.prepare(
+          'SELECT id, person_a_id, person_b_id, rel_type FROM relationships WHERE id = ? AND tree_id = ?'
+        )
+          .bind(relationshipId, treeId)
+          .first<{ id: string; person_a_id: string; person_b_id: string; rel_type: string }>();
+
+        if (!existingRel || (existingRel.rel_type !== 'spouse' && existingRel.rel_type !== 'former_spouse')) {
+          return new Response(JSON.stringify({ error: 'Spouse relationship not found.' }), { status: 404 });
+        }
+
+        const hasPerm = await canEditPerson(env.DB, treeId, caller, existingRel.person_a_id);
+        if (!hasPerm) {
+          return new Response(JSON.stringify({ error: 'Permission denied to update marriage status.' }), { status: 403 });
+        }
+
+        await env.DB.prepare('UPDATE relationships SET rel_type = ? WHERE id = ? AND tree_id = ?')
+          .bind(status, relationshipId, treeId)
+          .run();
+
+        return new Response(JSON.stringify({ success: true, relationshipId, status }), { status: 200 });
       }
 
       case 'add_sibling': {

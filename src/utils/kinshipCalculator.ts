@@ -35,6 +35,7 @@ interface GraphMaps {
   parentsMap: Map<string, Set<string>>;
   childrenMap: Map<string, Set<string>>;
   spousesMap: Map<string, Set<string>>;
+  formerSpousesMap: Map<string, Set<string>>;
 }
 
 function buildGraph(persons: Person[], relationships: Relationship[]): GraphMaps {
@@ -42,6 +43,7 @@ function buildGraph(persons: Person[], relationships: Relationship[]): GraphMaps
   const parentsMap = new Map<string, Set<string>>();
   const childrenMap = new Map<string, Set<string>>();
   const spousesMap = new Map<string, Set<string>>();
+  const formerSpousesMap = new Map<string, Set<string>>();
 
   for (const p of persons) {
     personMap.set(p.id, p);
@@ -60,10 +62,13 @@ function buildGraph(persons: Person[], relationships: Relationship[]): GraphMaps
     } else if (rel.rel_type === 'spouse') {
       addEdge(spousesMap, rel.person_a_id, rel.person_b_id);
       addEdge(spousesMap, rel.person_b_id, rel.person_a_id);
+    } else if (rel.rel_type === 'former_spouse') {
+      addEdge(formerSpousesMap, rel.person_a_id, rel.person_b_id);
+      addEdge(formerSpousesMap, rel.person_b_id, rel.person_a_id);
     }
   }
 
-  return { personMap, parentsMap, childrenMap, spousesMap };
+  return { personMap, parentsMap, childrenMap, spousesMap, formerSpousesMap };
 }
 
 function getAncestors(
@@ -177,6 +182,7 @@ function findShortestAnyPath(aId: string, bId: string, graph: GraphMaps): string
       ...(graph.parentsMap.get(curr.id) || []),
       ...(graph.childrenMap.get(curr.id) || []),
       ...(graph.spousesMap.get(curr.id) || []),
+      ...(graph.formerSpousesMap.get(curr.id) || []),
     ]);
 
     for (const nextId of neighbors) {
@@ -215,12 +221,22 @@ export function calculateKinship(
     };
   }
 
-  // 1. Direct Spouse
+  // 1. Direct Spouse or Former Spouse
   if (graph.spousesMap.get(sourceId)?.has(targetId)) {
     return {
       key: 'spouse',
       label: t.kinshipSpouse,
       reverseLabel: t.kinshipSpouse,
+      viaMarriage: true,
+      path: toPersons([sourceId, targetId]),
+    };
+  }
+
+  if (graph.formerSpousesMap.get(sourceId)?.has(targetId)) {
+    return {
+      key: 'former_spouse',
+      label: t.kinshipFormerSpouse,
+      reverseLabel: t.kinshipFormerSpouse,
       viaMarriage: true,
       path: toPersons([sourceId, targetId]),
     };

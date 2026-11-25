@@ -19,6 +19,8 @@ import {
   Upload,
   Trash2,
   Eye,
+  Heart,
+  HeartCrack,
 } from 'lucide-react';
 import type { Person, Household, Relationship } from '../types/family';
 import type { TranslationDictionary } from '../locales/translations';
@@ -45,6 +47,7 @@ interface PersonDetailModalProps {
   onToggleBranchExpand?: (householdId: string) => void;
   onExpandToHousehold?: (householdId: string) => void;
   onUpdatePersonAvatar?: (person: Person, avatarB64: string) => Promise<void>;
+  onToggleSpouseStatus?: (relationshipId: string, status: 'spouse' | 'former_spouse') => Promise<void>;
 }
 
 export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
@@ -67,27 +70,41 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
   onToggleBranchExpand,
   onExpandToHousehold,
   onUpdatePersonAvatar,
+  onToggleSpouseStatus,
 }) => {
   const [photoMenuOpen, setPhotoMenuOpen] = useState(false);
   const [photoSaving, setPhotoSaving] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
+  const [togglingRelId, setTogglingRelId] = useState<string | null>(null);
   const familyConnections = useMemo(() => {
-    if (!person) return { parents: [], spouses: [], siblings: [], children: [] };
+    if (!person) return { parents: [], spouses: [], formerSpouses: [], siblings: [], children: [] };
 
     const personMap = new Map<string, Person>();
     for (const p of allPersons) personMap.set(p.id, p);
 
     const parentIds = new Set<string>();
-    const spouseIds = new Set<string>();
+    const spouseLinks: Array<{ person: Person; relationshipId: string }> = [];
+    const formerSpouseLinks: Array<{ person: Person; relationshipId: string }> = [];
+    const seenSpousePartnerIds = new Set<string>();
     const childIds = new Set<string>();
 
     for (const r of relationships) {
       if (r.rel_type === 'parent_child') {
         if (r.person_b_id === person.id) parentIds.add(r.person_a_id);
         if (r.person_a_id === person.id) childIds.add(r.person_b_id);
-      } else if (r.rel_type === 'spouse') {
-        if (r.person_a_id === person.id) spouseIds.add(r.person_b_id);
-        if (r.person_b_id === person.id) spouseIds.add(r.person_a_id);
+      } else if (r.rel_type === 'spouse' || r.rel_type === 'former_spouse') {
+        const partnerId = r.person_a_id === person.id ? r.person_b_id : r.person_b_id === person.id ? r.person_a_id : null;
+        if (partnerId && !seenSpousePartnerIds.has(partnerId)) {
+          const partner = personMap.get(partnerId);
+          if (partner) {
+            seenSpousePartnerIds.add(partnerId);
+            if (r.rel_type === 'spouse') {
+              spouseLinks.push({ person: partner, relationshipId: r.id });
+            } else {
+              formerSpouseLinks.push({ person: partner, relationshipId: r.id });
+            }
+          }
+        }
       }
     }
 
@@ -107,7 +124,8 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
 
     return {
       parents: Array.from(parentIds).map((id) => personMap.get(id)).filter((p): p is Person => !!p),
-      spouses: Array.from(spouseIds).map((id) => personMap.get(id)).filter((p): p is Person => !!p),
+      spouses: spouseLinks,
+      formerSpouses: formerSpouseLinks,
       siblings: Array.from(siblingIds).map((id) => personMap.get(id)).filter((p): p is Person => !!p),
       children: Array.from(childIds).map((id) => personMap.get(id)).filter((p): p is Person => !!p),
     };
@@ -459,6 +477,7 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
           {/* Family Connections Navigation Chips */}
           {(familyConnections.parents.length > 0 ||
             familyConnections.spouses.length > 0 ||
+            familyConnections.formerSpouses.length > 0 ||
             familyConnections.siblings.length > 0 ||
             familyConnections.children.length > 0) && (
             <div className="space-y-2.5">
@@ -523,15 +542,76 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
                       {t.spouseLabel}:
                     </span>
                     <div className="flex flex-wrap gap-1.5">
-                      {familyConnections.spouses.map((rel) => (
-                        <button
-                          key={rel.id}
-                          type="button"
-                          onClick={() => jumpToPerson(rel)}
-                          className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-900 font-semibold rounded-lg transition-colors cursor-pointer"
-                        >
-                          {rel.full_name}
-                        </button>
+                      {familyConnections.spouses.map(({ person: rel, relationshipId }) => (
+                        <div key={rel.id} className="inline-flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => jumpToPerson(rel)}
+                            className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-900 font-semibold rounded-lg transition-colors cursor-pointer"
+                          >
+                            {rel.full_name}
+                          </button>
+                          {onToggleSpouseStatus && (
+                            <button
+                              type="button"
+                              disabled={togglingRelId === relationshipId}
+                              onClick={async () => {
+                                setTogglingRelId(relationshipId);
+                                try {
+                                  await onToggleSpouseStatus(relationshipId, 'former_spouse');
+                                } finally {
+                                  setTogglingRelId(null);
+                                }
+                              }}
+                              title={t.markDivorcedBtn}
+                              className="px-2 py-1 bg-slate-100 hover:bg-rose-100 text-slate-600 hover:text-rose-700 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer disabled:opacity-50"
+                            >
+                              <HeartCrack className="w-3 h-3" />
+                              <span>{t.markDivorcedBtn}</span>
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {familyConnections.formerSpouses.length > 0 && (
+                  <div className="flex items-start gap-2">
+                    <span className="text-slate-400 font-semibold w-20 shrink-0 pt-1">
+                      {t.formerSpouseLabel}:
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {familyConnections.formerSpouses.map(({ person: rel, relationshipId }) => (
+                        <div key={rel.id} className="inline-flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => jumpToPerson(rel)}
+                            className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold rounded-lg border border-dashed border-rose-300 transition-colors cursor-pointer inline-flex items-center gap-1"
+                          >
+                            <HeartCrack className="w-3 h-3 text-rose-400 shrink-0" />
+                            <span>{rel.full_name}</span>
+                          </button>
+                          {onToggleSpouseStatus && (
+                            <button
+                              type="button"
+                              disabled={togglingRelId === relationshipId}
+                              onClick={async () => {
+                                setTogglingRelId(relationshipId);
+                                try {
+                                  await onToggleSpouseStatus(relationshipId, 'spouse');
+                                } finally {
+                                  setTogglingRelId(null);
+                                }
+                              }}
+                              title={t.restoreMarriageBtn}
+                              className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer disabled:opacity-50"
+                            >
+                              <Heart className="w-3 h-3" />
+                              <span>{t.restoreMarriageBtn}</span>
+                            </button>
+                          )}
+                        </div>
                       ))}
                     </div>
                   </div>
