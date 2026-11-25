@@ -318,6 +318,7 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
       case 'reparent_person': {
         const personId = p.personId as string;
         const parentHouseholdId = (p.parentHouseholdId as string | null) || null;
+        const unlinkPersonId = (p.unlinkPersonId as string | undefined) || undefined;
 
         if (!personId) {
           return new Response(JSON.stringify({ error: 'Person ID is required.' }), { status: 400 });
@@ -391,6 +392,22 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
             }
             for (const pId of parentsByChild.get(curr) || []) {
               queue.push(pId);
+            }
+          }
+
+          // Optional: if transferring parents from a spouse in the same household, unlink those parent edges from spouse
+          if (unlinkPersonId && unlinkPersonId !== personId && targetPerson.household_id) {
+            if (pHouseholdMap.get(unlinkPersonId) === targetPerson.household_id) {
+              const unlinkAllowed = await canEditPerson(env.DB, treeId, caller, unlinkPersonId);
+              if (unlinkAllowed) {
+                for (const parentId of parentMemberIds) {
+                  batchStatements.push(
+                    env.DB.prepare(
+                      `DELETE FROM relationships WHERE tree_id = ? AND rel_type = 'parent_child' AND person_a_id = ? AND person_b_id = ?`
+                    ).bind(treeId, parentId, unlinkPersonId)
+                  );
+                }
+              }
             }
           }
 

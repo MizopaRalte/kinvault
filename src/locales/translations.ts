@@ -241,6 +241,8 @@ export interface TranslationDictionary {
   parentsSelectLabel: string;
   rootNoParentsOption: string;
   addAnotherChildBtn: string;
+  connectTargetPersonLabel: string;
+  transferParentsFromSpouse: string;
   compareRelation: string;
   comparingFromHint: string;
   relationToYou: string;
@@ -500,6 +502,8 @@ export const translations: Record<Language, TranslationDictionary> = {
     parentsSelectLabel: 'Parents (Branch Placement)',
     rootNoParentsOption: '-- Top Level / No Parents --',
     addAnotherChildBtn: 'Add Another Child (Same Line)',
+    connectTargetPersonLabel: 'Connect to which person?',
+    transferParentsFromSpouse: 'Move parent line from {name} onto this profile',
     compareRelation: 'Compare Relation',
     comparingFromHint: 'Comparing from {name} — Tap another person on the tree',
     relationToYou: 'Your Relation',
@@ -586,7 +590,7 @@ export const translations: Record<Language, TranslationDictionary> = {
     superAdminBadge: 'Siamtu (Super Admin)',
     branchAdminBadge: 'Peng Admin',
     memberBadge: 'Chhungkhat',
-    unclaimedProfile: 'Tuma la hauh loh',
+    unclaimedProfile: 'Phone-a thlunzawm loh',
     claimedByYou: 'Nangmah',
 
     searchPlaceholder: 'Hming, kohduat, khua, phone number, kum zawng rawh...',
@@ -758,6 +762,8 @@ export const translations: Record<Language, TranslationDictionary> = {
     parentsSelectLabel: 'Nu leh Pa (Chhungkaw Peng)',
     rootNoParentsOption: '-- Bul Ber / Nu & Pa Awm Lo --',
     addAnotherChildBtn: 'Fa Dang Belh Leh Rawh',
+    connectTargetPersonLabel: 'Tu tan nge kan zawm ang?',
+    transferParentsFromSpouse: '{name} aṭangin nu leh pa inzawmna he profile-ah sawn rawh',
     compareRelation: 'Inlaichinna Enna',
     comparingFromHint: '{name} aṭanga en mek — Mi dang hmet rawh',
     relationToYou: 'I Chhungkhat Nihna',
@@ -1016,6 +1022,8 @@ export const translations: Record<Language, TranslationDictionary> = {
     parentsSelectLabel: 'Padres (Ubicación en el Árbol)',
     rootNoParentsOption: '-- Nivel Superior / Sin Padres --',
     addAnotherChildBtn: 'Añadir Otro Hijo (Misma Fila)',
+    connectTargetPersonLabel: '¿Conectar a qué persona?',
+    transferParentsFromSpouse: 'Mover línea de padres de {name} a este perfil',
     compareRelation: 'Comparar Parentesco',
     comparingFromHint: 'Comparando desde {name} — Toca otra persona en el árbol',
     relationToYou: 'Tu Parentesco',
@@ -1274,6 +1282,8 @@ export const translations: Record<Language, TranslationDictionary> = {
     parentsSelectLabel: 'Eltern (Zweig-Zuordnung)',
     rootNoParentsOption: '-- Oberste Ebene / Keine Eltern --',
     addAnotherChildBtn: 'Weiteres Kind hinzufügen (Gleiche Zeile)',
+    connectTargetPersonLabel: 'Mit welcher Person verbinden?',
+    transferParentsFromSpouse: 'Elternlinie von {name} auf dieses Profil übertragen',
     compareRelation: 'Verwandtschaft prüfen',
     comparingFromHint: 'Vergleich ab {name} — Tippe auf eine andere Person',
     relationToYou: 'Beziehung zu dir',

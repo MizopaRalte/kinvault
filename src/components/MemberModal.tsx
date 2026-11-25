@@ -90,6 +90,38 @@ export const MemberModal: React.FC<MemberModalProps> = ({
     return parentObj?.household_id || '';
   }, [person, relationships, allPersons]);
   const [selectedParentHouseholdId, setSelectedParentHouseholdId] = useState<string>('');
+  const [transferFromSpouse, setTransferFromSpouse] = useState<boolean>(true);
+  const [targetPersonId, setTargetPersonId] = useState<string>('');
+
+  const householdMembersList = useMemo(() => {
+    const hId = household?.id || person?.household_id;
+    if (!hId) return person ? [person] : [];
+    const list = allPersons.filter((item) => item.household_id === hId);
+    return list.length > 0 ? list : person ? [person] : [];
+  }, [allPersons, household, person]);
+
+  const activeTargetPerson = useMemo(() => {
+    return householdMembersList.find((item) => item.id === targetPersonId) || person;
+  }, [householdMembersList, targetPersonId, person]);
+
+  const spouseWithSelectedParents = useMemo(() => {
+    if (!person || !selectedParentHouseholdId) return null;
+    const parentMemberIds = new Set(
+      allPersons.filter((item) => item.household_id === selectedParentHouseholdId).map((item) => item.id)
+    );
+    if (parentMemberIds.size === 0) return null;
+    for (const member of householdMembersList) {
+      if (member.id === person.id) continue;
+      const hasEdge = relationships.some(
+        (r) =>
+          r.rel_type === 'parent_child' &&
+          parentMemberIds.has(r.person_a_id) &&
+          r.person_b_id === member.id
+      );
+      if (hasEdge) return member;
+    }
+    return null;
+  }, [person, selectedParentHouseholdId, allPersons, householdMembersList, relationships]);
 
   // Add spouse state
   const [spouseFullName, setSpouseFullName] = useState('');
@@ -176,6 +208,8 @@ export const MemberModal: React.FC<MemberModalProps> = ({
     setChildAvatarSizeKb(null);
     setExtraChildren([]);
     setSelectedParentHouseholdId(initialParentHouseholdId);
+    setTransferFromSpouse(true);
+    setTargetPersonId(person?.id || '');
 
     setSpouseFullName('');
     setSpouseBirthYear('');
@@ -265,6 +299,10 @@ export const MemberModal: React.FC<MemberModalProps> = ({
           await onMutate('reparent_person', {
             personId: person.id,
             parentHouseholdId: selectedParentHouseholdId || null,
+            unlinkPersonId:
+              transferFromSpouse && spouseWithSelectedParents
+                ? spouseWithSelectedParents.id
+                : undefined,
           });
         }
       } else if (mode === 'edit_household') {
@@ -305,11 +343,11 @@ export const MemberModal: React.FC<MemberModalProps> = ({
         });
       } else if (mode === 'add_spouse') {
         if (!spouseFullName.trim()) throw new Error(t.spouseName + ' is required.');
-        const targetPersonId = person?.id;
-        if (!targetPersonId) throw new Error('Person reference is required.');
+        const chosenPersonId = targetPersonId || person?.id;
+        if (!chosenPersonId) throw new Error('Person reference is required.');
 
         await onMutate('add_spouse', {
-          personId: targetPersonId,
+          personId: chosenPersonId,
           spouseFullName: spouseFullName.trim(),
           birthYear: spouseBirthYear.trim(),
           phoneE164: spousePhone.trim(),
@@ -319,11 +357,11 @@ export const MemberModal: React.FC<MemberModalProps> = ({
         if (!ancestorFather.trim() && !ancestorMother.trim()) {
           throw new Error('Please provide at least one ancestor name (father or mother).');
         }
-        const targetPersonId = person?.id;
-        if (!targetPersonId) throw new Error('Person reference is required.');
+        const chosenPersonId = targetPersonId || person?.id;
+        if (!chosenPersonId) throw new Error('Person reference is required.');
 
         await onMutate('add_ancestors_above', {
-          personId: targetPersonId,
+          personId: chosenPersonId,
           fatherName: ancestorFather.trim() || undefined,
           fatherAvatarB64: fatherAvatarB64 || undefined,
           motherName: ancestorMother.trim() || undefined,
@@ -335,11 +373,11 @@ export const MemberModal: React.FC<MemberModalProps> = ({
         });
       } else if (mode === 'add_sibling') {
         if (!siblingFullName.trim()) throw new Error((t.siblingName || 'Sibling name') + ' is required.');
-        const targetPersonId = person?.id;
-        if (!targetPersonId) throw new Error('Person reference is required.');
+        const chosenPersonId = targetPersonId || person?.id;
+        if (!chosenPersonId) throw new Error('Person reference is required.');
 
         await onMutate('add_sibling', {
-          personId: targetPersonId,
+          personId: chosenPersonId,
           siblingFullName: siblingFullName.trim(),
           birthYear: siblingBirthYear.trim(),
           phoneE164: siblingPhone.trim(),
@@ -425,6 +463,30 @@ export const MemberModal: React.FC<MemberModalProps> = ({
     '#991B1B', '#6B21A8', '#9D174D', '#155E75',
     '#334155', '#4338CA', '#047857', '#B45309',
   ];
+
+  const targetPersonSelector = householdMembersList.length > 1 && (
+    <div>
+      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+        {t.connectTargetPersonLabel}
+      </label>
+      <div className="flex flex-wrap gap-1.5">
+        {householdMembersList.map((m) => (
+          <button
+            key={m.id}
+            type="button"
+            onClick={() => setTargetPersonId(m.id)}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+              (targetPersonId || person?.id) === m.id
+                ? 'bg-slate-900 text-white border-slate-900'
+                : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+            }`}
+          >
+            {m.full_name}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 
   return (
     <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
@@ -712,6 +774,19 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                           );
                         })}
                     </select>
+                    {spouseWithSelectedParents && (
+                      <label className="mt-2 p-2.5 bg-indigo-50 border border-indigo-200 rounded-xl flex items-start gap-2 text-xs font-semibold text-indigo-900 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={transferFromSpouse}
+                          onChange={(e) => setTransferFromSpouse(e.target.checked)}
+                          className="mt-0.5 w-4 h-4 rounded border-indigo-300 text-indigo-600 focus:ring-indigo-600 cursor-pointer"
+                        />
+                        <span>
+                          {t.transferParentsFromSpouse.replace('{name}', spouseWithSelectedParents.full_name)}
+                        </span>
+                      </label>
+                    )}
                   </div>
                 )}
 
@@ -1071,8 +1146,10 @@ export const MemberModal: React.FC<MemberModalProps> = ({
             {/* 4. ADD SPOUSE MODE */}
             {mode === 'add_spouse' && (
               <>
+                {targetPersonSelector}
+
                 <p className="text-xs text-slate-500">
-                  {t.addSpouseNotice.replace('{name}', person?.full_name || household?.family_name || '')}
+                  {t.addSpouseNotice.replace('{name}', activeTargetPerson?.full_name || household?.family_name || '')}
                 </p>
 
                 <div>
@@ -1179,8 +1256,10 @@ export const MemberModal: React.FC<MemberModalProps> = ({
             {/* 5. ADD ANCESTORS ABOVE MODE */}
             {mode === 'add_ancestor' && (
               <>
+                {targetPersonSelector}
+
                 <div className="p-3 bg-slate-100 rounded-xl text-xs text-slate-600">
-                  {t.addAncestorNotice.replace('{name}', person?.full_name || '')}
+                  {t.addAncestorNotice.replace('{name}', activeTargetPerson?.full_name || '')}
                 </div>
 
                 <div>
@@ -1307,6 +1386,8 @@ export const MemberModal: React.FC<MemberModalProps> = ({
             {/* 6. ADD SIBLING MODE */}
             {mode === 'add_sibling' && (
               <>
+                {targetPersonSelector}
+
                 <div className="p-3 bg-slate-100 rounded-xl text-xs text-slate-600">
                   {t.addSiblingNotice}
                 </div>
