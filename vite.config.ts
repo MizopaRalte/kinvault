@@ -9,7 +9,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'fonts/NotoSans-Regular.ttf'],
+      includeAssets: [],
       manifest: {
         name: 'KinVault - Family Tree & Reconnection',
         short_name: 'KinVault',
@@ -33,7 +33,22 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,ttf,woff,woff2}']
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        cleanupOutdatedCaches: true,
+        navigateFallbackDenylist: [/^\/api\//],
+        runtimeCaching: [
+          {
+            urlPattern: /^\/fonts\/.*\.ttf$/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'kinvault-fonts',
+              expiration: {
+                maxEntries: 4,
+                maxAgeSeconds: 60 * 60 * 24 * 365,
+              },
+            },
+          },
+        ],
       }
     })
   ]

@@ -326,6 +326,10 @@ export interface TranslationDictionary {
   kinshipGenBelowPlural: string;
   kinshipAncestorGen: string;
   kinshipDescendantGen: string;
+
+  // PWA Auto-Update Banner
+  updateAvailableBanner: string;
+  updateNowBtn: string;
 }
 
 export const translations: Record<Language, TranslationDictionary> = {
@@ -641,6 +645,8 @@ export const translations: Record<Language, TranslationDictionary> = {
     kinshipGenBelowPlural: '{n} Generations Below',
     kinshipAncestorGen: '{times}x Great-Grandparent',
     kinshipDescendantGen: '{times}x Great-Grandchild',
+    updateAvailableBanner: 'A new version of KinVault is ready',
+    updateNowBtn: 'Update',
   },
 
   mz: {
@@ -955,6 +961,8 @@ export const translations: Record<Language, TranslationDictionary> = {
     kinshipGenBelowPlural: 'Chhuan {n} Hnuai Lam',
     kinshipAncestorGen: 'Thlahtu (Chhuan {gen})',
     kinshipDescendantGen: 'Tuchhuan (Chhuan {gen})',
+    updateAvailableBanner: 'KinVault version thar a awm e',
+    updateNowBtn: 'Update rawh',
   },
 
   es: {
@@ -1269,6 +1277,8 @@ export const translations: Record<Language, TranslationDictionary> = {
     kinshipGenBelowPlural: '{n} Generaciones Abajo',
     kinshipAncestorGen: 'Tatarabuelo/a ({gen}ª gen.)',
     kinshipDescendantGen: 'Tataranieto/a ({gen}ª gen.)',
+    updateAvailableBanner: 'Hay una nueva versión de KinVault lista',
+    updateNowBtn: 'Actualizar',
   },
 
   de: {
@@ -1583,5 +1593,7 @@ export const translations: Record<Language, TranslationDictionary> = {
     kinshipGenBelowPlural: '{n} Generationen tiefer',
     kinshipAncestorGen: 'Ur-{times}-Großelternteil',
     kinshipDescendantGen: 'Ur-{times}-Enkelkind',
+    updateAvailableBanner: 'Eine neue Version von KinVault ist bereit',
+    updateNowBtn: 'Aktualisieren',
   },
 };

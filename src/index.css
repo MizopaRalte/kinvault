@@ -10,6 +10,18 @@
   }
 }
 
+/* Hide hover quick-add pill bar on touch-only devices; touch users tap/long-press portraits */
+@media (hover: none) {
+  .quick-add-pills {
+    display: none;
+  }
+}
+
+/* Prevent iOS/Android OS callout ("Save Image") on portrait long-press */
+.tree-portrait-btn {
+  -webkit-touch-callout: none;
+}
+
 dialog:modal {
   overscroll-behavior: contain;
 }

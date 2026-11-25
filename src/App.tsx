@@ -39,6 +39,7 @@ import { ShareModal } from './components/ShareModal';
 import { BackupModal } from './components/BackupModal';
 import { GlobalAdminModal } from './components/GlobalAdminModal';
 import { InstallAppBanner, type BeforeInstallPromptEvent } from './components/InstallAppBanner';
+import { UpdateBanner } from './components/UpdateBanner';
 
 function parseInviteFromUrl(): InitialInviteParams | null {
   if (typeof window === 'undefined') return null;
@@ -644,10 +645,21 @@ export const App: React.FC = () => {
     return treeData.persons.find((p) => p.id === session.activePersonId) || null;
   }, [treeData, session]);
 
+  const deferAutoReload = Boolean(
+    memberModalState.isOpen ||
+    identifyModalOpen ||
+    renameModalOpen ||
+    shareModalOpen ||
+    backupModalOpen ||
+    adminModalOpen ||
+    lockSettingsModalOpen ||
+    pdfExporting ||
+    !isOnline
+  );
+
   // 1. APP LOCK PIN SCREEN
-  if (isLocked) {
-    return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+  const content = isLocked ? (
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
         <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl border border-slate-800">
           <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4 text-slate-800 shadow-inner">
             <Lock className="w-7 h-7" />
@@ -680,17 +692,12 @@ export const App: React.FC = () => {
             >
               {t.unlockBtn}
             </button>
-          </form>
-        </div>
+        </form>
       </div>
-    );
-  }
-
-  // 2. ONBOARDING / JOIN SCREEN
-  if (!session) {
-    return (
-      <>
-        <OnboardingView
+    </div>
+  ) : !session ? (
+    <>
+      <OnboardingView
           onSessionReady={handleSessionReady}
           lang={lang}
           onLanguageChange={handleLanguageChange}
@@ -710,14 +717,10 @@ export const App: React.FC = () => {
           isStandalone={isInstalledStandalone}
           isIos={isIosDevice}
           forceOpen={installGuideOpen}
-          onCloseForce={() => setInstallGuideOpen(false)}
-        />
-      </>
-    );
-  }
-
-  // 3. MAIN DASHBOARD VIEW
-  return (
+        onCloseForce={() => setInstallGuideOpen(false)}
+      />
+    </>
+  ) : (
     <div className={activeTab === 'tree' ? 'h-dvh flex flex-col overflow-hidden bg-slate-50' : 'min-h-dvh flex flex-col bg-slate-50'}>
       {/* Top Main Navigation Header */}
       <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 px-3 sm:px-6 py-2.5 shrink-0">
@@ -1730,6 +1733,13 @@ export const App: React.FC = () => {
         onCloseForce={() => setInstallGuideOpen(false)}
       />
     </div>
+  );
+
+  return (
+    <>
+      {content}
+      <UpdateBanner t={t} deferAutoReload={deferAutoReload} />
+    </>
   );
 };
 

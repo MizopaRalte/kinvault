@@ -132,7 +132,14 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
   const didAutoCollapseRef = useRef(false);
 
   // Detail, comparison & photo inspection state
-  const [detailTarget, setDetailTarget] = useState<{ person: Person; household?: Household } | null>(null);
+  const [detailTarget, setDetailTarget] = useState<{
+    person: Person;
+    household?: Household;
+    openAddRelativeSheet?: boolean;
+  } | null>(null);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressStartRef = useRef<{ x: number; y: number } | null>(null);
+  const suppressNextPortraitClickRef = useRef(false);
   const [compareSource, setCompareSource] = useState<{ person: Person; household?: Household } | null>(null);
   const [kinshipState, setKinshipState] = useState<{
     personA: Person;
@@ -1078,13 +1085,62 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
     };
   };
 
+  const clearLongPress = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    longPressStartRef.current = null;
+  }, []);
+
+  useEffect(() => clearLongPress, [clearLongPress]);
+
+  const startPortraitLongPress = (
+    e: React.PointerEvent,
+    person: Person,
+    household: Household
+  ) => {
+    if (e.isPrimary) {
+      suppressNextPortraitClickRef.current = false;
+    }
+    if (e.pointerType === 'mouse' || !e.isPrimary || compareSource) return;
+    clearLongPress();
+    longPressStartRef.current = { x: e.clientX, y: e.clientY };
+    longPressTimerRef.current = setTimeout(() => {
+      longPressTimerRef.current = null;
+      longPressStartRef.current = null;
+      if (didDragRef.current || pinchRef.current) return;
+      suppressNextPortraitClickRef.current = true;
+      suppressClickUntilRef.current = Date.now() + 600;
+      if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+        try {
+          navigator.vibrate(18);
+        } catch {
+          // Ignore unsupported haptics
+        }
+      }
+      setDetailTarget({ person, household, openAddRelativeSheet: true });
+    }, 500);
+  };
+
+  const movePortraitLongPress = (e: React.PointerEvent) => {
+    const start = longPressStartRef.current;
+    if (!start) return;
+    if (Math.hypot(e.clientX - start.x, e.clientY - start.y) >= 8) {
+      clearLongPress();
+    }
+  };
+
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!isDragging) return;
     const moved = Math.hypot(
       e.clientX - pointerDownScreen.current.x,
       e.clientY - pointerDownScreen.current.y
     );
-    if (moved > 6) didDragRef.current = true;
+    if (moved > 6) {
+      didDragRef.current = true;
+      clearLongPress();
+    }
     applyTransform(
       transformRef.current.scale,
       e.clientX - dragStart.current.x,
@@ -1093,6 +1149,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
   };
 
   const handleMouseUp = () => {
+    clearLongPress();
     if (didDragRef.current) {
       suppressClickUntilRef.current = Date.now() + 100;
     }
@@ -1114,6 +1171,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
         y: e.touches[0].clientY - transformRef.current.y,
       };
     } else if (e.touches.length === 2 && containerRef.current) {
+      clearLongPress();
       setIsDragging(false);
       setIsPinching(true);
       didDragRef.current = true;
@@ -1136,6 +1194,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
         t0.clientY - pointerDownScreen.current.y
       );
       if (moved >= 8) {
+        clearLongPress();
         didDragRef.current = true;
         if (!isDragging) setIsDragging(true);
       }
@@ -1147,6 +1206,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
         );
       }
     } else if (e.touches.length === 2 && containerRef.current) {
+      clearLongPress();
       const rect = containerRef.current.getBoundingClientRect();
       const t0 = e.touches[0];
       const t1 = e.touches[1];
@@ -1166,6 +1226,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
+    clearLongPress();
     if (e.touches.length === 1) {
       pinchRef.current = null;
       setIsPinching(false);
@@ -1239,6 +1300,10 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
   };
 
   const handlePersonClick = (person: Person, household: Household) => {
+    if (suppressNextPortraitClickRef.current) {
+      suppressNextPortraitClickRef.current = false;
+      return;
+    }
     if (Date.now() < suppressClickUntilRef.current) return;
     if (compareSource) {
       const result = calculateKinship(compareSource.person.id, person.id, persons, relationships, t);
@@ -1549,7 +1614,17 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
                       <div
                         key={person.id}
                         style={{ width: `${PERSON_COL_WIDTH}px` }}
-                        className="flex flex-col items-center text-center"
+                        onPointerDown={(e) => startPortraitLongPress(e, person, h)}
+                        onPointerMove={movePortraitLongPress}
+                        onPointerUp={clearLongPress}
+                        onPointerCancel={clearLongPress}
+                        onPointerLeave={clearLongPress}
+                        onContextMenu={(e) => {
+                          if (window.matchMedia('(hover: none)').matches) {
+                            e.preventDefault();
+                          }
+                        }}
+                        className="tree-portrait-btn flex flex-col items-center text-center"
                       >
                         {/* Circular Portrait */}
                         <button
@@ -1575,6 +1650,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
                               <img
                                 src={person.avatar_b64}
                                 alt={person.full_name}
+                                draggable={false}
                                 className="w-full h-full object-cover"
                               />
                             ) : (
@@ -1659,7 +1735,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
                   members[0];
                 return (
                 <div
-                  className={`${node.hasChildren && isCollapsed ? 'mt-7' : 'mt-2'} flex items-center justify-center gap-1 transition-opacity duration-150 ${
+                  className={`quick-add-pills ${node.hasChildren && isCollapsed ? 'mt-7' : 'mt-2'} flex items-center justify-center gap-1 transition-opacity duration-150 ${
                     households.length <= 2
                       ? 'opacity-100'
                       : 'opacity-0 group-hover:opacity-100 focus-within:opacity-100'
@@ -1841,7 +1917,11 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
 
       {/* Person Detail Modal (Address, Telephone, Connections, Actions) */}
       <PersonDetailModal
-        key={detailTarget?.person.id || 'closed'}
+        key={
+          detailTarget
+            ? `${detailTarget.person.id}-${detailTarget.openAddRelativeSheet ? 'sheet' : 'view'}`
+            : 'closed'
+        }
         person={detailTarget ? persons.find((p) => p.id === detailTarget.person.id) || detailTarget.person : null}
         household={detailTarget?.household ? households.find((h) => h.id === detailTarget.household?.id) || detailTarget.household : undefined}
         allPersons={persons}
@@ -1851,6 +1931,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
         deviceId={deviceId}
         activePersonId={activePersonId}
         userRole={userRole}
+        openAddRelativeSheet={detailTarget?.openAddRelativeSheet}
         hasBranchChildren={
           detailTarget?.person.household_id
             ? (childrenHouseholdMap.get(detailTarget.person.household_id)?.size || 0) > 0

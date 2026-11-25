@@ -53,6 +53,8 @@ interface PersonDetailModalProps {
   onUpdatePersonAvatar?: (person: Person, avatarB64: string) => Promise<void>;
   onToggleSpouseStatus?: (relationshipId: string, status: 'spouse' | 'former_spouse') => Promise<void>;
   onInviteBranchMember?: (person: Person) => Promise<void>;
+  /** When true the Add Relative action sheet opens immediately on mount (long-press from tree canvas) */
+  openAddRelativeSheet?: boolean;
 }
 
 export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
@@ -78,13 +80,16 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
   onUpdatePersonAvatar,
   onToggleSpouseStatus,
   onInviteBranchMember,
+  openAddRelativeSheet = false,
 }) => {
   const [photoMenuOpen, setPhotoMenuOpen] = useState(false);
   const [photoSaving, setPhotoSaving] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [togglingRelId, setTogglingRelId] = useState<string | null>(null);
   const [invitingBranch, setInvitingBranch] = useState(false);
-  const [addRelativeSheetOpen, setAddRelativeSheetOpen] = useState(false);
+  const [addRelativeSheetOpen, setAddRelativeSheetOpen] = useState(() =>
+    Boolean(openAddRelativeSheet && person)
+  );
   const addRelativeDialogRef = useRef<HTMLDialogElement>(null);
   const sheetBackdropPressOutsideRef = useRef(false);
 
