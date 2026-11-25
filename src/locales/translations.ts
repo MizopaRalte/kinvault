@@ -236,6 +236,7 @@ export interface TranslationDictionary {
   // Drill-down & Kinship Calculator
   parentsOnlyView: string;
   kidsCountLabel: string;
+  grandkidsCountLabel: string;
   expandKidsInTree: string;
   collapseKidsInTree: string;
   parentsSelectLabel: string;
@@ -505,6 +506,7 @@ export const translations: Record<Language, TranslationDictionary> = {
 
     parentsOnlyView: 'Parents Only',
     kidsCountLabel: 'Kids',
+    grandkidsCountLabel: 'Grandkids',
     expandKidsInTree: 'Show Kids on Tree',
     collapseKidsInTree: 'Hide Kids on Tree',
     parentsSelectLabel: 'Parents (Branch Placement)',
@@ -773,6 +775,7 @@ export const translations: Record<Language, TranslationDictionary> = {
 
     parentsOnlyView: 'Nu & Pa Chauh',
     kidsCountLabel: 'Fate',
+    grandkidsCountLabel: 'Tute',
     expandKidsInTree: 'Fate Tree-ah Tilang Rawh',
     collapseKidsInTree: 'Fate Tree-ah Thup Rawh',
     parentsSelectLabel: 'Nu leh Pa (Chhungkaw Peng)',
@@ -1041,6 +1044,7 @@ export const translations: Record<Language, TranslationDictionary> = {
 
     parentsOnlyView: 'Solo Padres',
     kidsCountLabel: 'Hijos',
+    grandkidsCountLabel: 'Nietos',
     expandKidsInTree: 'Mostrar Hijos en el Árbol',
     collapseKidsInTree: 'Ocultar Hijos en el Árbol',
     parentsSelectLabel: 'Padres (Ubicación en el Árbol)',
@@ -1309,6 +1313,7 @@ export const translations: Record<Language, TranslationDictionary> = {
 
     parentsOnlyView: 'Nur Eltern',
     kidsCountLabel: 'Kinder',
+    grandkidsCountLabel: 'Enkel',
     expandKidsInTree: 'Kinder im Baum anzeigen',
     collapseKidsInTree: 'Kinder im Baum ausblenden',
     parentsSelectLabel: 'Eltern (Zweig-Zuordnung)',

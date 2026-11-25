@@ -65,7 +65,8 @@ interface PositionedNode {
   outgoingY: number;
   personCentersX: number[];
   pairConnectors: PairConnector[];
-  hiddenDescendantsCount: number;
+  directChildrenCount: number;
+  hiddenGrandkidsCount: number;
   hasChildren: boolean;
 }
 
@@ -511,6 +512,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
         const posY = d.y ?? 0;
 
         const childrenCount = childrenHouseholdMap.get(h.id)?.size || 0;
+        const totalDescCount = descendantCountMap.get(h.id) || 0;
 
         positions.set(h.id, {
           x: posX,
@@ -527,7 +529,8 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
           outgoingY: posY + geom.outgoingOffsetY,
           personCentersX: geom.personCentersX,
           pairConnectors: geom.pairConnectors,
-          hiddenDescendantsCount: descendantCountMap.get(h.id) || 0,
+          directChildrenCount: childrenCount,
+          hiddenGrandkidsCount: Math.max(0, totalDescCount - childrenCount),
           hasChildren: childrenCount > 0,
         });
       });
@@ -556,6 +559,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
         const members = householdMembers.get(h.id) || [];
         const geom = getNodeGeometry(h, members);
         const childrenCount = childrenHouseholdMap.get(h.id)?.size || 0;
+        const totalDescCount = descendantCountMap.get(h.id) || 0;
         positions.set(h.id, {
           x: disconnectedX,
           y: 0,
@@ -571,7 +575,8 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
           outgoingY: geom.outgoingOffsetY,
           personCentersX: geom.personCentersX,
           pairConnectors: geom.pairConnectors,
-          hiddenDescendantsCount: descendantCountMap.get(h.id) || 0,
+          directChildrenCount: childrenCount,
+          hiddenGrandkidsCount: Math.max(0, totalDescCount - childrenCount),
           hasChildren: childrenCount > 0,
         });
         disconnectedX += geom.width + HORIZONTAL_GAP;
@@ -1049,7 +1054,12 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
                   {isCollapsed ? (
                     <>
                       <Plus className="w-3 h-3" />
-                      <span>{node.hiddenDescendantsCount} {t.kidsCountLabel}</span>
+                      <span>
+                        {node.directChildrenCount} {t.kidsCountLabel}
+                        {node.hiddenGrandkidsCount > 0
+                          ? ` • ${node.hiddenGrandkidsCount} ${t.grandkidsCountLabel}`
+                          : ''}
+                      </span>
                     </>
                   ) : (
                     <Minus className="w-3 h-3" />
