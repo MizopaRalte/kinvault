@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import QRCode from 'qrcode';
 import {
   X,
   Shield,
+  ShieldCheck,
   Key,
   Search,
   Users,
@@ -13,6 +15,8 @@ import {
   CheckCircle2,
   Lock,
   Trash2,
+  QrCode,
+  Smartphone,
 } from 'lucide-react';
 import type { TranslationDictionary } from '../locales/translations';
 
@@ -22,6 +26,7 @@ interface AdminStats {
   totalHouseholds: number;
   livingPersons: number;
   deceasedPersons: number;
+  is2faEnabled?: boolean;
 }
 
 interface TreeItem {
@@ -41,50 +46,76 @@ interface GlobalAdminModalProps {
   t: TranslationDictionary;
 }
 
+const ADMIN_TOKEN_KEY = 'kv_admin_token';
+
 export const GlobalAdminModal: React.FC<GlobalAdminModalProps> = ({
   isOpen,
   onClose,
   t,
 }) => {
-  const [adminSecret, setAdminSecret] = useState(() => sessionStorage.getItem('kv_admin_secret') || '');
+  const [adminSecret, setAdminSecret] = useState('');
   const [totpCode, setTotpCode] = useState('');
+  const [adminToken, setAdminToken] = useState(() => sessionStorage.getItem(ADMIN_TOKEN_KEY) || '');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [activeTab, setActiveTab] = useState<'trees' | 'security'>('trees');
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // Security & 2FA state
+  const [is2faEnabled, setIs2faEnabled] = useState(false);
+  const [hasCustomSecret, setHasCustomSecret] = useState(false);
+  const [envLockedSecret, setEnvLockedSecret] = useState(false);
+  const [envLockedTotp, setEnvLockedTotp] = useState(false);
+
+  // TOTP enrollment state
+  const [setupSecret, setSetupSecret] = useState<string | null>(null);
+  const [setupQrDataUrl, setSetupQrDataUrl] = useState<string | null>(null);
+  const [verifyEnrollCode, setVerifyEnrollCode] = useState('');
+  const [copiedSecret, setCopiedSecret] = useState(false);
+  const [disableTotpCode, setDisableTotpCode] = useState('');
+  const [newCustomSecret, setNewCustomSecret] = useState('');
 
   // Dashboard Data
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [trees, setTrees] = useState<TreeItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Action states
+  // Tree action states
   const [resetPinValue, setResetPinValue] = useState('');
   const [activeActionTreeId, setActiveActionTreeId] = useState<string | null>(null);
   const [actionType, setActionType] = useState<'reset_pin' | 'puk' | 'delete' | null>(null);
   const [generatedPuk, setGeneratedPuk] = useState<string | null>(null);
   const [copiedPuk, setCopiedPuk] = useState(false);
 
-  const loadStats = useCallback(async (secret: string) => {
+  const loadStats = useCallback(async () => {
     try {
-      const res = await fetch('/api/admin/stats', {
-        headers: { 'X-Admin-Secret': secret },
-      });
+      const res = await fetch('/api/admin/stats');
       if (res.ok) {
         const data = (await res.json()) as AdminStats;
         setStats(data);
+        if (typeof data.is2faEnabled === 'boolean') {
+          setIs2faEnabled(data.is2faEnabled);
+        }
       }
     } catch (err) {
       console.warn('Failed to load admin stats:', err);
     }
   }, []);
 
-  const loadTrees = useCallback(async (secret: string, query = '') => {
+  const loadTrees = useCallback(async (token: string, query = '') => {
     try {
       const url = query ? `/api/admin/trees?q=${encodeURIComponent(query)}` : '/api/admin/trees';
       const res = await fetch(url, {
-        headers: { 'X-Admin-Secret': secret },
+        headers: { 'X-Admin-Token': token },
       });
+      if (res.status === 401) {
+        sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+        setAdminToken('');
+        setIsAuthenticated(false);
+        return;
+      }
       if (res.ok) {
         const data = await res.json();
         setTrees(data.trees || []);
@@ -94,50 +125,108 @@ export const GlobalAdminModal: React.FC<GlobalAdminModalProps> = ({
     }
   }, []);
 
-  const verifyAndLoadData = useCallback(async (secret: string) => {
+  // On modal open: fetch public 2FA flag & validate any existing session token (does NOT run on keystrokes)
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+
+    const initModal = async () => {
+      await loadStats();
+      const storedToken = sessionStorage.getItem(ADMIN_TOKEN_KEY);
+      if (!storedToken) {
+        if (!cancelled) setIsAuthenticated(false);
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/admin/trees', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Admin-Token': storedToken,
+          },
+          body: JSON.stringify({ action: 'get_security_status' }),
+        });
+
+        if (!res.ok) {
+          sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+          if (!cancelled) {
+            setAdminToken('');
+            setIsAuthenticated(false);
+          }
+          return;
+        }
+
+        const data = await res.json();
+        if (!cancelled) {
+          setAdminToken(storedToken);
+          setIsAuthenticated(true);
+          setIs2faEnabled(Boolean(data.is2faEnabled));
+          setHasCustomSecret(Boolean(data.hasCustomSecret));
+          setEnvLockedSecret(Boolean(data.envLockedSecret));
+          setEnvLockedTotp(Boolean(data.envLockedTotp));
+          await loadTrees(storedToken, '');
+        }
+      } catch {
+        if (!cancelled) setIsAuthenticated(false);
+      }
+    };
+
+    initModal();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, loadStats, loadTrees]);
+
+  const handleLoginSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!adminSecret.trim()) return;
+
     setLoading(true);
     setError(null);
     try {
-      // 1. Verify admin key
       const verifyRes = await fetch('/api/admin/trees', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Admin-Secret': secret.trim(),
-          ...(totpCode ? { 'X-Admin-Totp': totpCode.trim() } : {}),
+          'X-Admin-Secret': adminSecret.trim(),
+          ...(totpCode.trim() ? { 'X-Admin-Totp': totpCode.trim() } : {}),
         },
-        body: JSON.stringify({ action: 'verify_admin', totpCode: totpCode.trim() || undefined }),
+        body: JSON.stringify({
+          action: 'verify_admin',
+          totpCode: totpCode.trim() || undefined,
+        }),
       });
 
+      const data = await verifyRes.json();
       if (!verifyRes.ok) {
-        const data = await verifyRes.json();
         throw new Error(data.error || 'Authentication failed');
       }
 
+      const token = data.adminToken as string;
+      sessionStorage.setItem(ADMIN_TOKEN_KEY, token);
+      setAdminToken(token);
       setIsAuthenticated(true);
-      sessionStorage.setItem('kv_admin_secret', secret.trim());
+      setIs2faEnabled(Boolean(data.is2faEnabled));
+      setHasCustomSecret(Boolean(data.hasCustomSecret));
+      setEnvLockedSecret(Boolean(data.envLockedSecret));
+      setEnvLockedTotp(Boolean(data.envLockedTotp));
+      setAdminSecret('');
+      setTotpCode('');
 
-      // 2. Load stats and trees in parallel
-      await Promise.all([loadStats(secret.trim()), loadTrees(secret.trim(), searchQuery)]);
+      await Promise.all([loadStats(), loadTrees(token, searchQuery)]);
     } catch (err: unknown) {
       setIsAuthenticated(false);
-      setError(err instanceof Error ? err.message : 'Invalid Admin Secret');
+      setError(err instanceof Error ? err.message : 'Authentication failed');
     } finally {
       setLoading(false);
     }
-  }, [totpCode, loadStats, loadTrees, searchQuery]);
-
-  // Authenticate on mount if session exists
-  useEffect(() => {
-    if (isOpen && adminSecret) {
-      verifyAndLoadData(adminSecret);
-    }
-  }, [isOpen, adminSecret, verifyAndLoadData]);
+  };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (adminSecret) {
-      loadTrees(adminSecret, searchQuery);
+    if (adminToken) {
+      loadTrees(adminToken, searchQuery);
     }
   };
 
@@ -154,7 +243,7 @@ export const GlobalAdminModal: React.FC<GlobalAdminModalProps> = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Admin-Secret': adminSecret,
+          'X-Admin-Token': adminToken,
         },
         body: JSON.stringify({
           action: 'reset_pin',
@@ -186,7 +275,7 @@ export const GlobalAdminModal: React.FC<GlobalAdminModalProps> = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Admin-Secret': adminSecret,
+          'X-Admin-Token': adminToken,
         },
         body: JSON.stringify({
           action: 'generate_puk',
@@ -198,8 +287,7 @@ export const GlobalAdminModal: React.FC<GlobalAdminModalProps> = ({
       if (!res.ok) throw new Error(data.error || 'Failed to generate PUK');
 
       setGeneratedPuk(data.pukCode);
-      // Reload trees to reflect PUK status
-      loadTrees(adminSecret, searchQuery);
+      loadTrees(adminToken, searchQuery);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error generating PUK');
     } finally {
@@ -215,7 +303,7 @@ export const GlobalAdminModal: React.FC<GlobalAdminModalProps> = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Admin-Secret': adminSecret,
+          'X-Admin-Token': adminToken,
         },
         body: JSON.stringify({
           action: 'delete_tree',
@@ -230,7 +318,7 @@ export const GlobalAdminModal: React.FC<GlobalAdminModalProps> = ({
       setActionType(null);
       setSuccessMsg('Tree deleted permanently.');
       setTimeout(() => setSuccessMsg(null), 3000);
-      await Promise.all([loadStats(adminSecret), loadTrees(adminSecret, searchQuery)]);
+      await Promise.all([loadStats(), loadTrees(adminToken, searchQuery)]);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error deleting tree');
     } finally {
@@ -238,18 +326,165 @@ export const GlobalAdminModal: React.FC<GlobalAdminModalProps> = ({
     }
   };
 
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    sessionStorage.removeItem('kv_admin_secret');
-    setAdminSecret('');
-    setStats(null);
-    setTrees([]);
+  const handleInitTotpSetup = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/admin/trees', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Admin-Token': adminToken,
+        },
+        body: JSON.stringify({ action: 'init_totp_setup' }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to initialize 2FA');
+
+      const qrUrl = await QRCode.toDataURL(data.otpauthUrl, {
+        width: 220,
+        margin: 2,
+        color: { dark: '#0F172A', light: '#FFFFFF' },
+      });
+
+      setSetupSecret(data.secret);
+      setSetupQrDataUrl(qrUrl);
+      setVerifyEnrollCode('');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to initialize 2FA');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const copyToClipboard = (text: string) => {
+  const handleEnableTotp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!setupSecret || !/^\d{6}$/.test(verifyEnrollCode.trim())) return;
+
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/admin/trees', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Admin-Token': adminToken,
+        },
+        body: JSON.stringify({
+          action: 'enable_totp',
+          secret: setupSecret,
+          totpCode: verifyEnrollCode.trim(),
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Verification failed');
+
+      setIs2faEnabled(true);
+      setSetupSecret(null);
+      setSetupQrDataUrl(null);
+      setVerifyEnrollCode('');
+      setSuccessMsg('2FA Authenticator is now active on Global Admin!');
+      setTimeout(() => setSuccessMsg(null), 4000);
+      loadStats();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to verify 2FA code');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDisableTotp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!/^\d{6}$/.test(disableTotpCode.trim())) return;
+
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/admin/trees', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Admin-Token': adminToken,
+        },
+        body: JSON.stringify({
+          action: 'disable_totp',
+          totpCode: disableTotpCode.trim(),
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to disable 2FA');
+
+      setIs2faEnabled(false);
+      setDisableTotpCode('');
+      setSuccessMsg('2FA Authenticator disabled.');
+      setTimeout(() => setSuccessMsg(null), 3000);
+      loadStats();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Error disabling 2FA');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateCustomSecret = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newCustomSecret.trim().length < 8) {
+      setError('Admin Secret Key must be at least 8 characters.');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/admin/trees', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Admin-Token': adminToken,
+        },
+        body: JSON.stringify({
+          action: 'update_admin_secret',
+          newSecret: newCustomSecret.trim(),
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update Admin Secret');
+
+      setHasCustomSecret(true);
+      setNewCustomSecret('');
+      setSuccessMsg('Custom Admin Secret Key updated! Default key is now disabled.');
+      setTimeout(() => setSuccessMsg(null), 4000);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Error updating secret');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+    setAdminToken('');
+    setAdminSecret('');
+    setTotpCode('');
+    setTrees([]);
+    setSetupSecret(null);
+    setSetupQrDataUrl(null);
+  };
+
+  const copyToClipboard = (text: string, which: 'puk' | 'secret') => {
     navigator.clipboard.writeText(text);
-    setCopiedPuk(true);
-    setTimeout(() => setCopiedPuk(false), 2000);
+    if (which === 'puk') {
+      setCopiedPuk(true);
+      setTimeout(() => setCopiedPuk(false), 2000);
+    } else {
+      setCopiedSecret(true);
+      setTimeout(() => setCopiedSecret(false), 2000);
+    }
   };
 
   if (!isOpen) return null;
@@ -265,7 +500,7 @@ export const GlobalAdminModal: React.FC<GlobalAdminModalProps> = ({
             </div>
             <div>
               <h3 className="font-bold text-slate-900 text-base">{t.globalAdminTitle}</h3>
-              <p className="text-[11px] text-slate-400">Platform Control & Registration Telemetry</p>
+              <p className="text-[11px] text-slate-400">Platform Control, 2FA & Registration Telemetry</p>
             </div>
           </div>
 
@@ -289,8 +524,41 @@ export const GlobalAdminModal: React.FC<GlobalAdminModalProps> = ({
           </div>
         </div>
 
+        {/* Navigation Tabs when authenticated */}
+        {isAuthenticated && (
+          <div className="flex border-b border-slate-200 bg-slate-50 px-6 gap-4 text-xs font-bold">
+            <button
+              type="button"
+              onClick={() => setActiveTab('trees')}
+              className={`py-2.5 border-b-2 transition-colors flex items-center gap-1.5 cursor-pointer ${
+                activeTab === 'trees'
+                  ? 'border-slate-900 text-slate-900'
+                  : 'border-transparent text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              <FolderTree className="w-3.5 h-3.5" />
+              <span>Trees & Stats</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('security')}
+              className={`py-2.5 border-b-2 transition-colors flex items-center gap-1.5 cursor-pointer ${
+                activeTab === 'security'
+                  ? 'border-slate-900 text-slate-900'
+                  : 'border-transparent text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              <ShieldCheck className={`w-3.5 h-3.5 ${is2faEnabled ? 'text-emerald-600' : 'text-amber-600'}`} />
+              <span>2FA & Security</span>
+              {is2faEnabled && (
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              )}
+            </button>
+          </div>
+        )}
+
         {/* Content */}
-        <div className="p-6">
+        <div className="p-6 max-h-[78vh] overflow-y-auto">
           {error && (
             <div className="mb-4 p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-semibold">
               {error}
@@ -306,19 +574,15 @@ export const GlobalAdminModal: React.FC<GlobalAdminModalProps> = ({
 
           {!isAuthenticated ? (
             /* Login View */
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                verifyAndLoadData(adminSecret);
-              }}
-              className="space-y-4 max-w-md mx-auto py-8"
-            >
+            <form onSubmit={handleLoginSubmit} className="space-y-4 max-w-md mx-auto py-6">
               <div className="text-center space-y-1 mb-6">
                 <div className="w-12 h-12 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center mx-auto text-slate-700">
                   <Lock className="w-6 h-6" />
                 </div>
                 <h4 className="font-bold text-slate-900 text-sm">Authentication Required</h4>
-                <p className="text-xs text-slate-500">Enter master administrative secret key to access global controls.</p>
+                <p className="text-xs text-slate-500">
+                  Enter master administrative secret key {is2faEnabled ? 'and your 2FA Authenticator code' : ''} to access global controls.
+                </p>
               </div>
 
               <div>
@@ -335,98 +599,271 @@ export const GlobalAdminModal: React.FC<GlobalAdminModalProps> = ({
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                  {t.totpCodeLabel} (Optional 2FA)
-                </label>
-                <input
-                  type="text"
-                  maxLength={6}
-                  value={totpCode}
-                  onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, ''))}
-                  placeholder={t.totpCodePlaceholder}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono tracking-widest text-center focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
-                />
-              </div>
+              {is2faEnabled && (
+                <div>
+                  <label className="block text-xs font-semibold text-emerald-700 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                    <Smartphone className="w-3.5 h-3.5" />
+                    <span>{t.totpCodeLabel} *</span>
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    required
+                    value={totpCode}
+                    onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, ''))}
+                    placeholder={t.totpCodePlaceholder}
+                    className="w-full px-3.5 py-2.5 bg-emerald-50/40 border border-emerald-200 rounded-xl text-base font-mono tracking-[0.4em] text-center focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                  />
+                </div>
+              )}
 
               <button
                 type="submit"
-                disabled={loading}
-                className="w-full mt-2 py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                disabled={loading || !adminSecret.trim() || (is2faEnabled && totpCode.length !== 6)}
+                className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
               >
-                {loading ? t.loading : t.unlockAdminBtn}
+                <Key className="w-4 h-4" />
+                <span>{loading ? t.loading : t.unlockAdminBtn}</span>
               </button>
             </form>
-          ) : (
-            /* Admin Dashboard */
+          ) : activeTab === 'security' ? (
+            /* 2FA & Security Tab */
             <div className="space-y-6">
-              {/* Telemetry Metric Cards */}
+              {/* 2FA Authenticator Card */}
+              <div className="border border-slate-200 rounded-2xl p-5 space-y-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                      is2faEnabled ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
+                    }`}>
+                      <QrCode className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-slate-900 text-sm">
+                        2FA Authenticator (Google Authenticator / Authy / Apple Passwords)
+                      </h4>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Protect Global Admin login with a rotating 6-digit TOTP code every 30 seconds.
+                      </p>
+                    </div>
+                  </div>
+                  <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 ${
+                    is2faEnabled
+                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                      : 'bg-amber-100 text-amber-800 border border-amber-200'
+                  }`}>
+                    {is2faEnabled ? 'Active' : 'Not Configured'}
+                  </span>
+                </div>
+
+                {envLockedTotp ? (
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600">
+                    2FA is controlled via Cloudflare environment variable <code className="font-mono font-bold">GLOBAL_ADMIN_TOTP_SECRET</code>.
+                  </div>
+                ) : !is2faEnabled ? (
+                  !setupSecret ? (
+                    <button
+                      type="button"
+                      disabled={loading}
+                      onClick={handleInitTotpSetup}
+                      className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer"
+                    >
+                      <QrCode className="w-4 h-4" />
+                      <span>Setup 2FA Authenticator QR Code</span>
+                    </button>
+                  ) : (
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+                        <div className="flex flex-col items-center bg-white p-3 rounded-xl border border-slate-200">
+                          {setupQrDataUrl && (
+                            <img src={setupQrDataUrl} alt="2FA QR Code" className="w-44 h-44" />
+                          )}
+                          <span className="text-[11px] text-slate-500 mt-1 font-medium">
+                            Scan with Google Authenticator
+                          </span>
+                        </div>
+
+                        <div className="space-y-3">
+                          <div>
+                            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                              Or enter Secret Key manually:
+                            </p>
+                            <div className="flex items-center gap-1.5">
+                              <code className="flex-1 bg-white border border-slate-200 px-2.5 py-1.5 rounded-lg font-mono text-[11px] text-slate-800 break-all select-all">
+                                {setupSecret}
+                              </code>
+                              <button
+                                type="button"
+                                onClick={() => copyToClipboard(setupSecret, 'secret')}
+                                className="p-1.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg cursor-pointer"
+                                title="Copy Secret"
+                              >
+                                {copiedSecret ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-slate-500" />}
+                              </button>
+                            </div>
+                          </div>
+
+                          <form onSubmit={handleEnableTotp} className="space-y-2 pt-2 border-t border-slate-200">
+                            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                              Enter 6-digit code from app to activate *
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                maxLength={6}
+                                required
+                                value={verifyEnrollCode}
+                                onChange={(e) => setVerifyEnrollCode(e.target.value.replace(/\D/g, ''))}
+                                placeholder="123456"
+                                className="w-32 px-3 py-2 bg-white border border-slate-300 rounded-xl text-sm font-mono tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-slate-900"
+                              />
+                              <button
+                                type="submit"
+                                disabled={loading || verifyEnrollCode.length !== 6}
+                                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold cursor-pointer"
+                              >
+                                Verify & Activate
+                              </button>
+                            </div>
+                          </form>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                ) : (
+                  <form onSubmit={handleDisableTotp} className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
+                    <span className="text-xs text-slate-600">
+                      To disable 2FA, verify with a current code from your Authenticator app:
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={6}
+                        required
+                        value={disableTotpCode}
+                        onChange={(e) => setDisableTotpCode(e.target.value.replace(/\D/g, ''))}
+                        placeholder="6-digit code"
+                        className="w-28 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono tracking-widest text-center focus:outline-none focus:ring-1 focus:ring-slate-900"
+                      />
+                      <button
+                        type="submit"
+                        disabled={loading || disableTotpCode.length !== 6}
+                        className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-bold disabled:opacity-50 cursor-pointer"
+                      >
+                        Disable 2FA
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+
+              {/* Master Admin Secret Key Card */}
+              <div className="border border-slate-200 rounded-2xl p-5 space-y-3">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h4 className="font-bold text-slate-900 text-sm">Master Admin Secret Key</h4>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {hasCustomSecret
+                        ? 'A private custom Admin Secret Key is active (default key disabled).'
+                        : 'Currently using the default key (kinvault-admin-2026). Set a private key below.'}
+                    </p>
+                  </div>
+                  <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 ${
+                    hasCustomSecret
+                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                      : 'bg-amber-100 text-amber-800 border border-amber-200'
+                  }`}>
+                    {hasCustomSecret ? 'Private Key Set' : 'Default Key'}
+                  </span>
+                </div>
+
+                {envLockedSecret ? (
+                  <p className="text-xs text-slate-500">
+                    Managed via Cloudflare environment variable <code className="font-mono font-bold">GLOBAL_ADMIN_SECRET</code>.
+                  </p>
+                ) : (
+                  <form onSubmit={handleUpdateCustomSecret} className="flex flex-wrap items-center gap-2 pt-1">
+                    <input
+                      type="password"
+                      minLength={8}
+                      required
+                      value={newCustomSecret}
+                      onChange={(e) => setNewCustomSecret(e.target.value)}
+                      placeholder="New private Admin Secret (min 8 characters)"
+                      className="flex-1 min-w-[220px] px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    />
+                    <button
+                      type="submit"
+                      disabled={loading || newCustomSecret.trim().length < 8}
+                      className="px-4 py-2 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white rounded-xl text-xs font-bold cursor-pointer"
+                    >
+                      Save Custom Secret
+                    </button>
+                  </form>
+                )}
+              </div>
+            </div>
+          ) : (
+            /* Trees & Telemetry Dashboard View */
+            <div className="space-y-6">
+              {/* Telemetry Stat Cards */}
               {stats && (
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 flex flex-col justify-between">
-                    <span className="text-[11px] font-semibold text-slate-500 uppercase flex items-center gap-1.5">
-                      <Users className="w-3.5 h-3.5 text-sky-600" />
-                      {t.totalMembers}
-                    </span>
-                    <div className="mt-2 flex items-baseline justify-between">
-                      <span className="text-2xl font-bold text-slate-900">{stats.totalPersons}</span>
-                      <span className="text-[10px] text-slate-400 font-mono">
-                        {stats.livingPersons} living
-                      </span>
+                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
+                    <div className="flex items-center gap-1.5 text-slate-500 text-xs font-medium mb-1">
+                      <FolderTree className="w-3.5 h-3.5 text-slate-400" />
+                      <span>{t.totalTrees}</span>
                     </div>
+                    <p className="text-2xl font-extrabold text-slate-900">{stats.totalTrees}</p>
                   </div>
 
-                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 flex flex-col justify-between">
-                    <span className="text-[11px] font-semibold text-slate-500 uppercase flex items-center gap-1.5">
-                      <FolderTree className="w-3.5 h-3.5 text-emerald-600" />
-                      {t.totalTrees}
-                    </span>
-                    <div className="mt-2">
-                      <span className="text-2xl font-bold text-slate-900">{stats.totalTrees}</span>
+                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
+                    <div className="flex items-center gap-1.5 text-slate-500 text-xs font-medium mb-1">
+                      <Users className="w-3.5 h-3.5 text-slate-400" />
+                      <span>{t.totalMembers}</span>
                     </div>
+                    <p className="text-2xl font-extrabold text-slate-900">{stats.totalPersons}</p>
                   </div>
 
-                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 flex flex-col justify-between">
-                    <span className="text-[11px] font-semibold text-slate-500 uppercase flex items-center gap-1.5">
-                      <Home className="w-3.5 h-3.5 text-indigo-600" />
-                      {t.totalHouseholds}
-                    </span>
-                    <div className="mt-2">
-                      <span className="text-2xl font-bold text-slate-900">{stats.totalHouseholds}</span>
+                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
+                    <div className="flex items-center gap-1.5 text-slate-500 text-xs font-medium mb-1">
+                      <Home className="w-3.5 h-3.5 text-slate-400" />
+                      <span>{t.totalHouseholds}</span>
                     </div>
+                    <p className="text-2xl font-extrabold text-slate-900">{stats.totalHouseholds}</p>
                   </div>
 
-                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 flex flex-col justify-between">
-                    <span className="text-[11px] font-semibold text-slate-500 uppercase flex items-center gap-1.5">
-                      <Key className="w-3.5 h-3.5 text-amber-600" />
-                      Platform Status
-                    </span>
-                    <div className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                      D1 Live & Active
+                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
+                    <div className="flex items-center gap-1.5 text-slate-500 text-xs font-medium mb-1">
+                      <Shield className="w-3.5 h-3.5 text-slate-400" />
+                      <span>{t.livingVsDeceased}</span>
                     </div>
+                    <p className="text-sm font-bold text-slate-900 mt-1">
+                      <span className="text-emerald-700">{stats.livingPersons}</span> / <span className="text-slate-500">{stats.deceasedPersons}</span>
+                    </p>
                   </div>
                 </div>
               )}
 
-              {/* Tree Directory & Support Tools */}
+              {/* Search & Trees List */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-2">
-                  <h4 className="font-bold text-slate-900 text-sm">Family Trees & PIN Recovery</h4>
+                  <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider">
+                    Family Trees Management
+                  </h4>
                   <button
                     type="button"
-                    onClick={() => {
-                      loadStats(adminSecret);
-                      loadTrees(adminSecret, searchQuery);
-                    }}
+                    onClick={() => Promise.all([loadStats(), loadTrees(adminToken, searchQuery)])}
                     className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-                    title="Refresh list"
+                    title="Refresh Data"
                   >
-                    <RefreshCw className="w-3.5 h-3.5" />
+                    <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
                   </button>
                 </div>
 
-                {/* Search Bar */}
                 <form onSubmit={handleSearch} className="flex gap-2">
                   <div className="relative flex-1">
                     <input
@@ -558,7 +995,7 @@ export const GlobalAdminModal: React.FC<GlobalAdminModalProps> = ({
                                     </span>
                                     <button
                                       type="button"
-                                      onClick={() => copyToClipboard(generatedPuk)}
+                                      onClick={() => copyToClipboard(generatedPuk, 'puk')}
                                       className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-amber-900 bg-amber-100 hover:bg-amber-200 rounded transition-colors cursor-pointer"
                                     >
                                       {copiedPuk ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}

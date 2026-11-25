@@ -557,10 +557,47 @@ async function run() {
     });
     assert(unauthAdminRes.status === 401, 'Invalid admin secret rejected with HTTP 401');
 
-    // Authorized Admin lookup
-    const adminSecret = 'kinvault-admin-2026';
+    // Authorized Admin verification & token issuance
+    const adminSecret = process.env.GLOBAL_ADMIN_SECRET || 'kinvault-admin-2026';
+    const verifyAdminRes = await fetch(`${BASE_URL}/api/admin/trees`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Admin-Secret': adminSecret,
+      },
+      body: JSON.stringify({ action: 'verify_admin' }),
+    });
+    const verifyAdminData = await verifyAdminRes.json();
+    assert(verifyAdminRes.status === 200, 'Admin verify returns HTTP 200');
+    assert(!!verifyAdminData.adminToken, 'Admin login issues short-lived session JWT');
+    const adminToken = verifyAdminData.adminToken;
+
+    // 2FA TOTP Setup initialization & verification guardrail
+    const initTotpRes = await fetch(`${BASE_URL}/api/admin/trees`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Admin-Token': adminToken,
+      },
+      body: JSON.stringify({ action: 'init_totp_setup' }),
+    });
+    const initTotpData = await initTotpRes.json();
+    assert(initTotpRes.status === 200, '2FA setup initialization succeeds HTTP 200');
+    assert(!!initTotpData.secret && initTotpData.otpauthUrl?.startsWith('otpauth://totp/KinVault'), 'Returns valid Base32 secret & otpauth URI');
+
+    const badTotpEnableRes = await fetch(`${BASE_URL}/api/admin/trees`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Admin-Token': adminToken,
+      },
+      body: JSON.stringify({ action: 'enable_totp', secret: initTotpData.secret, totpCode: '000000' }),
+    });
+    assert(badTotpEnableRes.status === 400, '2FA activation rejects mismatched Authenticator code (HTTP 400)');
+
+    // Authorized Admin lookup via token
     const authAdminRes = await fetch(`${BASE_URL}/api/admin/trees?q=${inviteCode}`, {
-      headers: { 'X-Admin-Secret': adminSecret },
+      headers: { 'X-Admin-Token': adminToken },
     });
     const adminData = await authAdminRes.json();
     assert(authAdminRes.status === 200, 'Authorized admin lookup returns HTTP 200');

@@ -82,6 +82,17 @@ export async function verifyPuk(puk: string, expectedHash: string, salt: string)
 // TOTP (RFC 6238 Authenticator) Helpers
 // -------------------------------------------------------------
 
+export function generateBase32Secret(length: number = 32): string {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  const array = new Uint8Array(length);
+  crypto.getRandomValues(array);
+  let secret = '';
+  for (let i = 0; i < length; i++) {
+    secret += alphabet[array[i] % alphabet.length];
+  }
+  return secret;
+}
+
 function base32ToBytes(base32: string): Uint8Array {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
   const clean = base32.toUpperCase().replace(/=+$/, '').replace(/\s+/g, '');

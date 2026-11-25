@@ -1,25 +1,114 @@
-import { generatePukCode, hashPin, hashPuk, verifyTotp } from '../../_lib/crypto';
+import {
+  generateBase32Secret,
+  generatePukCode,
+  hashPin,
+  hashPuk,
+  signJwt,
+  verifyJwt,
+  verifyPin,
+  verifyTotp,
+} from '../../_lib/crypto';
 
 export interface Env {
   DB: D1Database;
+  JWT_SECRET: string;
   GLOBAL_ADMIN_SECRET?: string;
-  GLOBAL_ADMIN_TOTP_SECRET?: string; // Optional Base32 TOTP secret for 2FA
+  GLOBAL_ADMIN_TOTP_SECRET?: string; // Optional Base32 TOTP secret env override
 }
 
-function verifyAdminAuth(request: Request, env: Env): { authorized: boolean; reason?: string } {
-  const adminSecret = env.GLOBAL_ADMIN_SECRET || 'kinvault-admin-2026';
-  const providedSecret = request.headers.get('X-Admin-Secret');
+const GLOBAL_ADMIN_SUBJECT = '__GLOBAL_ADMIN__';
 
-  if (!providedSecret || providedSecret !== adminSecret) {
-    return { authorized: false, reason: 'Invalid or missing Global Admin Secret.' };
+interface AdminConfig {
+  envLockedSecret: boolean;
+  envLockedTotp: boolean;
+  dbSecretHash: string;
+  dbSecretSalt: string;
+  totpSecret: string;
+}
+
+async function getAdminConfig(env: Env): Promise<AdminConfig> {
+  let rows: Array<{ key: string; value: string }> = [];
+  try {
+    const res = await env.DB.prepare(
+      "SELECT key, value FROM system_config WHERE key IN ('admin_secret_hash', 'admin_secret_salt', 'admin_totp_secret')"
+    ).all<{ key: string; value: string }>();
+    rows = res.results || [];
+  } catch {
+    // Table may not exist on older setups; ignore safely
   }
 
-  return { authorized: true };
+  const map = new Map<string, string>();
+  for (const r of rows) map.set(r.key, r.value);
+
+  return {
+    envLockedSecret: Boolean(env.GLOBAL_ADMIN_SECRET),
+    envLockedTotp: Boolean(env.GLOBAL_ADMIN_TOTP_SECRET),
+    dbSecretHash: map.get('admin_secret_hash') || '',
+    dbSecretSalt: map.get('admin_secret_salt') || '',
+    totpSecret: env.GLOBAL_ADMIN_TOTP_SECRET || map.get('admin_totp_secret') || '',
+  };
+}
+
+async function verifyAdminCredentials(
+  request: Request,
+  env: Env,
+  totpOverride?: string,
+  allowToken: boolean = true
+): Promise<{ authorized: boolean; reason?: string; config: AdminConfig }> {
+  const config = await getAdminConfig(env);
+
+  // 1. Check short-lived Admin JWT if allowed
+  if (allowToken) {
+    const authHeader = request.headers.get('Authorization');
+    const token =
+      request.headers.get('X-Admin-Token') ||
+      (authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '');
+    if (token) {
+      const payload = await verifyJwt(token, env.JWT_SECRET);
+      if (payload && payload.treeId === GLOBAL_ADMIN_SUBJECT) {
+        return { authorized: true, config };
+      }
+      return { authorized: false, reason: 'Admin session expired. Please sign in again.', config };
+    }
+  }
+
+  // 2. Verify Admin Secret Key
+  const providedSecret = request.headers.get('X-Admin-Secret')?.trim() || '';
+  if (!providedSecret) {
+    return { authorized: false, reason: 'Missing Global Admin Secret.', config };
+  }
+
+  let secretValid = false;
+  if (env.GLOBAL_ADMIN_SECRET) {
+    secretValid = providedSecret === env.GLOBAL_ADMIN_SECRET;
+  } else if (config.dbSecretHash && config.dbSecretSalt) {
+    secretValid = await verifyPin(providedSecret, config.dbSecretHash, config.dbSecretSalt);
+  } else {
+    secretValid = providedSecret === 'kinvault-admin-2026';
+  }
+
+  if (!secretValid) {
+    return { authorized: false, reason: 'Invalid Global Admin Secret.', config };
+  }
+
+  // 3. Verify 2FA TOTP if active
+  if (config.totpSecret) {
+    const totpCode = (totpOverride ?? request.headers.get('X-Admin-Totp') ?? '').trim();
+    if (!totpCode) {
+      return { authorized: false, reason: '2FA Authenticator code is required.', config };
+    }
+    const validTotp = await verifyTotp(totpCode, config.totpSecret);
+    if (!validTotp) {
+      return { authorized: false, reason: 'Invalid 2FA Authenticator code.', config };
+    }
+  }
+
+  return { authorized: true, config };
 }
 
 export const onRequestGet = async ({ request, env }: { request: Request; env: Env }): Promise<Response> => {
   try {
-    const auth = verifyAdminAuth(request, env);
+    const auth = await verifyAdminCredentials(request, env);
     if (!auth.authorized) {
       return new Response(JSON.stringify({ error: auth.reason }), {
         status: 401,
@@ -77,7 +166,19 @@ export const onRequestGet = async ({ request, env }: { request: Request; env: En
 
 export const onRequestPost = async ({ request, env }: { request: Request; env: Env }): Promise<Response> => {
   try {
-    const auth = verifyAdminAuth(request, env);
+    const body = (await request.json()) as {
+      action?: string;
+      treeId?: string;
+      newPin?: string;
+      totpCode?: string;
+      secret?: string;
+      newSecret?: string;
+    };
+
+    const action = body.action;
+    const isVerifyAction = action === 'verify_admin';
+
+    const auth = await verifyAdminCredentials(request, env, body.totpCode, !isVerifyAction);
     if (!auth.authorized) {
       return new Response(JSON.stringify({ error: auth.reason }), {
         status: 401,
@@ -85,32 +186,167 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
       });
     }
 
-    const body = (await request.json()) as {
-      action?: string;
-      treeId?: string;
-      newPin?: string;
-      totpCode?: string;
-    };
+    const { config } = auth;
 
-    // If TOTP secret is configured, require valid TOTP verification
-    if (env.GLOBAL_ADMIN_TOTP_SECRET) {
-      const totpCode = body.totpCode || request.headers.get('X-Admin-Totp') || '';
-      const validTotp = await verifyTotp(totpCode, env.GLOBAL_ADMIN_TOTP_SECRET);
-      if (!validTotp) {
+    if (action === 'verify_admin') {
+      const exp = Math.floor(Date.now() / 1000) + 7200; // 2 hours
+      const adminToken = await signJwt(
+        { treeId: GLOBAL_ADMIN_SUBJECT, deviceId: 'global-admin', exp },
+        env.JWT_SECRET
+      );
+      return new Response(
+        JSON.stringify({
+          success: true,
+          adminToken,
+          is2faEnabled: Boolean(config.totpSecret),
+          hasCustomSecret: Boolean(config.envLockedSecret || config.dbSecretHash),
+          envLockedSecret: config.envLockedSecret,
+          envLockedTotp: config.envLockedTotp,
+          message: 'Admin verified successfully.',
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (action === 'get_security_status') {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          is2faEnabled: Boolean(config.totpSecret),
+          hasCustomSecret: Boolean(config.envLockedSecret || config.dbSecretHash),
+          envLockedSecret: config.envLockedSecret,
+          envLockedTotp: config.envLockedTotp,
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (action === 'init_totp_setup') {
+      if (config.envLockedTotp) {
         return new Response(
-          JSON.stringify({ error: 'Invalid 2FA Authenticator code.' }),
+          JSON.stringify({ error: '2FA is currently managed via Cloudflare environment variables.' }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const secret = generateBase32Secret(32);
+      const otpauthUrl = `otpauth://totp/KinVault:GlobalAdmin?secret=${secret}&issuer=KinVault&digits=6&period=30`;
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          secret,
+          otpauthUrl,
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (action === 'enable_totp') {
+      if (config.envLockedTotp) {
+        return new Response(
+          JSON.stringify({ error: '2FA is managed via Cloudflare environment variables.' }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const candidateSecret = body.secret?.trim().toUpperCase().replace(/[^A-Z2-7]/g, '') || '';
+      const code = body.totpCode?.trim() || '';
+
+      if (candidateSecret.length < 16 || !/^\d{6}$/.test(code)) {
+        return new Response(
+          JSON.stringify({ error: 'Valid Base32 secret and 6-digit Authenticator code are required.' }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const valid = await verifyTotp(code, candidateSecret);
+      if (!valid) {
+        return new Response(
+          JSON.stringify({ error: '6-digit code does not match. Check your Authenticator app and device clock.' }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const now = Date.now();
+      await env.DB.prepare(
+        `INSERT INTO system_config (key, value, updated_at) VALUES ('admin_totp_secret', ?, ?)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+      )
+        .bind(candidateSecret, now)
+        .run();
+
+      return new Response(
+        JSON.stringify({ success: true, is2faEnabled: true, message: '2FA Authenticator activated.' }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (action === 'disable_totp') {
+      if (config.envLockedTotp) {
+        return new Response(
+          JSON.stringify({ error: 'Remove GLOBAL_ADMIN_TOTP_SECRET in Cloudflare environment variables to disable.' }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const code = body.totpCode?.trim() || '';
+      if (!config.totpSecret || !/^\d{6}$/.test(code)) {
+        return new Response(
+          JSON.stringify({ error: 'Enter your current 6-digit Authenticator code to disable 2FA.' }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const valid = await verifyTotp(code, config.totpSecret);
+      if (!valid) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid 6-digit Authenticator code.' }),
           { status: 401, headers: { 'Content-Type': 'application/json' } }
         );
       }
+
+      await env.DB.prepare("DELETE FROM system_config WHERE key = 'admin_totp_secret'").run();
+
+      return new Response(
+        JSON.stringify({ success: true, is2faEnabled: false, message: '2FA Authenticator disabled.' }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
     }
 
-    const action = body.action;
+    if (action === 'update_admin_secret') {
+      if (config.envLockedSecret) {
+        return new Response(
+          JSON.stringify({ error: 'Admin Secret Key is managed via Cloudflare environment variable GLOBAL_ADMIN_SECRET.' }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
 
-    if (action === 'verify_admin') {
-      return new Response(JSON.stringify({ success: true, message: 'Admin verified successfully.' }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      const newSecret = body.newSecret?.trim() || '';
+      if (newSecret.length < 8) {
+        return new Response(
+          JSON.stringify({ error: 'Admin Secret Key must be at least 8 characters.' }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const { hash, salt } = await hashPin(newSecret);
+      const now = Date.now();
+      await env.DB.batch([
+        env.DB.prepare(
+          `INSERT INTO system_config (key, value, updated_at) VALUES ('admin_secret_hash', ?, ?)
+           ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+        ).bind(hash, now),
+        env.DB.prepare(
+          `INSERT INTO system_config (key, value, updated_at) VALUES ('admin_secret_salt', ?, ?)
+           ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+        ).bind(salt, now),
+      ]);
+
+      return new Response(
+        JSON.stringify({ success: true, hasCustomSecret: true, message: 'Custom Admin Secret Key saved.' }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
     }
 
     if (action === 'reset_pin') {

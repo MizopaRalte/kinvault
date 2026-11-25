@@ -56,3 +56,10 @@ CREATE TABLE IF NOT EXISTS relationships (
 CREATE INDEX IF NOT EXISTS idx_households_tree ON households(tree_id);
 CREATE INDEX IF NOT EXISTS idx_persons_tree ON persons(tree_id);
 CREATE INDEX IF NOT EXISTS idx_rel_tree ON relationships(tree_id);
+
+CREATE TABLE IF NOT EXISTS system_config (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+

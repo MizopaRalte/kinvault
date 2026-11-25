@@ -1,15 +1,19 @@
 export interface Env {
   DB: D1Database;
   GLOBAL_ADMIN_SECRET?: string;
+  GLOBAL_ADMIN_TOTP_SECRET?: string;
 }
 
-export const onRequestGet = async ({ request, env }: { request: Request; env: Env }): Promise<Response> => {
+export const onRequestGet = async ({ env }: { request: Request; env: Env }): Promise<Response> => {
   try {
-    const [treesCount, personsCount, householdsCount, livingCount] = await Promise.all([
+    const [treesCount, personsCount, householdsCount, livingCount, dbTotpRow] = await Promise.all([
       env.DB.prepare('SELECT COUNT(*) as count FROM trees').first<{ count: number }>(),
       env.DB.prepare('SELECT COUNT(*) as count FROM persons').first<{ count: number }>(),
       env.DB.prepare('SELECT COUNT(*) as count FROM households').first<{ count: number }>(),
       env.DB.prepare('SELECT COUNT(*) as count FROM persons WHERE is_living = 1').first<{ count: number }>(),
+      env.DB.prepare("SELECT value FROM system_config WHERE key = 'admin_totp_secret'")
+        .first<{ value: string }>()
+        .catch(() => null),
     ]);
 
     const totalTrees = treesCount?.count || 0;
@@ -17,10 +21,7 @@ export const onRequestGet = async ({ request, env }: { request: Request; env: En
     const totalHouseholds = householdsCount?.count || 0;
     const livingPersons = livingCount?.count || 0;
     const deceasedPersons = totalPersons - livingPersons;
-
-    const authSecret = request.headers.get('X-Admin-Secret');
-    const adminSecret = env.GLOBAL_ADMIN_SECRET || 'kinvault-admin-2026';
-    const isAdmin = authSecret && authSecret === adminSecret;
+    const is2faEnabled = Boolean(env.GLOBAL_ADMIN_TOTP_SECRET || dbTotpRow?.value);
 
     return new Response(
       JSON.stringify({
@@ -29,7 +30,7 @@ export const onRequestGet = async ({ request, env }: { request: Request; env: En
         totalHouseholds,
         livingPersons,
         deceasedPersons,
-        isAdmin: !!isAdmin,
+        is2faEnabled,
       }),
       {
         status: 200,
