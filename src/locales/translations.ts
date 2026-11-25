@@ -708,7 +708,7 @@ export const translations: Record<Language, TranslationDictionary> = {
     addAncestorNotice: '{name} chungah a nu leh pa (thlahtute) belhna.',
 
     present: 'Tun thleng',
-    expandAll: 'Tizau Vek Rawh',
+    expandAll: 'Zau Zawka Enna',
     compactView: 'Chhui Tawi (Chhuan 2)',
     focusBranch: 'Thlahtu Bul Enna',
     showFullTree: 'Chhungkua Zawng Zawng Enna',
