@@ -946,7 +946,7 @@ export const App: React.FC = () => {
                   required
                   value={newLockPinInput}
                   onChange={(e) => setNewLockPinInput(e.target.value.replace(/\D/g, ''))}
-                  placeholder="4 Digits (e.g. 1234)"
+                  placeholder="••••"
                   className="w-full text-center font-mono text-xl tracking-widest px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
                 />
               </div>

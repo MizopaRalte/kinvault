@@ -24,7 +24,11 @@ async function run() {
   const runId = Math.random().toString(36).substring(2, 8).toUpperCase();
   const creatorDeviceId = `dev-creator-${runId}`;
   const memberDeviceId = `dev-member-${runId}`;
-  const pin = '384920';
+  const randomPin = () => Math.floor(100000 + Math.random() * 900000).toString();
+  const pin = randomPin();
+  const recoveredPin = randomPin();
+  const adminResetPin = randomPin();
+  const testPhone = `+91900${Math.floor(1000000 + Math.random() * 9000000)}`;
 
   let treeId = '';
   let inviteCode = '';
@@ -364,7 +368,7 @@ async function run() {
           household_id: childHouseholdId,
           full_name: `Zova Sailo (Updated) ${runId}`,
           nickname_or_maiden: 'Vala',
-          phone_e164: '+919876543210',
+          phone_e164: testPhone,
           birth_year: '1988',
           death_year: '',
           is_living: 1,
@@ -400,7 +404,7 @@ async function run() {
       headers: { Authorization: `Bearer ${superAdminToken}` },
     })).json();
     const updatedChild = treeAfterUpdate.persons.find((p) => p.id === childPersonId);
-    assert(updatedChild.phone_e164 === '+919876543210', 'Phone number saved for Directory / WhatsApp integration');
+    assert(updatedChild.phone_e164 === testPhone, 'Phone number saved for Directory / WhatsApp integration');
     assert(updatedChild.nickname_or_maiden === 'Vala', 'Nickname saved');
 
     // -------------------------------------------------------------
@@ -520,7 +524,7 @@ async function run() {
       body: JSON.stringify({
         inviteCode,
         pukCode,
-        newPin: '654321',
+        newPin: recoveredPin,
         deviceId: `recovery-device-${runId}`,
       }),
     });
@@ -534,7 +538,7 @@ async function run() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         inviteCode,
-        pin: '654321',
+        pin: recoveredPin,
         deviceId: `recovery-device-${runId}`,
       }),
     });
@@ -558,16 +562,16 @@ async function run() {
     assert(unauthAdminRes.status === 401, 'Invalid admin secret rejected with HTTP 401');
 
     // Global Admin authentication / 2FA enforcement check
-    const adminSecret = process.env.GLOBAL_ADMIN_SECRET || 'kinvault-admin-2026';
+    const adminSecret = process.env.GLOBAL_ADMIN_SECRET;
     const adminTotp = process.env.GLOBAL_ADMIN_TOTP_CODE;
 
-    if (statsData.is2faEnabled && !adminTotp) {
-      // Production has custom secret / 2FA enabled: verify unauthenticated / missing 2FA attempt is strictly blocked
+    if (!adminSecret || (statsData.is2faEnabled && !adminTotp)) {
+      // Production has private config / 2FA enabled: verify unauthenticated / missing 2FA attempt is strictly blocked
       const blockedAdminRes = await fetch(`${BASE_URL}/api/admin/trees`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Admin-Secret': adminSecret,
+          'X-Admin-Secret': 'unconfigured-attempt',
         },
         body: JSON.stringify({ action: 'verify_admin' }),
       });
@@ -626,7 +630,7 @@ async function run() {
         body: JSON.stringify({
           action: 'reset_pin',
           treeId,
-          newPin: '777888',
+          newPin: adminResetPin,
         }),
       });
       assert(adminResetPinRes.status === 200, 'Admin can reset tree PIN HTTP 200');

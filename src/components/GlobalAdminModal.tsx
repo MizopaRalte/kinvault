@@ -716,7 +716,7 @@ export const GlobalAdminModal: React.FC<GlobalAdminModalProps> = ({
                                 required
                                 value={verifyEnrollCode}
                                 onChange={(e) => setVerifyEnrollCode(e.target.value.replace(/\D/g, ''))}
-                                placeholder="123456"
+                                placeholder="••••••"
                                 className="w-32 px-3 py-2 bg-white border border-slate-300 rounded-xl text-sm font-mono tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-slate-900"
                               />
                               <button
@@ -767,8 +767,8 @@ export const GlobalAdminModal: React.FC<GlobalAdminModalProps> = ({
                     <h4 className="font-bold text-slate-900 text-sm">Master Admin Secret Key</h4>
                     <p className="text-xs text-slate-500 mt-0.5">
                       {hasCustomSecret
-                        ? 'A private custom Admin Secret Key is active (default key disabled).'
-                        : 'Currently using the default key (kinvault-admin-2026). Set a private key below.'}
+                        ? 'A private custom Admin Secret Key is active.'
+                        : 'Set a private Master Admin Secret Key below or configure GLOBAL_ADMIN_SECRET in Cloudflare.'}
                     </p>
                   </div>
                   <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 ${

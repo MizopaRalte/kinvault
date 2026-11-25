@@ -84,7 +84,11 @@ async function verifyAdminCredentials(
   } else if (config.dbSecretHash && config.dbSecretSalt) {
     secretValid = await verifyPin(providedSecret, config.dbSecretHash, config.dbSecretSalt);
   } else {
-    secretValid = providedSecret === 'kinvault-admin-2026';
+    return {
+      authorized: false,
+      reason: 'Global Admin Secret is not configured. Set GLOBAL_ADMIN_SECRET in Cloudflare environment variables.',
+      config,
+    };
   }
 
   if (!secretValid) {

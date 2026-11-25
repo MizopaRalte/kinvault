@@ -600,7 +600,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                     type="tel"
                     value={phoneE164}
                     onChange={(e) => setPhoneE164(e.target.value)}
-                    placeholder="+919876543210"
+                    placeholder="+91..."
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
                   />
                 </div>

@@ -184,7 +184,7 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
                 required
                 value={newPin}
                 onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ''))}
-                placeholder="123456"
+                placeholder="••••••"
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono tracking-widest text-center focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent"
               />
             </div>
