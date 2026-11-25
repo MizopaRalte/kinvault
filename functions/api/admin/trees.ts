@@ -72,31 +72,38 @@ async function verifyAdminCredentials(
     }
   }
 
-  // 2. Verify Admin Secret Key
-  const providedSecret = request.headers.get('X-Admin-Secret')?.trim() || '';
-  if (!providedSecret) {
-    return { authorized: false, reason: 'Missing Global Admin Secret.', config };
-  }
+  const hasSecretConfigured = Boolean(env.GLOBAL_ADMIN_SECRET || (config.dbSecretHash && config.dbSecretSalt));
+  const hasTotpConfigured = Boolean(config.totpSecret);
 
-  let secretValid = false;
-  if (env.GLOBAL_ADMIN_SECRET) {
-    secretValid = providedSecret === env.GLOBAL_ADMIN_SECRET;
-  } else if (config.dbSecretHash && config.dbSecretSalt) {
-    secretValid = await verifyPin(providedSecret, config.dbSecretHash, config.dbSecretSalt);
-  } else {
+  if (!hasSecretConfigured && !hasTotpConfigured) {
     return {
       authorized: false,
-      reason: 'Global Admin Secret is not configured. Set GLOBAL_ADMIN_SECRET in Cloudflare environment variables.',
+      reason: 'Global Admin authentication is not configured. Set GLOBAL_ADMIN_SECRET in Cloudflare environment variables.',
       config,
     };
   }
 
-  if (!secretValid) {
-    return { authorized: false, reason: 'Invalid Global Admin Secret.', config };
+  // 2. Verify Admin Secret Key if configured
+  if (hasSecretConfigured) {
+    const providedSecret = request.headers.get('X-Admin-Secret')?.trim() || '';
+    if (!providedSecret) {
+      return { authorized: false, reason: 'Missing Global Admin Secret.', config };
+    }
+
+    let secretValid = false;
+    if (env.GLOBAL_ADMIN_SECRET) {
+      secretValid = providedSecret === env.GLOBAL_ADMIN_SECRET;
+    } else {
+      secretValid = await verifyPin(providedSecret, config.dbSecretHash, config.dbSecretSalt);
+    }
+
+    if (!secretValid) {
+      return { authorized: false, reason: 'Invalid Global Admin Secret.', config };
+    }
   }
 
   // 3. Verify 2FA TOTP if active
-  if (config.totpSecret) {
+  if (hasTotpConfigured) {
     const totpCode = (totpOverride ?? request.headers.get('X-Admin-Totp') ?? '').trim();
     if (!totpCode) {
       return { authorized: false, reason: '2FA Authenticator code is required.', config };
@@ -290,6 +297,13 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
       if (config.envLockedTotp) {
         return new Response(
           JSON.stringify({ error: 'Remove GLOBAL_ADMIN_TOTP_SECRET in Cloudflare environment variables to disable.' }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (!config.envLockedSecret && !(config.dbSecretHash && config.dbSecretSalt)) {
+        return new Response(
+          JSON.stringify({ error: 'Set a Master Admin Secret Key first before disabling 2FA.' }),
           { status: 400, headers: { 'Content-Type': 'application/json' } }
         );
       }

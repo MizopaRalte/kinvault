@@ -27,6 +27,7 @@ interface AdminStats {
   livingPersons: number;
   deceasedPersons: number;
   is2faEnabled?: boolean;
+  hasAdminSecret?: boolean;
 }
 
 interface TreeItem {
@@ -97,6 +98,9 @@ export const GlobalAdminModal: React.FC<GlobalAdminModalProps> = ({
         setStats(data);
         if (typeof data.is2faEnabled === 'boolean') {
           setIs2faEnabled(data.is2faEnabled);
+        }
+        if (typeof data.hasAdminSecret === 'boolean') {
+          setHasCustomSecret(data.hasAdminSecret);
         }
       }
     } catch (err) {
@@ -180,18 +184,22 @@ export const GlobalAdminModal: React.FC<GlobalAdminModalProps> = ({
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!adminSecret.trim()) return;
+    const requireSecret = hasCustomSecret || !is2faEnabled;
+    if (requireSecret && !adminSecret.trim()) return;
+    if (is2faEnabled && totpCode.trim().length !== 6) return;
 
     setLoading(true);
     setError(null);
     try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (adminSecret.trim()) headers['X-Admin-Secret'] = adminSecret.trim();
+      if (totpCode.trim()) headers['X-Admin-Totp'] = totpCode.trim();
+
       const verifyRes = await fetch('/api/admin/trees', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Admin-Secret': adminSecret.trim(),
-          ...(totpCode.trim() ? { 'X-Admin-Totp': totpCode.trim() } : {}),
-        },
+        headers,
         body: JSON.stringify({
           action: 'verify_admin',
           totpCode: totpCode.trim() || undefined,
@@ -581,23 +589,29 @@ export const GlobalAdminModal: React.FC<GlobalAdminModalProps> = ({
                 </div>
                 <h4 className="font-bold text-slate-900 text-sm">Authentication Required</h4>
                 <p className="text-xs text-slate-500">
-                  Enter master administrative secret key {is2faEnabled ? 'and your 2FA Authenticator code' : ''} to access global controls.
+                  {hasCustomSecret && is2faEnabled
+                    ? 'Enter your Master Admin Secret Key and 2FA Authenticator code to access global controls.'
+                    : is2faEnabled
+                    ? 'Enter the 6-digit code from your Authenticator app to sign in.'
+                    : 'Enter your Master Admin Secret Key to access global controls.'}
                 </p>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                  {t.globalAdminKeyLabel} *
-                </label>
-                <input
-                  type="password"
-                  required
-                  value={adminSecret}
-                  onChange={(e) => setAdminSecret(e.target.value)}
-                  placeholder={t.globalAdminKeyPlaceholder}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
-                />
-              </div>
+              {(hasCustomSecret || !is2faEnabled) && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                    {t.globalAdminKeyLabel} *
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    value={adminSecret}
+                    onChange={(e) => setAdminSecret(e.target.value)}
+                    placeholder={t.globalAdminKeyPlaceholder}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  />
+                </div>
+              )}
 
               {is2faEnabled && (
                 <div>
@@ -620,7 +634,11 @@ export const GlobalAdminModal: React.FC<GlobalAdminModalProps> = ({
 
               <button
                 type="submit"
-                disabled={loading || !adminSecret.trim() || (is2faEnabled && totpCode.length !== 6)}
+                disabled={
+                  loading ||
+                  ((hasCustomSecret || !is2faEnabled) && !adminSecret.trim()) ||
+                  (is2faEnabled && totpCode.length !== 6)
+                }
                 className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Key className="w-4 h-4" />
@@ -768,15 +786,17 @@ export const GlobalAdminModal: React.FC<GlobalAdminModalProps> = ({
                     <p className="text-xs text-slate-500 mt-0.5">
                       {hasCustomSecret
                         ? 'A private custom Admin Secret Key is active.'
+                        : is2faEnabled
+                        ? 'Currently protected by 2FA Authenticator only. You may optionally add a private Secret Key below.'
                         : 'Set a private Master Admin Secret Key below or configure GLOBAL_ADMIN_SECRET in Cloudflare.'}
                     </p>
                   </div>
                   <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 ${
                     hasCustomSecret
                       ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                      : 'bg-amber-100 text-amber-800 border border-amber-200'
+                      : 'bg-slate-100 text-slate-700 border border-slate-200'
                   }`}>
-                    {hasCustomSecret ? 'Private Key Set' : 'Default Key'}
+                    {hasCustomSecret ? 'Private Key Set' : is2faEnabled ? '2FA-Only Mode' : 'Not Set'}
                   </span>
                 </div>
 

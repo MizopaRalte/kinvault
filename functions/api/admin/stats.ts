@@ -6,12 +6,15 @@ export interface Env {
 
 export const onRequestGet = async ({ env }: { request: Request; env: Env }): Promise<Response> => {
   try {
-    const [treesCount, personsCount, householdsCount, livingCount, dbTotpRow] = await Promise.all([
+    const [treesCount, personsCount, householdsCount, livingCount, dbTotpRow, dbSecretRow] = await Promise.all([
       env.DB.prepare('SELECT COUNT(*) as count FROM trees').first<{ count: number }>(),
       env.DB.prepare('SELECT COUNT(*) as count FROM persons').first<{ count: number }>(),
       env.DB.prepare('SELECT COUNT(*) as count FROM households').first<{ count: number }>(),
       env.DB.prepare('SELECT COUNT(*) as count FROM persons WHERE is_living = 1').first<{ count: number }>(),
       env.DB.prepare("SELECT value FROM system_config WHERE key = 'admin_totp_secret'")
+        .first<{ value: string }>()
+        .catch(() => null),
+      env.DB.prepare("SELECT value FROM system_config WHERE key = 'admin_secret_hash'")
         .first<{ value: string }>()
         .catch(() => null),
     ]);
@@ -22,6 +25,7 @@ export const onRequestGet = async ({ env }: { request: Request; env: Env }): Pro
     const livingPersons = livingCount?.count || 0;
     const deceasedPersons = totalPersons - livingPersons;
     const is2faEnabled = Boolean(env.GLOBAL_ADMIN_TOTP_SECRET || dbTotpRow?.value);
+    const hasAdminSecret = Boolean(env.GLOBAL_ADMIN_SECRET || dbSecretRow?.value);
 
     return new Response(
       JSON.stringify({
@@ -31,6 +35,7 @@ export const onRequestGet = async ({ env }: { request: Request; env: Env }): Pro
         livingPersons,
         deceasedPersons,
         is2faEnabled,
+        hasAdminSecret,
       }),
       {
         status: 200,
