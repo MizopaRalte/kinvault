@@ -14,6 +14,7 @@ import {
   ShieldAlert,
   Menu,
   X,
+  Smartphone,
 } from 'lucide-react';
 
 import type { Language, TranslationDictionary } from './locales/translations';
@@ -36,6 +37,7 @@ import { MemberModal } from './components/MemberModal';
 import { ShareModal } from './components/ShareModal';
 import { BackupModal } from './components/BackupModal';
 import { GlobalAdminModal } from './components/GlobalAdminModal';
+import { InstallAppBanner, type BeforeInstallPromptEvent } from './components/InstallAppBanner';
 
 export const App: React.FC = () => {
   // Language state
@@ -85,6 +87,61 @@ export const App: React.FC = () => {
   const [adminModalOpen, setAdminModalOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [globalStats, setGlobalStats] = useState<{ totalTrees: number; totalPersons: number } | null>(null);
+
+  // PWA Install Prompt & Platform Detection
+  const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [installGuideOpen, setInstallGuideOpen] = useState(false);
+  const [isInstalledStandalone, setIsInstalledStandalone] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return (
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (window.navigator as unknown as { standalone?: boolean }).standalone === true
+    );
+  });
+
+  const isIosDevice = useMemo(() => {
+    if (typeof navigator === 'undefined') return false;
+    return (
+      /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+    );
+  }, []);
+
+  useEffect(() => {
+    const onBeforeInstall = (e: Event) => {
+      e.preventDefault();
+      setDeferredInstallPrompt(e as BeforeInstallPromptEvent);
+    };
+    const onAppInstalled = () => {
+      setDeferredInstallPrompt(null);
+      setInstallGuideOpen(false);
+      setIsInstalledStandalone(true);
+    };
+
+    window.addEventListener('beforeinstallprompt', onBeforeInstall);
+    window.addEventListener('appinstalled', onAppInstalled);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onBeforeInstall);
+      window.removeEventListener('appinstalled', onAppInstalled);
+    };
+  }, []);
+
+  const handleTriggerInstall = async () => {
+    if (deferredInstallPrompt) {
+      try {
+        await deferredInstallPrompt.prompt();
+        const choice = await deferredInstallPrompt.userChoice;
+        if (choice.outcome === 'accepted') {
+          setDeferredInstallPrompt(null);
+          setIsInstalledStandalone(true);
+        }
+      } catch {
+        setInstallGuideOpen(true);
+      }
+    } else {
+      setInstallGuideOpen(true);
+    }
+  };
 
   // Load telemetry stats on mount
   useEffect(() => {
@@ -358,6 +415,15 @@ export const App: React.FC = () => {
           isOpen={adminModalOpen}
           onClose={() => setAdminModalOpen(false)}
           t={t}
+        />
+        <InstallAppBanner
+          t={t}
+          deferredPrompt={deferredInstallPrompt}
+          onClearPrompt={() => setDeferredInstallPrompt(null)}
+          isStandalone={isInstalledStandalone}
+          isIos={isIosDevice}
+          forceOpen={installGuideOpen}
+          onCloseForce={() => setInstallGuideOpen(false)}
         />
       </>
     );
@@ -684,6 +750,20 @@ export const App: React.FC = () => {
                 <ShieldAlert className="w-4 h-4 text-amber-700 shrink-0" />
                 <span className="truncate">{t.globalAdminTitle}</span>
               </button>
+
+              {!isInstalledStandalone && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    handleTriggerInstall();
+                  }}
+                  className="col-span-2 flex items-center justify-center gap-2 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold"
+                >
+                  <Smartphone className="w-4 h-4 shrink-0" />
+                  <span>{t.installAppTitle}</span>
+                </button>
+              )}
             </div>
 
             <button
@@ -898,6 +978,17 @@ export const App: React.FC = () => {
         isOpen={adminModalOpen}
         onClose={() => setAdminModalOpen(false)}
         t={t}
+      />
+
+      {/* PWA Install Prompt Banner */}
+      <InstallAppBanner
+        t={t}
+        deferredPrompt={deferredInstallPrompt}
+        onClearPrompt={() => setDeferredInstallPrompt(null)}
+        isStandalone={isInstalledStandalone}
+        isIos={isIosDevice}
+        forceOpen={installGuideOpen}
+        onCloseForce={() => setInstallGuideOpen(false)}
       />
     </div>
   );

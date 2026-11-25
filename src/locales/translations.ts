@@ -214,6 +214,15 @@ export interface TranslationDictionary {
   generateNewPukBtn: string;
   pukGeneratedNotice: string;
   liveStatsTooltip: string;
+
+  // PWA Install Prompt
+  installAppTitle: string;
+  installAppSubtitle: string;
+  installAppBtn: string;
+  installIosStep1: string;
+  installIosStep2: string;
+  installFallbackHint: string;
+  gotItBtn: string;
 }
 
 export const translations: Record<Language, TranslationDictionary> = {
@@ -419,6 +428,14 @@ export const translations: Record<Language, TranslationDictionary> = {
     generateNewPukBtn: 'Generate New PUK',
     pukGeneratedNotice: 'New PUK generated and saved to tree:',
     liveStatsTooltip: 'Live Platform Telemetry',
+
+    installAppTitle: 'Install KinVault App',
+    installAppSubtitle: 'Add to home screen for fast, full-screen & offline access.',
+    installAppBtn: 'Install App',
+    installIosStep1: '1. Tap the Share icon in your Safari toolbar below.',
+    installIosStep2: '2. Scroll down and tap "Add to Home Screen".',
+    installFallbackHint: 'Open your browser menu (⋮) and choose "Install app" or "Add to Home screen".',
+    gotItBtn: 'Got It',
   },
 
   mz: {
@@ -623,6 +640,14 @@ export const translations: Record<Language, TranslationDictionary> = {
     generateNewPukBtn: 'PUK Thar Siam Rawh',
     pukGeneratedNotice: 'PUK thar siam fel a ni e:',
     liveStatsTooltip: 'Platform Data Enna',
+
+    installAppTitle: 'KinVault App Dah Rawh',
+    installAppSubtitle: 'Home screen-ah dah la, offline pawn rang takin hmang rawh.',
+    installAppBtn: 'Install Rawh',
+    installIosStep1: '1. Browser hnuai/chunglam Share button kha hmet rawh.',
+    installIosStep2: '2. "Add to Home Screen" (+) tih kha thlang rawh.',
+    installFallbackHint: 'Browser menu (⋮) hawng la, "Install app" emaw "Add to Home screen" thlang rawh.',
+    gotItBtn: 'Ka Hrethiam E',
   },
 
   es: {
@@ -827,6 +852,14 @@ export const translations: Record<Language, TranslationDictionary> = {
     generateNewPukBtn: 'Generar Nuevo PUK',
     pukGeneratedNotice: 'Nuevo PUK generado correctamente:',
     liveStatsTooltip: 'Telemetría de la Plataforma',
+
+    installAppTitle: 'Instalar App KinVault',
+    installAppSubtitle: 'Añade a tu pantalla de inicio para acceso rápido y sin conexión.',
+    installAppBtn: 'Instalar App',
+    installIosStep1: '1. Toca el botón Compartir en la barra de Safari.',
+    installIosStep2: '2. Desplázate y elige "Añadir a pantalla de inicio".',
+    installFallbackHint: 'Abre el menú del navegador (⋮) y selecciona "Instalar aplicación".',
+    gotItBtn: 'Entendido',
   },
 
   de: {
@@ -1031,5 +1064,13 @@ export const translations: Record<Language, TranslationDictionary> = {
     generateNewPukBtn: 'Neuen PUK generieren',
     pukGeneratedNotice: 'Neuer PUK erfolgreich generiert:',
     liveStatsTooltip: 'Plattform-Telemetrie',
+
+    installAppTitle: 'KinVault App installieren',
+    installAppSubtitle: 'Zum Startbildschirm hinzufügen für schnellen & Offline-Zugriff.',
+    installAppBtn: 'App installieren',
+    installIosStep1: '1. Tippe unten in Safari auf das Teilen-Symbol.',
+    installIosStep2: '2. Scrolle nach unten und tippe auf „Zum Home-Bildschirm“.',
+    installFallbackHint: 'Öffne das Browser-Menü (⋮) und wähle „App installieren“.',
+    gotItBtn: 'Verstanden',
   },
 };
