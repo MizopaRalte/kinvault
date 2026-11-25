@@ -14,6 +14,8 @@ import {
   Focus,
   Camera,
   GitCompare,
+  ChevronsDownUp,
+  ChevronsUpDown,
 } from 'lucide-react';
 import type { Person, Household, Relationship } from '../types/family';
 import type { TranslationDictionary } from '../locales/translations';
@@ -34,6 +36,10 @@ interface PersonDetailModalProps {
   onFocusBranch?: (householdId: string) => void;
   onStartCompare?: (person: Person, household?: Household) => void;
   onPreviewPhoto?: (photoUrl: string) => void;
+  hasBranchChildren?: boolean;
+  isBranchCollapsed?: boolean;
+  onToggleBranchExpand?: (householdId: string) => void;
+  onExpandToHousehold?: (householdId: string) => void;
 }
 
 export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
@@ -51,6 +57,10 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
   onFocusBranch,
   onStartCompare,
   onPreviewPhoto,
+  hasBranchChildren,
+  isBranchCollapsed,
+  onToggleBranchExpand,
+  onExpandToHousehold,
 }) => {
   const familyConnections = useMemo(() => {
     if (!person) return { parents: [], spouses: [], siblings: [], children: [] };
@@ -123,6 +133,9 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
 
   const jumpToPerson = (target: Person) => {
     const targetHousehold = allHouseholds.find((h) => h.id === target.household_id);
+    if (target.household_id) {
+      onExpandToHousehold?.(target.household_id);
+    }
     onSelectPerson(target, targetHousehold);
   };
 
@@ -319,10 +332,39 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
             familyConnections.siblings.length > 0 ||
             familyConnections.children.length > 0) && (
             <div className="space-y-2.5">
-              <h4 className="text-[11px] uppercase tracking-wider font-bold text-slate-400 flex items-center gap-1.5">
-                <Users className="w-3.5 h-3.5" />
-                {t.statsRelationships}
-              </h4>
+              <div className="flex items-center justify-between gap-2">
+                <h4 className="text-[11px] uppercase tracking-wider font-bold text-slate-400 flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5" />
+                  {t.statsRelationships}
+                </h4>
+
+                {hasBranchChildren && person.household_id && onToggleBranchExpand && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onToggleBranchExpand(person.household_id!);
+                      onClose();
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer ${
+                      isBranchCollapsed
+                        ? 'bg-slate-900 hover:bg-slate-800 text-white'
+                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                    }`}
+                  >
+                    {isBranchCollapsed ? (
+                      <>
+                        <ChevronsUpDown className="w-3 h-3" />
+                        <span>{t.expandKidsInTree}</span>
+                      </>
+                    ) : (
+                      <>
+                        <ChevronsDownUp className="w-3 h-3" />
+                        <span>{t.collapseKidsInTree}</span>
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
 
               <div className="space-y-2 text-xs">
                 {familyConnections.parents.length > 0 && (

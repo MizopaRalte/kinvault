@@ -283,6 +283,19 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
     const calculatedLinks: Array<{ sourceX: number; sourceY: number; targetX: number; targetY: number; color: string }> = [];
 
     const visited = new Set<string>();
+    const hiddenByCollapse = new Set<string>();
+
+    function markSubtreeHidden(hId: string) {
+      const children = childrenHouseholdMap.get(hId);
+      if (!children) return;
+      for (const cId of children) {
+        if (!hiddenByCollapse.has(cId)) {
+          hiddenByCollapse.add(cId);
+          markSubtreeHidden(cId);
+        }
+      }
+    }
+
     function buildTree(hId: string): HouseholdNodeData | null {
       if (visited.has(hId) || !householdMap.has(hId)) return null;
       visited.add(hId);
@@ -290,6 +303,10 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
       const h = householdMap.get(hId)!;
       const members = householdMembers.get(hId) || [];
       const isCollapsed = collapsedBranchIds.has(hId);
+
+      if (isCollapsed) {
+        markSubtreeHidden(hId);
+      }
 
       const childIds = isCollapsed
         ? []
@@ -446,10 +463,10 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
       globalXOffset += (localMaxX - localMinX) + maxPossibleNodeWidth + HORIZONTAL_GAP * 2;
     }
 
-    // Disconnected fallback
+    // Disconnected fallback (skip nodes intentionally hidden under collapsed parent branches)
     let disconnectedX = globalXOffset;
     for (const h of householdMap.values()) {
-      if (!positions.has(h.id)) {
+      if (!positions.has(h.id) && !hiddenByCollapse.has(h.id)) {
         const members = householdMembers.get(h.id) || [];
         const geom = getNodeGeometry(h, members);
         const childrenCount = childrenHouseholdMap.get(h.id)?.size || 0;
@@ -923,7 +940,11 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
                   }`}
                   style={{
                     left: `${node.outgoingX - node.x}px`,
-                    top: node.isCouple ? `${AVATAR_SIZE / 2 + 22}px` : `${NODE_HEIGHT - 8}px`,
+                    top: isCollapsed
+                      ? `${NODE_HEIGHT + 2}px`
+                      : node.isCouple
+                      ? `${AVATAR_SIZE / 2 + 22}px`
+                      : `${NODE_HEIGHT - 8}px`,
                   }}
                 >
                   {isCollapsed ? (
@@ -940,7 +961,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
               {/* Quick-Add Pill Bar (always visible on small trees <= 2 nodes, visible on hover otherwise) */}
               {members.length > 0 && (
                 <div
-                  className={`mt-2 flex items-center justify-center gap-1 transition-opacity duration-150 ${
+                  className={`${node.hasChildren && isCollapsed ? 'mt-7' : 'mt-2'} flex items-center justify-center gap-1 transition-opacity duration-150 ${
                     households.length <= 2
                       ? 'opacity-100'
                       : 'opacity-0 group-hover:opacity-100 focus-within:opacity-100'
@@ -1025,6 +1046,37 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
         t={t}
         deviceId={deviceId}
         activePersonId={activePersonId}
+        hasBranchChildren={
+          detailTarget?.person.household_id
+            ? (childrenHouseholdMap.get(detailTarget.person.household_id)?.size || 0) > 0
+            : false
+        }
+        isBranchCollapsed={
+          detailTarget?.person.household_id
+            ? collapsedBranchIds.has(detailTarget.person.household_id)
+            : false
+        }
+        onToggleBranchExpand={(hId) => toggleCollapse(hId)}
+        onExpandToHousehold={(hId) => {
+          setCollapsedBranchIds((prev) => {
+            const next = new Set(prev);
+            const queue = [hId];
+            const seen = new Set<string>();
+            while (queue.length > 0) {
+              const curr = queue.shift()!;
+              if (seen.has(curr)) continue;
+              seen.add(curr);
+              const parents = parentHouseholdMap.get(curr);
+              if (parents) {
+                for (const pId of parents) {
+                  next.delete(pId);
+                  queue.push(pId);
+                }
+              }
+            }
+            return next;
+          });
+        }}
         onClose={() => setDetailTarget(null)}
         onSelectPerson={(p, h) => setDetailTarget({ person: p, household: h })}
         onOpenMemberModal={onOpenMemberModal}

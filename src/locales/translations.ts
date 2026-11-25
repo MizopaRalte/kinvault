@@ -234,6 +234,8 @@ export interface TranslationDictionary {
   // Drill-down & Kinship Calculator
   parentsOnlyView: string;
   kidsCountLabel: string;
+  expandKidsInTree: string;
+  collapseKidsInTree: string;
   compareRelation: string;
   comparingFromHint: string;
   relationToYou: string;
@@ -486,6 +488,8 @@ export const translations: Record<Language, TranslationDictionary> = {
 
     parentsOnlyView: 'Parents Only',
     kidsCountLabel: 'Kids',
+    expandKidsInTree: 'Show Kids on Tree',
+    collapseKidsInTree: 'Hide Kids on Tree',
     compareRelation: 'Compare Relation',
     comparingFromHint: 'Comparing from {name} — Tap another person on the tree',
     relationToYou: 'Your Relation',
@@ -737,6 +741,8 @@ export const translations: Record<Language, TranslationDictionary> = {
 
     parentsOnlyView: 'Nu & Pa Chauh',
     kidsCountLabel: 'Fate',
+    expandKidsInTree: 'Fate Tree-ah Tilang Rawh',
+    collapseKidsInTree: 'Fate Tree-ah Thup Rawh',
     compareRelation: 'Inlaichinna Enna',
     comparingFromHint: '{name} aṭanga en mek — Mi dang hmet rawh',
     relationToYou: 'I Chhungkhat Nihna',
@@ -988,6 +994,8 @@ export const translations: Record<Language, TranslationDictionary> = {
 
     parentsOnlyView: 'Solo Padres',
     kidsCountLabel: 'Hijos',
+    expandKidsInTree: 'Mostrar Hijos en el Árbol',
+    collapseKidsInTree: 'Ocultar Hijos en el Árbol',
     compareRelation: 'Comparar Parentesco',
     comparingFromHint: 'Comparando desde {name} — Toca otra persona en el árbol',
     relationToYou: 'Tu Parentesco',
@@ -1239,6 +1247,8 @@ export const translations: Record<Language, TranslationDictionary> = {
 
     parentsOnlyView: 'Nur Eltern',
     kidsCountLabel: 'Kinder',
+    expandKidsInTree: 'Kinder im Baum anzeigen',
+    collapseKidsInTree: 'Kinder im Baum ausblenden',
     compareRelation: 'Verwandtschaft prüfen',
     comparingFromHint: 'Vergleich ab {name} — Tippe auf eine andere Person',
     relationToYou: 'Beziehung zu dir',
