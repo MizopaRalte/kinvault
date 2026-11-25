@@ -828,7 +828,7 @@ export const translations: Record<Language, TranslationDictionary> = {
     kinshipFormerSpouse: 'Nupui / Pasal Hlui (Inṭhen Tawh)',
     inviteBranchAdminBtn: 'Sâwmna (Peng Admin)',
     invitingBranchAdminSubtitle: '{name} tana sâwmna link bik — a lut rualin amah leh a chhungkaw peng Admin-ah a inthlunzawm nghal ang.',
-    findOnTreeBtn: 'Zawng',
+    findOnTreeBtn: 'Zawnna',
     jumpToPersonPlaceholder: 'Chhungkhat hming zawng rawh...',
     centerOnMeBtn: 'Keimah',
     locateOnTreeBtn: 'Tree-ah En',
