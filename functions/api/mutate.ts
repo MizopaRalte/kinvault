@@ -752,10 +752,24 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
           return new Response(JSON.stringify({ error: 'Permission denied to delete this person.' }), { status: 403 });
         }
 
-        await env.DB.batch([
+        const targetPerson = await env.DB.prepare('SELECT household_id FROM persons WHERE id = ? AND tree_id = ?')
+          .bind(personId, treeId)
+          .first<{ household_id: string | null }>();
+
+        const stmts: D1PreparedStatement[] = [
           env.DB.prepare('DELETE FROM relationships WHERE tree_id = ? AND (person_a_id = ? OR person_b_id = ?)').bind(treeId, personId, personId),
           env.DB.prepare('DELETE FROM persons WHERE id = ? AND tree_id = ?').bind(personId, treeId),
-        ]);
+        ];
+
+        if (targetPerson?.household_id) {
+          stmts.push(
+            env.DB.prepare(
+              `DELETE FROM households WHERE id = ? AND tree_id = ? AND NOT EXISTS (SELECT 1 FROM persons WHERE household_id = ? AND tree_id = ?)`
+            ).bind(targetPerson.household_id, treeId, targetPerson.household_id, treeId)
+          );
+        }
+
+        await env.DB.batch(stmts);
 
         return new Response(JSON.stringify({ success: true, deletedPersonId: personId }), { status: 200 });
       }

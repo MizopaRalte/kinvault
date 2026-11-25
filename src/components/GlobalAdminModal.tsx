@@ -1064,6 +1064,47 @@ export const GlobalAdminModal: React.FC<GlobalAdminModalProps> = ({
                     <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
                   </div>
 
+                  {/* Empty Orphan Households (if any) */}
+                  {(() => {
+                    const occupiedIds = new Set(
+                      inspectedTree.persons.map((p) => p.household_id).filter(Boolean)
+                    );
+                    const emptyHouseholds = inspectedTree.households.filter(
+                      (h) => !occupiedIds.has(h.id)
+                    );
+                    if (emptyHouseholds.length === 0) return null;
+                    return (
+                      <div className="border border-amber-200 bg-amber-50/70 rounded-xl p-2.5 space-y-1.5">
+                        <p className="text-[11px] font-bold text-amber-900 uppercase tracking-wider">
+                          Empty Households ({emptyHouseholds.length})
+                        </p>
+                        {emptyHouseholds.map((eh) => (
+                          <div
+                            key={eh.id}
+                            className="flex items-center justify-between gap-2 bg-white border border-amber-200/80 rounded-lg px-2.5 py-1.5"
+                          >
+                            <span className="text-xs font-semibold text-slate-800 truncate">
+                              {eh.family_name}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setConfirmAdminDelete({
+                                  type: 'household',
+                                  id: eh.id,
+                                  label: eh.family_name,
+                                })
+                              }
+                              className="px-2 py-1 text-[10px] font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg cursor-pointer"
+                            >
+                              Delete Empty Household
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+
                   {/* All Individual Profiles */}
                   <div className="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100 max-h-80 overflow-y-auto">
                     {(() => {

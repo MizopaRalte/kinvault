@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Copy, Check, Share2, MessageCircle, KeyRound, QrCode, Link2 } from 'lucide-react';
-import type { Tree } from '../types/family';
+import type { Person, Tree } from '../types/family';
 import type { TranslationDictionary } from '../locales/translations';
 
 interface ShareModalProps {
@@ -9,6 +9,7 @@ interface ShareModalProps {
   tree: Tree;
   pin: string;
   onPinChange?: (pin: string) => void;
+  targetPerson?: Person | null;
   t: TranslationDictionary;
 }
 
@@ -18,6 +19,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   tree,
   pin,
   onPinChange,
+  targetPerson,
   t,
 }) => {
   const [pinInput, setPinInput] = useState(() => pin.replace(/\D/g, '').slice(0, 6));
@@ -31,10 +33,14 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   const cleanPin = pinInput.replace(/\D/g, '').slice(0, 6);
   const hasValidPin = /^\d{6}$/.test(cleanPin);
 
+  const queryPart = targetPerson
+    ? `?join=${tree.invite_code}&claim=${encodeURIComponent(targetPerson.id)}`
+    : `?join=${tree.invite_code}`;
+
   const joinUrl =
     includePinInLink && hasValidPin
-      ? `${window.location.origin}/?join=${tree.invite_code}#pin=${cleanPin}`
-      : `${window.location.origin}/?join=${tree.invite_code}`;
+      ? `${window.location.origin}/${queryPart}#pin=${cleanPin}`
+      : `${window.location.origin}/${queryPart}`;
 
   const handlePinInputChange = (raw: string) => {
     const nextPin = raw.replace(/\D/g, '').slice(0, 6);
@@ -92,7 +98,13 @@ export const ShareModal: React.FC<ShareModalProps> = ({
         </div>
 
         <div className="p-6 space-y-5">
-          <p className="text-xs text-slate-600 leading-relaxed">{t.shareSubtitle}</p>
+          {targetPerson ? (
+            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-semibold text-emerald-900 leading-relaxed">
+              {t.invitingBranchAdminSubtitle.replace('{name}', targetPerson.full_name)}
+            </div>
+          ) : (
+            <p className="text-xs text-slate-600 leading-relaxed">{t.shareSubtitle}</p>
+          )}
 
           {/* Invite Code & PIN Displays */}
           <div className="grid grid-cols-2 gap-3">

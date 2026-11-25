@@ -21,8 +21,9 @@ import {
   Eye,
   Heart,
   HeartCrack,
+  Share2,
 } from 'lucide-react';
-import type { Person, Household, Relationship } from '../types/family';
+import type { Person, Household, Relationship, Role } from '../types/family';
 import type { TranslationDictionary } from '../locales/translations';
 import { calculateKinship } from '../utils/kinshipCalculator';
 import { compressAvatar } from '../utils/imageCompress';
@@ -36,6 +37,7 @@ interface PersonDetailModalProps {
   t: TranslationDictionary;
   deviceId: string;
   activePersonId?: string;
+  userRole?: Role;
   onClose: () => void;
   onSelectPerson: (person: Person, household?: Household) => void;
   onOpenMemberModal: (person?: Person, household?: Household, initialMode?: string) => void;
@@ -48,6 +50,7 @@ interface PersonDetailModalProps {
   onExpandToHousehold?: (householdId: string) => void;
   onUpdatePersonAvatar?: (person: Person, avatarB64: string) => Promise<void>;
   onToggleSpouseStatus?: (relationshipId: string, status: 'spouse' | 'former_spouse') => Promise<void>;
+  onInviteBranchMember?: (person: Person) => Promise<void>;
 }
 
 export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
@@ -59,6 +62,7 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
   t,
   deviceId,
   activePersonId,
+  userRole,
   onClose,
   onSelectPerson,
   onOpenMemberModal,
@@ -71,11 +75,13 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
   onExpandToHousehold,
   onUpdatePersonAvatar,
   onToggleSpouseStatus,
+  onInviteBranchMember,
 }) => {
   const [photoMenuOpen, setPhotoMenuOpen] = useState(false);
   const [photoSaving, setPhotoSaving] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [togglingRelId, setTogglingRelId] = useState<string | null>(null);
+  const [invitingBranch, setInvitingBranch] = useState(false);
   const familyConnections = useMemo(() => {
     if (!person) return { parents: [], spouses: [], formerSpouses: [], siblings: [], children: [] };
 
@@ -748,6 +754,29 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
+            {onInviteBranchMember &&
+              (userRole === 'super_admin' || userRole === 'branch_admin') &&
+              person.role !== 'super_admin' &&
+              person.id !== activePersonId && (
+                <button
+                  type="button"
+                  disabled={invitingBranch}
+                  onClick={async () => {
+                    setInvitingBranch(true);
+                    try {
+                      await onInviteBranchMember(person);
+                      onClose();
+                    } finally {
+                      setInvitingBranch(false);
+                    }
+                  }}
+                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                  <span>{t.inviteBranchAdminBtn}</span>
+                </button>
+              )}
+
             {onStartCompare && (
               <button
                 type="button"

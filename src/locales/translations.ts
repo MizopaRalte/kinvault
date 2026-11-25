@@ -252,6 +252,8 @@ export interface TranslationDictionary {
   divorcedStatusOption: string;
   markPreviousDivorcedCheck: string;
   kinshipFormerSpouse: string;
+  inviteBranchAdminBtn: string;
+  invitingBranchAdminSubtitle: string;
   compareRelation: string;
   comparingFromHint: string;
   relationToYou: string;
@@ -522,6 +524,8 @@ export const translations: Record<Language, TranslationDictionary> = {
     divorcedStatusOption: 'Divorced / Former Spouse',
     markPreviousDivorcedCheck: 'Mark current spouse ({name}) as divorced',
     kinshipFormerSpouse: 'Former Spouse (Divorced)',
+    inviteBranchAdminBtn: 'Invite (Branch Admin)',
+    invitingBranchAdminSubtitle: 'Personal 1-tap invite for {name} — automatically links their profile as Branch Admin of their family line.',
     compareRelation: 'Compare Relation',
     comparingFromHint: 'Comparing from {name} — Tap another person on the tree',
     relationToYou: 'Your Relation',
@@ -791,6 +795,8 @@ export const translations: Record<Language, TranslationDictionary> = {
     divorcedStatusOption: 'Inṭhen Tawh (Kawppui Hlui)',
     markPreviousDivorcedCheck: 'Kawppui lai ({name}) hi inṭhen tawh angin dah rawh',
     kinshipFormerSpouse: 'Nupui / Pasal Hlui (Inṭhen Tawh)',
+    inviteBranchAdminBtn: 'Sâwmna (Peng Admin)',
+    invitingBranchAdminSubtitle: '{name} tana sâwmna link bik — a lut rualin amah leh a chhungkaw peng Admin-ah a inthlunzawm nghal ang.',
     compareRelation: 'Inlaichinna Enna',
     comparingFromHint: '{name} aṭanga en mek — Mi dang hmet rawh',
     relationToYou: 'I Chhungkhat Nihna',
@@ -1060,6 +1066,8 @@ export const translations: Record<Language, TranslationDictionary> = {
     divorcedStatusOption: 'Divorciados / Ex-Cónyuge',
     markPreviousDivorcedCheck: 'Marcar a su cónyuge actual ({name}) como divorciado/a',
     kinshipFormerSpouse: 'Ex-Cónyuge (Divorciado/a)',
+    inviteBranchAdminBtn: 'Invitar (Admin de Rama)',
+    invitingBranchAdminSubtitle: 'Enlace personal para {name}: vincula su perfil automáticamente como Administrador de su rama familiar.',
     compareRelation: 'Comparar Parentesco',
     comparingFromHint: 'Comparando desde {name} — Toca otra persona en el árbol',
     relationToYou: 'Tu Parentesco',
@@ -1329,6 +1337,8 @@ export const translations: Record<Language, TranslationDictionary> = {
     divorcedStatusOption: 'Geschieden / Ex-Partner',
     markPreviousDivorcedCheck: 'Aktuellen Partner ({name}) als geschieden markieren',
     kinshipFormerSpouse: 'Ex-Partner (Geschieden)',
+    inviteBranchAdminBtn: 'Einladen (Zweig-Admin)',
+    invitingBranchAdminSubtitle: 'Persönlicher 1-Klick-Link für {name} – verknüpft das Profil automatisch als Zweig-Admin.',
     compareRelation: 'Verwandtschaft prüfen',
     comparingFromHint: 'Vergleich ab {name} — Tippe auf eine andere Person',
     relationToYou: 'Beziehung zu dir',

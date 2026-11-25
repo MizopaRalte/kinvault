@@ -8,6 +8,7 @@ import { RecoveryModal } from './RecoveryModal';
 export interface InitialInviteParams {
   inviteCode: string;
   pin: string;
+  claimPersonId?: string;
 }
 
 interface OnboardingViewProps {
@@ -25,8 +26,9 @@ function readInviteFromLocation(): InitialInviteParams | null {
   const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
   const inviteCode = (params.get('join') || params.get('code') || '').trim().toUpperCase();
   const pin = (hashParams.get('pin') || params.get('pin') || '').replace(/\D/g, '').slice(0, 6);
-  if (!inviteCode && !pin) return null;
-  return { inviteCode, pin };
+  const claimPersonId = (params.get('claim') || '').trim();
+  if (!inviteCode && !pin && !claimPersonId) return null;
+  return { inviteCode, pin, claimPersonId: claimPersonId || undefined };
 }
 
 export const OnboardingView: React.FC<OnboardingViewProps> = ({

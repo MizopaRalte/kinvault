@@ -33,6 +33,7 @@ interface TreeCanvasProps {
   onOpenMemberModal: (person?: Person, household?: Household, initialMode?: string) => void;
   onUpdatePersonAvatar?: (person: Person, avatarB64: string) => Promise<void>;
   onToggleSpouseStatus?: (relationshipId: string, status: 'spouse' | 'former_spouse') => Promise<void>;
+  onInviteBranchMember?: (person: Person) => Promise<void>;
   onLayoutCalculated?: (layouts: Map<string, { x: number; y: number; width: number; height: number }>) => void;
 }
 
@@ -85,11 +86,12 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
   relationships,
   t,
   activePersonId,
-  userRole: _userRole,
+  userRole,
   deviceId,
   onOpenMemberModal,
   onUpdatePersonAvatar,
   onToggleSpouseStatus,
+  onInviteBranchMember,
   onLayoutCalculated,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1156,6 +1158,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
         t={t}
         deviceId={deviceId}
         activePersonId={activePersonId}
+        userRole={userRole}
         hasBranchChildren={
           detailTarget?.person.household_id
             ? (childrenHouseholdMap.get(detailTarget.person.household_id)?.size || 0) > 0
@@ -1192,6 +1195,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
         onOpenMemberModal={onOpenMemberModal}
         onUpdatePersonAvatar={onUpdatePersonAvatar}
         onToggleSpouseStatus={onToggleSpouseStatus}
+        onInviteBranchMember={onInviteBranchMember}
         onFocusBranch={(hId) => {
           setFocusedHouseholdId(hId);
           setCollapsedBranchIds(new Set());

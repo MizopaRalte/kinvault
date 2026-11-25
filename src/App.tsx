@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Network,
   Share2,
@@ -45,8 +45,9 @@ function parseInviteFromUrl(): InitialInviteParams | null {
   const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
   const inviteCode = (params.get('join') || params.get('code') || '').trim().toUpperCase();
   const pin = (hashParams.get('pin') || params.get('pin') || '').replace(/\D/g, '').slice(0, 6);
-  if (!inviteCode && !pin) return null;
-  return { inviteCode, pin };
+  const claimPersonId = (params.get('claim') || '').trim();
+  if (!inviteCode && !pin && !claimPersonId) return null;
+  return { inviteCode, pin, claimPersonId: claimPersonId || undefined };
 }
 
 export const App: React.FC = () => {
@@ -73,11 +74,19 @@ export const App: React.FC = () => {
 
   // URL invite params (captured once on boot before URL cleanup)
   const [initialInvite] = useState<InitialInviteParams | null>(() => parseInviteFromUrl());
+  const pendingClaimRef = useRef<string>(initialInvite?.claimPersonId || '');
 
-  // Session state (discard cached session if opening a link to a different tree)
+  // Session state (discard cached session if opening a link to a different tree or targeted claim)
   const [session, setSession] = useState<UserSession | null>(() => {
     const saved = getSession();
     if (saved && initialInvite?.inviteCode && saved.inviteCode !== initialInvite.inviteCode) {
+      return null;
+    }
+    if (
+      saved &&
+      initialInvite?.claimPersonId &&
+      saved.activePersonId !== initialInvite.claimPersonId
+    ) {
       return null;
     }
     return saved;
@@ -196,6 +205,7 @@ export const App: React.FC = () => {
 
   // Modals state
   const [shareModalOpen, setShareModalOpen] = useState<boolean>(false);
+  const [shareTargetPerson, setShareTargetPerson] = useState<Person | null>(null);
   const [backupModalOpen, setBackupModalOpen] = useState<boolean>(false);
   const [pdfExporting, setPdfExporting] = useState<boolean>(false);
   const [memberModalState, setMemberModalState] = useState<{
@@ -253,6 +263,45 @@ export const App: React.FC = () => {
         }
 
         const data = (await res.json()) as TreeData;
+
+        // Auto-claim personalized invite target if unclaimed & not super_admin
+        const autoClaimId = pendingClaimRef.current;
+        if (autoClaimId && currentSession.activePersonId !== autoClaimId) {
+          pendingClaimRef.current = '';
+          const claimTarget = data.persons.find((p) => p.id === autoClaimId);
+          if (claimTarget && !claimTarget.claimed_device_id && claimTarget.role !== 'super_admin') {
+            try {
+              const claimRes = await fetch('/api/mutate', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${currentSession.token}`,
+                },
+                body: JSON.stringify({
+                  action: 'claim_profile',
+                  payload: { personId: autoClaimId },
+                }),
+              });
+              if (claimRes.ok) {
+                const updatedSession: UserSession = {
+                  ...currentSession,
+                  activePersonId: claimTarget.id,
+                  role: claimTarget.role,
+                };
+                setSession(updatedSession);
+                saveSession(updatedSession);
+                data.persons = data.persons.map((p) =>
+                  p.id === claimTarget.id
+                    ? { ...p, claimed_device_id: currentSession.deviceId }
+                    : p
+                );
+              }
+            } catch (claimErr) {
+              console.warn('Auto-claim skipped:', claimErr);
+            }
+          }
+        }
+
         setTreeData(data);
         setIsOfflineSnapshot(false);
 
@@ -894,6 +943,16 @@ export const App: React.FC = () => {
                   status,
                 });
               }}
+              onInviteBranchMember={async (targetPerson) => {
+                if (targetPerson.role === 'member') {
+                  await handleMutate('set_role', {
+                    targetPersonId: targetPerson.id,
+                    role: 'branch_admin',
+                  });
+                }
+                setShareTargetPerson(targetPerson);
+                setShareModalOpen(true);
+              }}
               onLayoutCalculated={(layouts) => setNodeLayouts(layouts)}
             />
           ) : (
@@ -947,10 +1006,14 @@ export const App: React.FC = () => {
       {treeData && shareModalOpen && (
         <ShareModal
           isOpen={shareModalOpen}
-          onClose={() => setShareModalOpen(false)}
+          onClose={() => {
+            setShareModalOpen(false);
+            setShareTargetPerson(null);
+          }}
           tree={treeData.tree}
           pin={sessionPin}
           onPinChange={setSessionPin}
+          targetPerson={shareTargetPerson}
           t={t}
         />
       )}
