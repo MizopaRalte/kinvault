@@ -41,6 +41,12 @@ export interface TranslationDictionary {
   addSpouse: string;
   addSibling: string;
   addChildHousehold: string;
+  addRelativeBtn: string;
+  addRelativeSheetTitle: string;
+  addChildActionDesc: string;
+  addSpouseActionDesc: string;
+  addSiblingActionDesc: string;
+  addParentsActionDesc: string;
   siblingName: string;
   siblingPlaceholder: string;
   addSiblingTitle: string;
@@ -362,6 +368,12 @@ export const translations: Record<Language, TranslationDictionary> = {
     addSpouse: '+ Spouse',
     addSibling: '+ Sibling',
     addChildHousehold: '+ Child',
+    addRelativeBtn: 'Add Relative',
+    addRelativeSheetTitle: 'Add relative for {name}',
+    addChildActionDesc: 'Add a son or daughter under this family',
+    addSpouseActionDesc: 'Add husband or wife',
+    addSiblingActionDesc: 'Add brother or sister (same parents)',
+    addParentsActionDesc: 'Add mother and father above',
     siblingName: 'Sibling Full Name',
     siblingPlaceholder: 'e.g. Rachel Doe',
     addSiblingTitle: '+ Add Sibling',
@@ -670,6 +682,12 @@ export const translations: Record<Language, TranslationDictionary> = {
     addSpouse: '+ Kawppui',
     addSibling: '+ Unau',
     addChildHousehold: '+ Fa',
+    addRelativeBtn: 'Chhungkhat Belh',
+    addRelativeSheetTitle: '{name} chhungkhat belhna',
+    addChildActionDesc: 'He chhungkuaah hian fapa emaw fanu emaw belh rawh',
+    addSpouseActionDesc: 'Pasal emaw nupui emaw belh rawh',
+    addSiblingActionDesc: 'Unaupa emaw unaunu emaw belh rawh (nu leh pa thuhmun)',
+    addParentsActionDesc: 'Nu leh pa chung lamah belh rawh',
     siblingName: 'Unau Hming Pum',
     siblingPlaceholder: 'Entirnan: Lalthanmawii',
     addSiblingTitle: '+ Unau Siamna',
@@ -978,6 +996,12 @@ export const translations: Record<Language, TranslationDictionary> = {
     addSpouse: '+ Pareja',
     addSibling: '+ Hermano/a',
     addChildHousehold: '+ Hijo/a',
+    addRelativeBtn: 'Agregar Familiar',
+    addRelativeSheetTitle: 'Agregar familiar de {name}',
+    addChildActionDesc: 'Añadir un hijo o hija a esta familia',
+    addSpouseActionDesc: 'Añadir esposo o esposa',
+    addSiblingActionDesc: 'Añadir hermano o hermana (mismos padres)',
+    addParentsActionDesc: 'Añadir madre y padre arriba',
     siblingName: 'Nombre de Hermano/a',
     siblingPlaceholder: 'ej. Carlos Gomez',
     addSiblingTitle: '+ Agregar Hermano/a',
@@ -1286,6 +1310,12 @@ export const translations: Record<Language, TranslationDictionary> = {
     addSpouse: '+ Partner',
     addSibling: '+ Geschwister',
     addChildHousehold: '+ Kind',
+    addRelativeBtn: 'Verwandte hinzufügen',
+    addRelativeSheetTitle: 'Verwandte für {name} hinzufügen',
+    addChildActionDesc: 'Sohn oder Tochter in dieser Familie hinzufügen',
+    addSpouseActionDesc: 'Ehemann oder Ehefrau hinzufügen',
+    addSiblingActionDesc: 'Bruder oder Schwester hinzufügen (gleiche Eltern)',
+    addParentsActionDesc: 'Mutter und Vater oben hinzufügen',
     siblingName: 'Name des Geschwisters',
     siblingPlaceholder: 'z.B. Anna Schmidt',
     addSiblingTitle: '+ Geschwister hinzufügen',

@@ -30,7 +30,6 @@ import {
   getAppLockPin,
   setAppLockPin,
 } from './utils/offlineCache';
-import { exportTreeToPdf } from './utils/pdfExport';
 
 import { OnboardingView, type InitialInviteParams } from './components/OnboardingView';
 import { TreeCanvas } from './components/TreeCanvas';
@@ -580,11 +579,12 @@ export const App: React.FC = () => {
     }
   };
 
-  // Export PDF Handler
+  // Export PDF Handler (dynamically loads jsPDF + html2canvas only on demand)
   const handleExportPdf = async () => {
     if (!treeData) return;
     setPdfExporting(true);
     try {
+      const { exportTreeToPdf } = await import('./utils/pdfExport');
       await exportTreeToPdf(
         treeData.tree,
         treeData.households,

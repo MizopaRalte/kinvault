@@ -113,12 +113,18 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Transform state: pan & zoom
+  // Transform state: pan, pinch-zoom & measured viewport for virtual culling
   const [scale, setScale] = useState(0.9);
   const [translate, setTranslate] = useState({ x: 200, y: 120 });
+  const transformRef = useRef({ scale: 0.9, x: 200, y: 120 });
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const [isDragging, setIsDragging] = useState(false);
+  const [isPinching, setIsPinching] = useState(false);
   const dragStart = useRef({ x: 0, y: 0 });
-  const touchDistance = useRef<number | null>(null);
+  const pointerDownScreen = useRef({ x: 0, y: 0 });
+  const didDragRef = useRef(false);
+  const suppressClickUntilRef = useRef(0);
+  const pinchRef = useRef<{ dist: number; midX: number; midY: number } | null>(null);
 
   // Drill-down state: collapsed branch IDs & optional focused branch
   const [collapsedBranchIds, setCollapsedBranchIds] = useState<Set<string>>(new Set());
@@ -746,6 +752,77 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
     }
   }, [nodePositions, onLayoutCalculated]);
 
+  const applyTransform = useCallback((nextScale: number, nextX: number, nextY: number) => {
+    transformRef.current = { scale: nextScale, x: nextX, y: nextY };
+    setScale(nextScale);
+    setTranslate({ x: nextX, y: nextY });
+  }, []);
+
+  const zoomAtViewportCenter = useCallback(
+    (factor: number) => {
+      const { scale: prevScale, x: prevX, y: prevY } = transformRef.current;
+      const nextScale = Math.min(Math.max(0.2, prevScale * factor), 2.2);
+      const el = containerRef.current;
+      if (!el) {
+        applyTransform(nextScale, prevX, prevY);
+        return;
+      }
+      const cx = el.clientWidth / 2;
+      const cy = el.clientHeight / 2;
+      const worldX = (cx - prevX) / prevScale;
+      const worldY = (cy - prevY) / prevScale;
+      applyTransform(nextScale, cx - worldX * nextScale, cy - worldY * nextScale);
+    },
+    [applyTransform]
+  );
+
+  // Measure container size via ResizeObserver for viewport virtualization
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const measure = () => {
+      setContainerSize((prev) =>
+        prev.width === el.clientWidth && prev.height === el.clientHeight
+          ? prev
+          : { width: el.clientWidth, height: el.clientHeight }
+      );
+    };
+    const raf = requestAnimationFrame(measure);
+    if (typeof ResizeObserver !== 'undefined') {
+      const observer = new ResizeObserver(measure);
+      observer.observe(el);
+      return () => {
+        cancelAnimationFrame(raf);
+        observer.disconnect();
+      };
+    }
+    window.addEventListener('resize', measure);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', measure);
+    };
+  }, []);
+
+  // Attach non-passive wheel listener for smooth focal-point zoom
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const rect = el.getBoundingClientRect();
+      const cursorX = e.clientX - rect.left;
+      const cursorY = e.clientY - rect.top;
+      const { scale: prevScale, x: prevX, y: prevY } = transformRef.current;
+      const zoomFactor = e.deltaY > 0 ? 0.92 : 1.08;
+      const nextScale = Math.min(Math.max(0.2, prevScale * zoomFactor), 2.2);
+      const worldX = (cursorX - prevX) / prevScale;
+      const worldY = (cursorY - prevY) / prevScale;
+      applyTransform(nextScale, cursorX - worldX * nextScale, cursorY - worldY * nextScale);
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [applyTransform]);
+
   const resetFit = useCallback(() => {
     if (nodePositions.size === 0 || !containerRef.current) return;
     const { clientWidth, clientHeight } = containerRef.current;
@@ -777,14 +854,8 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
     const newX = (clientWidth - treeW * newScale) / 2 - minX * newScale + (isMobile ? 40 : 90) * newScale;
     const newY = topReserve + (availH - treeH * newScale) / 2 - minY * newScale + (isMobile ? 35 : 90) * newScale;
 
-    setScale(newScale);
-    setTranslate({ x: newX, y: newY });
-  }, [nodePositions]);
-
-  const scaleRef = useRef(scale);
-  useEffect(() => {
-    scaleRef.current = scale;
-  }, [scale]);
+    applyTransform(newScale, newX, newY);
+  }, [nodePositions, applyTransform]);
 
   useEffect(() => {
     return () => {
@@ -829,13 +900,13 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
 
       const { clientWidth, clientHeight } = containerRef.current;
       const minComfortScale = clientWidth < 640 ? 0.85 : 0.95;
-      const targetScale = Math.min(2.2, Math.max(scaleRef.current, minComfortScale));
+      const targetScale = Math.min(2.2, Math.max(transformRef.current.scale, minComfortScale));
 
-      setScale(targetScale);
-      setTranslate({
-        x: clientWidth / 2 - personCenterX * targetScale,
-        y: clientHeight / 2 - personCenterY * targetScale,
-      });
+      applyTransform(
+        targetScale,
+        clientWidth / 2 - personCenterX * targetScale,
+        clientHeight / 2 - personCenterY * targetScale
+      );
 
       setHighlightedPersonId(targetPersonId);
       if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
@@ -845,7 +916,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
 
       return true;
     },
-    [nodePositions, personToHousehold]
+    [nodePositions, personToHousehold, applyTransform]
   );
 
   const focusOnPerson = useCallback(
@@ -997,66 +1068,166 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
 
   // Mouse pan handlers
   const handleMouseDown = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('.flowchart-node, button, a')) return;
+    if ((e.target as HTMLElement).closest('.flowchart-node, .tree-hud, button, a')) return;
+    didDragRef.current = false;
+    pointerDownScreen.current = { x: e.clientX, y: e.clientY };
     setIsDragging(true);
-    dragStart.current = { x: e.clientX - translate.x, y: e.clientY - translate.y };
+    dragStart.current = {
+      x: e.clientX - transformRef.current.x,
+      y: e.clientY - transformRef.current.y,
+    };
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!isDragging) return;
-    setTranslate({
-      x: e.clientX - dragStart.current.x,
-      y: e.clientY - dragStart.current.y,
-    });
+    const moved = Math.hypot(
+      e.clientX - pointerDownScreen.current.x,
+      e.clientY - pointerDownScreen.current.y
+    );
+    if (moved > 6) didDragRef.current = true;
+    applyTransform(
+      transformRef.current.scale,
+      e.clientX - dragStart.current.x,
+      e.clientY - dragStart.current.y
+    );
   };
 
   const handleMouseUp = () => {
+    if (didDragRef.current) {
+      suppressClickUntilRef.current = Date.now() + 100;
+    }
+    didDragRef.current = false;
     setIsDragging(false);
   };
 
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    const zoomFactor = e.deltaY > 0 ? 0.92 : 1.08;
-    const newScale = Math.min(Math.max(0.2, scale * zoomFactor), 2.2);
-    setScale(newScale);
-  };
-
+  // Multi-touch pan & midpoint-anchored pinch-to-zoom handlers
   const handleTouchStart = (e: React.TouchEvent) => {
+    if ((e.target as HTMLElement).closest('.tree-hud')) return;
+
     if (e.touches.length === 1) {
-      if ((e.target as HTMLElement).closest('.flowchart-node, button, a')) return;
-      setIsDragging(true);
+      pinchRef.current = null;
+      setIsPinching(false);
+      didDragRef.current = false;
+      pointerDownScreen.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
       dragStart.current = {
-        x: e.touches[0].clientX - translate.x,
-        y: e.touches[0].clientY - translate.y,
+        x: e.touches[0].clientX - transformRef.current.x,
+        y: e.touches[0].clientY - transformRef.current.y,
       };
-    } else if (e.touches.length === 2) {
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
-      touchDistance.current = Math.sqrt(dx * dx + dy * dy);
+    } else if (e.touches.length === 2 && containerRef.current) {
+      setIsDragging(false);
+      setIsPinching(true);
+      didDragRef.current = true;
+      const rect = containerRef.current.getBoundingClientRect();
+      const t0 = e.touches[0];
+      const t1 = e.touches[1];
+      const dist = Math.hypot(t0.clientX - t1.clientX, t0.clientY - t1.clientY);
+      const midX = (t0.clientX + t1.clientX) / 2 - rect.left;
+      const midY = (t0.clientY + t1.clientY) / 2 - rect.top;
+      pinchRef.current = { dist, midX, midY };
     }
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (e.touches.length === 1 && isDragging) {
-      setTranslate({
-        x: e.touches[0].clientX - dragStart.current.x,
-        y: e.touches[0].clientY - dragStart.current.y,
-      });
-    } else if (e.touches.length === 2 && touchDistance.current) {
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
-      const newDist = Math.sqrt(dx * dx + dy * dy);
-      const ratio = newDist / touchDistance.current;
-      const newScale = Math.min(Math.max(0.2, scale * ratio), 2.2);
-      setScale(newScale);
-      touchDistance.current = newDist;
+    if (e.touches.length === 1 && !pinchRef.current) {
+      if ((e.target as HTMLElement).closest('.tree-hud') && !isDragging) return;
+      const t0 = e.touches[0];
+      const moved = Math.hypot(
+        t0.clientX - pointerDownScreen.current.x,
+        t0.clientY - pointerDownScreen.current.y
+      );
+      if (moved >= 8) {
+        didDragRef.current = true;
+        if (!isDragging) setIsDragging(true);
+      }
+      if (didDragRef.current) {
+        applyTransform(
+          transformRef.current.scale,
+          t0.clientX - dragStart.current.x,
+          t0.clientY - dragStart.current.y
+        );
+      }
+    } else if (e.touches.length === 2 && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const t0 = e.touches[0];
+      const t1 = e.touches[1];
+      const dist = Math.hypot(t0.clientX - t1.clientX, t0.clientY - t1.clientY);
+      const midX = (t0.clientX + t1.clientX) / 2 - rect.left;
+      const midY = (t0.clientY + t1.clientY) / 2 - rect.top;
+
+      if (pinchRef.current && pinchRef.current.dist > 0 && dist > 0) {
+        const { scale: prevScale, x: prevX, y: prevY } = transformRef.current;
+        const nextScale = Math.min(Math.max(0.2, prevScale * (dist / pinchRef.current.dist)), 2.2);
+        const worldX = (pinchRef.current.midX - prevX) / prevScale;
+        const worldY = (pinchRef.current.midY - prevY) / prevScale;
+        applyTransform(nextScale, midX - worldX * nextScale, midY - worldY * nextScale);
+      }
+      pinchRef.current = { dist, midX, midY };
     }
   };
 
-  const handleTouchEnd = () => {
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      pinchRef.current = null;
+      setIsPinching(false);
+      const { x, y } = transformRef.current;
+      dragStart.current = { x: e.touches[0].clientX - x, y: e.touches[0].clientY - y };
+      pointerDownScreen.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      return;
+    }
+    if (didDragRef.current) {
+      suppressClickUntilRef.current = Date.now() + 120;
+    }
+    didDragRef.current = false;
+    pinchRef.current = null;
     setIsDragging(false);
-    touchDistance.current = null;
+    setIsPinching(false);
   };
+
+  // Virtual rendering: only keep nodes & orthogonal connectors inside padded viewport
+  const { visibleNodes, visibleLinks } = useMemo(() => {
+    const allNodes = Array.from(nodePositions.values());
+    if (containerSize.width <= 0 || containerSize.height <= 0) {
+      return { visibleNodes: allNodes, visibleLinks: links };
+    }
+
+    const overscanWorld = 300 / scale;
+    const viewLeft = -translate.x / scale - overscanWorld;
+    const viewTop = -translate.y / scale - overscanWorld;
+    const viewRight = (-translate.x + containerSize.width) / scale + overscanWorld;
+    const viewBottom = (-translate.y + containerSize.height) / scale + overscanWorld;
+
+    const nodesInView = allNodes.filter(
+      (n) =>
+        n.x <= viewRight &&
+        n.x + n.width >= viewLeft &&
+        n.y - 36 <= viewBottom &&
+        n.y + n.height + 76 >= viewTop
+    );
+
+    const linksInView = links.filter((link) => {
+      const busY = link.busY ?? link.targetY - VERTICAL_GAP * 0.48;
+      const minX = Math.min(link.sourceX, link.targetX);
+      const maxX = Math.max(link.sourceX, link.targetX);
+      const minY = Math.min(link.sourceY, busY, link.targetY);
+      const maxY = Math.max(link.sourceY, busY, link.targetY);
+      return (
+        maxX >= viewLeft &&
+        minX <= viewRight &&
+        maxY >= viewTop &&
+        minY <= viewBottom
+      );
+    });
+
+    return { visibleNodes: nodesInView, visibleLinks: linksInView };
+  }, [
+    nodePositions,
+    links,
+    containerSize.width,
+    containerSize.height,
+    translate.x,
+    translate.y,
+    scale,
+  ]);
 
   const toggleCollapse = (hId: string) => {
     setCollapsedBranchIds((prev) => {
@@ -1068,6 +1239,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
   };
 
   const handlePersonClick = (person: Person, household: Household) => {
+    if (Date.now() < suppressClickUntilRef.current) return;
     if (compareSource) {
       const result = calculateKinship(compareSource.person.id, person.id, persons, relationships, t);
       setKinshipState({
@@ -1097,10 +1269,17 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
-      onWheel={handleWheel}
+      onMouseLeave={handleMouseUp}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
+      onClickCapture={(e) => {
+        if (Date.now() < suppressClickUntilRef.current) {
+          e.stopPropagation();
+          e.preventDefault();
+        }
+      }}
       className={`relative w-full h-full overflow-hidden bg-slate-50/70 select-none touch-none ${
         isDragging ? 'cursor-grabbing' : 'cursor-grab'
       }`}
@@ -1111,7 +1290,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
       }}
     >
       {/* Top-Left Tree Title & Drill-Down Bar */}
-      <div className="absolute top-3 left-3 right-3 sm:right-auto sm:top-4 sm:left-4 z-10 flex flex-col gap-2 max-w-full sm:max-w-sm pointer-events-none">
+      <div className="tree-hud absolute top-3 left-3 right-3 sm:right-auto sm:top-4 sm:left-4 z-10 flex flex-col gap-2 max-w-full sm:max-w-sm pointer-events-none">
         <div className="bg-slate-900/95 backdrop-blur-xs text-white rounded-2xl px-3.5 py-2 sm:px-4 sm:py-3 shadow-lg flex items-center justify-between sm:justify-start gap-2.5 sm:gap-3 pointer-events-auto">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
@@ -1199,7 +1378,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
 
       {/* Compare Mode Banner (when selecting second profile) */}
       {compareSource ? (
-        <div className="absolute top-16 sm:top-4 left-3 right-3 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 z-20 bg-indigo-600 text-white shadow-xl rounded-2xl sm:rounded-full px-4 py-2 text-xs font-bold flex items-center justify-between sm:justify-center gap-3">
+        <div className="tree-hud absolute top-16 sm:top-4 left-3 right-3 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 z-20 bg-indigo-600 text-white shadow-xl rounded-2xl sm:rounded-full px-4 py-2 text-xs font-bold flex items-center justify-between sm:justify-center gap-3">
           <div className="flex items-center gap-2 min-w-0">
             <GitCompare className="w-4 h-4 shrink-0 animate-pulse" />
             <span className="truncate">
@@ -1222,14 +1401,16 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
 
       {/* Pan/Zoom Canvas Viewport */}
       <div
-        className="absolute top-0 left-0 w-full h-full transform-gpu origin-top-left transition-transform duration-75"
+        className={`absolute top-0 left-0 w-full h-full transform-gpu origin-top-left ${
+          isDragging || isPinching ? 'transition-none' : 'transition-transform duration-100'
+        }`}
         style={{
           transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
         }}
       >
         {/* SVG Orthogonal Stepped Connection Lines */}
         <svg className="absolute top-0 left-0 w-[12000px] h-[12000px] pointer-events-none overflow-visible">
-          {links.map((link, idx) => {
+          {visibleLinks.map((link, idx) => {
             // Compute clean orthogonal horizontal bus midway between outgoing parent point and child top
             const busY = link.busY ?? link.targetY - VERTICAL_GAP * 0.48;
             const pathData = `M ${link.sourceX} ${link.sourceY} V ${busY} H ${link.targetX} V ${link.targetY}`;
@@ -1239,7 +1420,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
                 spotlightHouseholdIds.has(link.targetHouseholdId));
             return (
               <g
-                key={`link-${idx}`}
+                key={`link-${link.sourceHouseholdId}-${link.targetHouseholdId}-${idx}`}
                 className="transition-opacity duration-200"
                 style={{ opacity: isSpotlightLink ? 1 : 0.25 }}
               >
@@ -1258,7 +1439,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
         </svg>
 
         {/* Flowchart Nodes */}
-        {Array.from(nodePositions.values()).map((node) => {
+        {visibleNodes.map((node) => {
           const h = node.household;
           const members = node.members;
           const isCollapsed = collapsedBranchIds.has(h.id);
@@ -1526,7 +1707,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
       </div>
 
       {/* Bottom-Left Quick Navigation Dock (Find Relative + Center on Me) */}
-      <div className="absolute bottom-4 left-3 sm:bottom-6 sm:left-6 z-20">
+      <div className="tree-hud absolute bottom-[max(1rem,env(safe-area-inset-bottom,0px))] left-3 sm:bottom-6 sm:left-6 z-20">
         {findOpen && (
           <div className="absolute bottom-full left-0 mb-2 w-64 sm:w-72 bg-white/95 backdrop-blur-md border border-slate-200 rounded-2xl shadow-2xl overflow-hidden">
             <div className="p-2 border-b border-slate-100 flex items-center gap-1.5">
@@ -1627,20 +1808,22 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
       </div>
 
       {/* Floating Canvas Zoom Controls */}
-      <div className="absolute bottom-4 right-4 sm:bottom-6 sm:right-6 flex flex-col gap-1.5 bg-white/95 backdrop-blur-sm border border-slate-200 rounded-2xl p-1.5 shadow-lg z-10">
+      <div className="tree-hud absolute bottom-[max(1rem,env(safe-area-inset-bottom,0px))] right-4 sm:bottom-6 sm:right-6 flex flex-col gap-1.5 bg-white/95 backdrop-blur-sm border border-slate-200 rounded-2xl p-1.5 shadow-lg z-10">
         <button
           type="button"
-          onClick={() => setScale((s) => Math.min(2.2, s * 1.15))}
+          onClick={() => zoomAtViewportCenter(1.18)}
           title={t.zoomIn}
-          className="p-2.5 sm:p-2 text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+          aria-label={t.zoomIn}
+          className="min-w-11 min-h-11 sm:min-w-9 sm:min-h-9 p-2.5 sm:p-2 flex items-center justify-center text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
         >
           <ZoomIn className="w-4 h-4" />
         </button>
         <button
           type="button"
-          onClick={() => setScale((s) => Math.max(0.2, s * 0.85))}
+          onClick={() => zoomAtViewportCenter(0.85)}
           title={t.zoomOut}
-          className="p-2.5 sm:p-2 text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+          aria-label={t.zoomOut}
+          className="min-w-11 min-h-11 sm:min-w-9 sm:min-h-9 p-2.5 sm:p-2 flex items-center justify-center text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
         >
           <ZoomOut className="w-4 h-4" />
         </button>
@@ -1649,7 +1832,8 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
           type="button"
           onClick={resetFit}
           title={t.resetView}
-          className="p-2.5 sm:p-2 text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+          aria-label={t.resetView}
+          className="min-w-11 min-h-11 sm:min-w-9 sm:min-h-9 p-2.5 sm:p-2 flex items-center justify-center text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
         >
           <RotateCcw className="w-4 h-4" />
         </button>

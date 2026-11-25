@@ -9,3 +9,12 @@
     -moz-osx-font-smoothing: grayscale;
   }
 }
+
+dialog:modal {
+  overscroll-behavior: contain;
+}
+
+dialog::backdrop {
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
