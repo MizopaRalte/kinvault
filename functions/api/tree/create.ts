@@ -91,11 +91,11 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
         'INSERT INTO trees (id, invite_code, name, pin_hash, pin_salt, puk_hash, puk_salt, puk_created_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
       ).bind(treeId, inviteCode, treeName, pinHash, pinSalt, pukHash, pukSalt, now, now),
       env.DB.prepare(
-        'INSERT INTO households (id, tree_id, family_name, branch_color, address_line, city, postal_code, country, family_photo_b64, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-      ).bind(householdId, treeId, `${creatorName} Family`, branchColor, '', city, '', country, '', now),
+        'INSERT INTO households (id, tree_id, family_name, branch_color, address_line, city, postal_code, country, family_photo_b64, created_by_device_id, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      ).bind(householdId, treeId, `${creatorName} Family`, branchColor, '', city, '', country, '', deviceId, now),
       env.DB.prepare(
-        'INSERT INTO persons (id, tree_id, household_id, full_name, nickname_or_maiden, phone_e164, birth_year, death_year, is_living, avatar_b64, role, claimed_device_id, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-      ).bind(personId, treeId, householdId, creatorName, '', '', '', '', 1, '', 'super_admin', deviceId, now),
+        'INSERT INTO persons (id, tree_id, household_id, full_name, nickname_or_maiden, phone_e164, birth_year, death_year, is_living, avatar_b64, role, claimed_device_id, created_by_device_id, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      ).bind(personId, treeId, householdId, creatorName, '', '', '', '', 1, '', 'super_admin', deviceId, deviceId, now),
     ]);
 
     // Sign JWT valid for 365 days

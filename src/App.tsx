@@ -1043,6 +1043,11 @@ export const App: React.FC = () => {
         isOpen={adminModalOpen}
         onClose={() => setAdminModalOpen(false)}
         t={t}
+        onDataChanged={() => {
+          if (session) {
+            loadTreeData(session, false);
+          }
+        }}
       />
 
       {/* PWA Install Prompt Banner */}

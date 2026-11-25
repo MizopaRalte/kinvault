@@ -129,10 +129,10 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
         } else {
           // Creating brand new household
           await env.DB.prepare(
-            `INSERT INTO households (id, tree_id, family_name, branch_color, address_line, city, postal_code, country, family_photo_b64, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            `INSERT INTO households (id, tree_id, family_name, branch_color, address_line, city, postal_code, country, family_photo_b64, created_by_device_id, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
           )
-            .bind(id, treeId, familyName, branchColor, addressLine, city, postalCode, country, familyPhotoB64, now)
+            .bind(id, treeId, familyName, branchColor, addressLine, city, postalCode, country, familyPhotoB64, deviceId, now)
             .run();
         }
 
@@ -170,10 +170,10 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
         } else {
           // Creating person
           await env.DB.prepare(
-            `INSERT INTO persons (id, tree_id, household_id, full_name, nickname_or_maiden, phone_e164, birth_year, death_year, is_living, avatar_b64, role, claimed_device_id, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'member', '', ?)`
+            `INSERT INTO persons (id, tree_id, household_id, full_name, nickname_or_maiden, phone_e164, birth_year, death_year, is_living, avatar_b64, role, claimed_device_id, created_by_device_id, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'member', '', ?, ?)`
           )
-            .bind(id, treeId, householdId, fullName, nicknameOrMaiden, phoneE164, birthYear, deathYear, isLiving, avatarB64, now)
+            .bind(id, treeId, householdId, fullName, nicknameOrMaiden, phoneE164, birthYear, deathYear, isLiving, avatarB64, deviceId, now)
             .run();
         }
 
@@ -263,13 +263,13 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
 
           batchStatements.push(
             env.DB.prepare(
-              `INSERT INTO households (id, tree_id, family_name, branch_color, address_line, city, postal_code, country, family_photo_b64, updated_at)
-               VALUES (?, ?, ?, ?, '', ?, '', ?, '', ?)`
-            ).bind(hId, treeId, item.hName, branchColor, city, country, now),
+              `INSERT INTO households (id, tree_id, family_name, branch_color, address_line, city, postal_code, country, family_photo_b64, created_by_device_id, updated_at)
+               VALUES (?, ?, ?, ?, '', ?, '', ?, '', ?, ?)`
+            ).bind(hId, treeId, item.hName, branchColor, city, country, deviceId, now),
             env.DB.prepare(
-              `INSERT INTO persons (id, tree_id, household_id, full_name, nickname_or_maiden, phone_e164, birth_year, death_year, is_living, avatar_b64, role, claimed_device_id, updated_at)
-               VALUES (?, ?, ?, ?, '', '', ?, '', 1, ?, 'member', '', ?)`
-            ).bind(cId, treeId, hId, item.name, item.bYear, item.avatar, now),
+              `INSERT INTO persons (id, tree_id, household_id, full_name, nickname_or_maiden, phone_e164, birth_year, death_year, is_living, avatar_b64, role, claimed_device_id, created_by_device_id, updated_at)
+               VALUES (?, ?, ?, ?, '', '', ?, '', 1, ?, 'member', '', ?, ?)`
+            ).bind(cId, treeId, hId, item.name, item.bYear, item.avatar, deviceId, now),
             env.DB.prepare(
               `INSERT INTO relationships (id, tree_id, person_a_id, person_b_id, rel_type)
                VALUES (?, ?, ?, ?, 'parent_child')`
@@ -290,9 +290,9 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
             if (idx === 0) primarySpousePersonId = spId;
             batchStatements.push(
               env.DB.prepare(
-                `INSERT INTO persons (id, tree_id, household_id, full_name, nickname_or_maiden, phone_e164, birth_year, death_year, is_living, avatar_b64, role, claimed_device_id, updated_at)
-                 VALUES (?, ?, ?, ?, '', '', '', '', 1, '', 'member', '', ?)`
-              ).bind(spId, treeId, hId, item.spName, now),
+                `INSERT INTO persons (id, tree_id, household_id, full_name, nickname_or_maiden, phone_e164, birth_year, death_year, is_living, avatar_b64, role, claimed_device_id, created_by_device_id, updated_at)
+                 VALUES (?, ?, ?, ?, '', '', '', '', 1, '', 'member', '', ?, ?)`
+              ).bind(spId, treeId, hId, item.spName, deviceId, now),
               env.DB.prepare(
                 `INSERT INTO relationships (id, tree_id, person_a_id, person_b_id, rel_type)
                  VALUES (?, ?, ?, ?, 'spouse')`
@@ -467,9 +467,9 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
 
         batchStatements.push(
           env.DB.prepare(
-            `INSERT INTO persons (id, tree_id, household_id, full_name, nickname_or_maiden, phone_e164, birth_year, death_year, is_living, avatar_b64, role, claimed_device_id, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, '', 1, ?, 'member', '', ?)`
-          ).bind(spousePersonId, treeId, person.household_id, spouseFullName, nicknameOrMaiden, phoneE164, birthYear, avatarB64, now),
+            `INSERT INTO persons (id, tree_id, household_id, full_name, nickname_or_maiden, phone_e164, birth_year, death_year, is_living, avatar_b64, role, claimed_device_id, created_by_device_id, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, '', 1, ?, 'member', '', ?, ?)`
+          ).bind(spousePersonId, treeId, person.household_id, spouseFullName, nicknameOrMaiden, phoneE164, birthYear, avatarB64, deviceId, now),
           env.DB.prepare(
             `INSERT INTO relationships (id, tree_id, person_a_id, person_b_id, rel_type)
              VALUES (?, ?, ?, ?, ?)`
@@ -560,22 +560,22 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
 
         const batchStatements = [
           env.DB.prepare(
-            `INSERT INTO households (id, tree_id, family_name, branch_color, address_line, city, postal_code, country, family_photo_b64, updated_at)
-             VALUES (?, ?, ?, ?, '', ?, '', ?, '', ?)`
-          ).bind(siblingHouseholdId, treeId, `${siblingFullName} Household`, branchColor, city, country, now),
+            `INSERT INTO households (id, tree_id, family_name, branch_color, address_line, city, postal_code, country, family_photo_b64, created_by_device_id, updated_at)
+             VALUES (?, ?, ?, ?, '', ?, '', ?, '', ?, ?)`
+          ).bind(siblingHouseholdId, treeId, `${siblingFullName} Household`, branchColor, city, country, deviceId, now),
           env.DB.prepare(
-            `INSERT INTO persons (id, tree_id, household_id, full_name, nickname_or_maiden, phone_e164, birth_year, death_year, is_living, avatar_b64, role, claimed_device_id, updated_at)
-             VALUES (?, ?, ?, ?, '', ?, ?, '', 1, ?, 'member', '', ?)`
-          ).bind(siblingPersonId, treeId, siblingHouseholdId, siblingFullName, phoneE164, birthYear, avatarB64, now),
+            `INSERT INTO persons (id, tree_id, household_id, full_name, nickname_or_maiden, phone_e164, birth_year, death_year, is_living, avatar_b64, role, claimed_device_id, created_by_device_id, updated_at)
+             VALUES (?, ?, ?, ?, '', ?, ?, '', 1, ?, 'member', '', ?, ?)`
+          ).bind(siblingPersonId, treeId, siblingHouseholdId, siblingFullName, phoneE164, birthYear, avatarB64, deviceId, now),
         ];
 
         if (spouseFullName) {
           const spousePersonId = crypto.randomUUID();
           batchStatements.push(
             env.DB.prepare(
-              `INSERT INTO persons (id, tree_id, household_id, full_name, nickname_or_maiden, phone_e164, birth_year, death_year, is_living, avatar_b64, role, claimed_device_id, updated_at)
-               VALUES (?, ?, ?, ?, '', '', '', '', 1, '', 'member', '', ?)`
-            ).bind(spousePersonId, treeId, siblingHouseholdId, spouseFullName, now),
+              `INSERT INTO persons (id, tree_id, household_id, full_name, nickname_or_maiden, phone_e164, birth_year, death_year, is_living, avatar_b64, role, claimed_device_id, created_by_device_id, updated_at)
+               VALUES (?, ?, ?, ?, '', '', '', '', 1, '', 'member', '', ?, ?)`
+            ).bind(spousePersonId, treeId, siblingHouseholdId, spouseFullName, deviceId, now),
             env.DB.prepare(
               `INSERT INTO relationships (id, tree_id, person_a_id, person_b_id, rel_type)
                VALUES (?, ?, ?, ?, 'spouse')`
@@ -604,13 +604,13 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
 
           batchStatements.push(
             env.DB.prepare(
-              `INSERT INTO households (id, tree_id, family_name, branch_color, address_line, city, postal_code, country, family_photo_b64, updated_at)
-               VALUES (?, ?, ?, ?, '', '', '', '', '', ?)`
-            ).bind(parentHouseholdId, treeId, `${pName} Household`, '#1E293B', now),
+              `INSERT INTO households (id, tree_id, family_name, branch_color, address_line, city, postal_code, country, family_photo_b64, created_by_device_id, updated_at)
+               VALUES (?, ?, ?, ?, '', '', '', '', '', ?, ?)`
+            ).bind(parentHouseholdId, treeId, `${pName} Household`, '#1E293B', deviceId, now),
             env.DB.prepare(
-              `INSERT INTO persons (id, tree_id, household_id, full_name, nickname_or_maiden, phone_e164, birth_year, death_year, is_living, avatar_b64, role, claimed_device_id, updated_at)
-               VALUES (?, ?, ?, ?, '', '', '', '', 0, '', 'member', '', ?)`
-            ).bind(parentPersonId, treeId, parentHouseholdId, pName, now),
+              `INSERT INTO persons (id, tree_id, household_id, full_name, nickname_or_maiden, phone_e164, birth_year, death_year, is_living, avatar_b64, role, claimed_device_id, created_by_device_id, updated_at)
+               VALUES (?, ?, ?, ?, '', '', '', '', 0, '', 'member', '', ?, ?)`
+            ).bind(parentPersonId, treeId, parentHouseholdId, pName, deviceId, now),
             env.DB.prepare(
               `INSERT INTO relationships (id, tree_id, person_a_id, person_b_id, rel_type)
                VALUES (?, ?, ?, ?, 'parent_child')`
@@ -663,9 +663,9 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
         const newHouseholdId = crypto.randomUUID();
         const batchStatements = [
           env.DB.prepare(
-            `INSERT INTO households (id, tree_id, family_name, branch_color, address_line, city, postal_code, country, family_photo_b64, updated_at)
-             VALUES (?, ?, ?, ?, '', '', '', '', '', ?)`
-          ).bind(newHouseholdId, treeId, familyName, branchColor, now),
+            `INSERT INTO households (id, tree_id, family_name, branch_color, address_line, city, postal_code, country, family_photo_b64, created_by_device_id, updated_at)
+             VALUES (?, ?, ?, ?, '', '', '', '', '', ?, ?)`
+          ).bind(newHouseholdId, treeId, familyName, branchColor, deviceId, now),
         ];
 
         let fatherId: string | null = null;
@@ -675,9 +675,9 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
           fatherId = crypto.randomUUID();
           batchStatements.push(
             env.DB.prepare(
-              `INSERT INTO persons (id, tree_id, household_id, full_name, nickname_or_maiden, phone_e164, birth_year, death_year, is_living, avatar_b64, role, claimed_device_id, updated_at)
-               VALUES (?, ?, ?, ?, '', '', '', '', 0, ?, 'member', '', ?)`
-            ).bind(fatherId, treeId, newHouseholdId, fatherName, fatherAvatarB64, now),
+              `INSERT INTO persons (id, tree_id, household_id, full_name, nickname_or_maiden, phone_e164, birth_year, death_year, is_living, avatar_b64, role, claimed_device_id, created_by_device_id, updated_at)
+               VALUES (?, ?, ?, ?, '', '', '', '', 0, ?, 'member', '', ?, ?)`
+            ).bind(fatherId, treeId, newHouseholdId, fatherName, fatherAvatarB64, deviceId, now),
             env.DB.prepare(
               `INSERT INTO relationships (id, tree_id, person_a_id, person_b_id, rel_type)
                VALUES (?, ?, ?, ?, 'parent_child')`
@@ -689,9 +689,9 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
           motherId = crypto.randomUUID();
           batchStatements.push(
             env.DB.prepare(
-              `INSERT INTO persons (id, tree_id, household_id, full_name, nickname_or_maiden, phone_e164, birth_year, death_year, is_living, avatar_b64, role, claimed_device_id, updated_at)
-               VALUES (?, ?, ?, ?, '', '', '', '', 0, ?, 'member', '', ?)`
-            ).bind(motherId, treeId, newHouseholdId, motherName, motherAvatarB64, now),
+              `INSERT INTO persons (id, tree_id, household_id, full_name, nickname_or_maiden, phone_e164, birth_year, death_year, is_living, avatar_b64, role, claimed_device_id, created_by_device_id, updated_at)
+               VALUES (?, ?, ?, ?, '', '', '', '', 0, ?, 'member', '', ?, ?)`
+            ).bind(motherId, treeId, newHouseholdId, motherName, motherAvatarB64, deviceId, now),
             env.DB.prepare(
               `INSERT INTO relationships (id, tree_id, person_a_id, person_b_id, rel_type)
                VALUES (?, ?, ?, ?, 'parent_child')`
@@ -747,7 +747,7 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
           return new Response(JSON.stringify({ error: 'Person ID is required.' }), { status: 400 });
         }
 
-        const canDelete = await canDeleteNode(env.DB, treeId, caller, 'person', personId);
+        const canDelete = await canDeleteNode(env.DB, treeId, caller, deviceId, 'person', personId);
         if (!canDelete) {
           return new Response(JSON.stringify({ error: 'Permission denied to delete this person.' }), { status: 403 });
         }
@@ -766,7 +766,7 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
           return new Response(JSON.stringify({ error: 'Household ID is required.' }), { status: 400 });
         }
 
-        const canDelete = await canDeleteNode(env.DB, treeId, caller, 'household', householdId);
+        const canDelete = await canDeleteNode(env.DB, treeId, caller, deviceId, 'household', householdId);
         if (!canDelete) {
           return new Response(JSON.stringify({ error: 'Permission denied to delete this household.' }), { status: 403 });
         }

@@ -13,6 +13,7 @@ export interface DbPerson {
   avatar_b64: string | null;
   role: 'super_admin' | 'branch_admin' | 'member';
   claimed_device_id: string | null;
+  created_by_device_id?: string | null;
   updated_at: number;
 }
 
@@ -34,6 +35,7 @@ export interface DbHousehold {
   postal_code: string | null;
   country: string | null;
   family_photo_b64: string | null;
+  created_by_device_id?: string | null;
   updated_at: number;
 }
 
@@ -206,25 +208,58 @@ export async function canDeleteNode(
   db: D1Database,
   treeId: string,
   caller: DbPerson | null,
+  callerDeviceId: string,
   type: 'person' | 'household',
   targetId: string
 ): Promise<boolean> {
-  if (!caller) return false;
-  if (caller.role === 'super_admin') return true;
+  if (caller?.role === 'super_admin') return true;
 
-  if (caller.role === 'branch_admin') {
+  if (caller?.role === 'branch_admin') {
     const { allowedPersonIds, allowedHouseholdIds } = await getDescendantScope(db, treeId, caller);
     if (type === 'person') {
-      // Cannot delete self or root of own branch
-      if (targetId === caller.id) return false;
-      return allowedPersonIds.has(targetId);
+      if (targetId !== caller.id && allowedPersonIds.has(targetId)) return true;
     } else {
-      // Cannot delete own immediate household
-      if (targetId === caller.household_id) return false;
-      return allowedHouseholdIds.has(targetId);
+      if (targetId !== caller.household_id && allowedHouseholdIds.has(targetId)) return true;
     }
   }
 
-  // Members cannot delete nodes
+  // Profile / household adder can delete unclaimed entries they added from the same device
+  if (callerDeviceId) {
+    if (type === 'person') {
+      const target = await db
+        .prepare('SELECT id, role, claimed_device_id, created_by_device_id FROM persons WHERE id = ? AND tree_id = ?')
+        .bind(targetId, treeId)
+        .first<Pick<DbPerson, 'id' | 'role' | 'claimed_device_id' | 'created_by_device_id'>>();
+
+      if (
+        target &&
+        target.created_by_device_id === callerDeviceId &&
+        target.role !== 'super_admin' &&
+        (!target.claimed_device_id || target.claimed_device_id === callerDeviceId)
+      ) {
+        return true;
+      }
+    } else {
+      const targetH = await db
+        .prepare('SELECT id, created_by_device_id FROM households WHERE id = ? AND tree_id = ?')
+        .bind(targetId, treeId)
+        .first<Pick<DbHousehold, 'id' | 'created_by_device_id'>>();
+
+      if (targetH && targetH.created_by_device_id === callerDeviceId) {
+        const members = await db
+          .prepare('SELECT role, claimed_device_id FROM persons WHERE household_id = ? AND tree_id = ?')
+          .bind(targetId, treeId)
+          .all<Pick<DbPerson, 'role' | 'claimed_device_id'>>();
+
+        const hasProtectedMember = (members.results || []).some(
+          (m) =>
+            m.role === 'super_admin' ||
+            Boolean(m.claimed_device_id && m.claimed_device_id !== callerDeviceId)
+        );
+        if (!hasProtectedMember) return true;
+      }
+    }
+  }
+
   return false;
 }

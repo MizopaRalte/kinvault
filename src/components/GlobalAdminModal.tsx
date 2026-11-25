@@ -17,6 +17,8 @@ import {
   Trash2,
   QrCode,
   Smartphone,
+  Eye,
+  ArrowLeft,
 } from 'lucide-react';
 import type { TranslationDictionary } from '../locales/translations';
 
@@ -41,10 +43,38 @@ interface TreeItem {
   has_puk: number;
 }
 
+interface InspectedPerson {
+  id: string;
+  household_id: string | null;
+  full_name: string;
+  nickname_or_maiden?: string;
+  phone_e164?: string;
+  birth_year?: string;
+  death_year?: string;
+  is_living: number;
+  role: string;
+  claimed_device_id?: string;
+}
+
+interface InspectedHousehold {
+  id: string;
+  family_name: string;
+  branch_color: string;
+  city?: string;
+  country?: string;
+}
+
+interface InspectedTreeData {
+  tree: { id: string; invite_code: string; name: string; created_at: number };
+  households: InspectedHousehold[];
+  persons: InspectedPerson[];
+}
+
 interface GlobalAdminModalProps {
   isOpen: boolean;
   onClose: () => void;
   t: TranslationDictionary;
+  onDataChanged?: () => void;
 }
 
 const ADMIN_TOKEN_KEY = 'kv_admin_token';
@@ -53,6 +83,7 @@ export const GlobalAdminModal: React.FC<GlobalAdminModalProps> = ({
   isOpen,
   onClose,
   t,
+  onDataChanged,
 }) => {
   const [adminSecret, setAdminSecret] = useState('');
   const [totpCode, setTotpCode] = useState('');
@@ -89,6 +120,15 @@ export const GlobalAdminModal: React.FC<GlobalAdminModalProps> = ({
   const [actionType, setActionType] = useState<'reset_pin' | 'puk' | 'delete' | null>(null);
   const [generatedPuk, setGeneratedPuk] = useState<string | null>(null);
   const [copiedPuk, setCopiedPuk] = useState(false);
+
+  // Full tree & member inspector states
+  const [inspectedTree, setInspectedTree] = useState<InspectedTreeData | null>(null);
+  const [memberSearch, setMemberSearch] = useState('');
+  const [confirmAdminDelete, setConfirmAdminDelete] = useState<{
+    type: 'person' | 'household';
+    id: string;
+    label: string;
+  } | null>(null);
 
   const loadStats = useCallback(async () => {
     try {
@@ -326,9 +366,85 @@ export const GlobalAdminModal: React.FC<GlobalAdminModalProps> = ({
       setActionType(null);
       setSuccessMsg('Tree deleted permanently.');
       setTimeout(() => setSuccessMsg(null), 3000);
+      if (inspectedTree?.tree.id === treeId) {
+        setInspectedTree(null);
+      }
       await Promise.all([loadStats(), loadTrees(adminToken, searchQuery)]);
+      onDataChanged?.();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error deleting tree');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleInspectTree = async (treeId: string) => {
+    setLoading(true);
+    setError(null);
+    setConfirmAdminDelete(null);
+    try {
+      const res = await fetch('/api/admin/trees', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Admin-Token': adminToken,
+        },
+        body: JSON.stringify({
+          action: 'inspect_tree',
+          treeId,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load tree details');
+      setInspectedTree({
+        tree: data.tree,
+        households: data.households || [],
+        persons: data.persons || [],
+      });
+      setMemberSearch('');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to inspect tree');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAdminDeleteNode = async (
+    treeId: string,
+    type: 'person' | 'household',
+    targetId: string
+  ) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/admin/trees', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Admin-Token': adminToken,
+        },
+        body: JSON.stringify(
+          type === 'person'
+            ? { action: 'delete_person', treeId, personId: targetId }
+            : { action: 'delete_household', treeId, householdId: targetId }
+        ),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `Failed to delete ${type}`);
+
+      setConfirmAdminDelete(null);
+      setSuccessMsg(
+        type === 'person' ? 'Profile deleted permanently.' : 'Household and members deleted.'
+      );
+      setTimeout(() => setSuccessMsg(null), 3000);
+      await Promise.all([
+        handleInspectTree(treeId),
+        loadStats(),
+        loadTrees(adminToken, searchQuery),
+      ]);
+      onDataChanged?.();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : `Failed to delete ${type}`);
     } finally {
       setLoading(false);
     }
@@ -868,7 +984,196 @@ export const GlobalAdminModal: React.FC<GlobalAdminModalProps> = ({
                 </div>
               )}
 
-              {/* Search & Trees List */}
+              {/* Search & Trees List OR Tree Member Inspector */}
+              {inspectedTree ? (
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-200">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setInspectedTree(null);
+                          setConfirmAdminDelete(null);
+                        }}
+                        className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold flex items-center gap-1 cursor-pointer"
+                      >
+                        <ArrowLeft className="w-3.5 h-3.5" />
+                        <span>All Trees</span>
+                      </button>
+                      <div className="min-w-0">
+                        <h4 className="font-bold text-slate-900 text-sm truncate">
+                          {inspectedTree.tree.name}
+                        </h4>
+                        <p className="text-[11px] text-slate-500">
+                          {inspectedTree.persons.length} members • {inspectedTree.households.length} households
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleInspectTree(inspectedTree.tree.id)}
+                      className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                      title="Refresh Members"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+                    </button>
+                  </div>
+
+                  {/* Confirm Member / Household Deletion Box */}
+                  {confirmAdminDelete && (
+                    <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs flex flex-wrap items-center justify-between gap-2">
+                      <span className="font-semibold text-rose-900">
+                        Delete {confirmAdminDelete.type} &ldquo;{confirmAdminDelete.label}&rdquo;? This cannot be undone.
+                      </span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          disabled={loading}
+                          onClick={() =>
+                            handleAdminDeleteNode(
+                              inspectedTree.tree.id,
+                              confirmAdminDelete.type,
+                              confirmAdminDelete.id
+                            )
+                          }
+                          className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold cursor-pointer disabled:opacity-50"
+                        >
+                          Confirm Delete
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmAdminDelete(null)}
+                          className="px-2.5 py-1 text-xs text-slate-600 hover:text-slate-900 cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Member Search */}
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={memberSearch}
+                      onChange={(e) => setMemberSearch(e.target.value)}
+                      placeholder="Filter profiles by name, phone, or year..."
+                      className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    />
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                  </div>
+
+                  {/* All Individual Profiles */}
+                  <div className="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100 max-h-80 overflow-y-auto">
+                    {(() => {
+                      const q = memberSearch.trim().toLowerCase();
+                      const householdNameMap = new Map(
+                        inspectedTree.households.map((h) => [h.id, h.family_name])
+                      );
+                      const filtered = inspectedTree.persons.filter((p) => {
+                        if (!q) return true;
+                        const hName = (p.household_id ? householdNameMap.get(p.household_id) : '') || '';
+                        return (
+                          p.full_name.toLowerCase().includes(q) ||
+                          (p.nickname_or_maiden || '').toLowerCase().includes(q) ||
+                          (p.phone_e164 || '').toLowerCase().includes(q) ||
+                          (p.birth_year || '').includes(q) ||
+                          hName.toLowerCase().includes(q)
+                        );
+                      });
+
+                      if (filtered.length === 0) {
+                        return (
+                          <div className="p-6 text-center text-xs text-slate-400">
+                            No profiles found.
+                          </div>
+                        );
+                      }
+
+                      return filtered.map((p) => {
+                        const hName = p.household_id ? householdNameMap.get(p.household_id) : undefined;
+                        return (
+                          <div
+                            key={p.id}
+                            className="p-3 hover:bg-slate-50/70 transition-colors flex items-center justify-between gap-2"
+                          >
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="font-bold text-slate-900 text-xs">
+                                  {p.full_name}
+                                </span>
+                                {p.role === 'super_admin' && (
+                                  <span className="text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.2 rounded">
+                                    Super Admin
+                                  </span>
+                                )}
+                                {p.role === 'branch_admin' && (
+                                  <span className="text-[10px] font-bold bg-sky-50 text-sky-800 border border-sky-200 px-1.5 py-0.2 rounded">
+                                    Branch Admin
+                                  </span>
+                                )}
+                                {p.claimed_device_id ? (
+                                  <span className="text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.2 rounded">
+                                    Claimed
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] font-semibold bg-slate-100 text-slate-500 px-1.5 py-0.2 rounded">
+                                    Unclaimed
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[11px] text-slate-500 mt-0.5 truncate">
+                                {[
+                                  hName ? `Household: ${hName}` : 'No Household',
+                                  p.birth_year ? `b. ${p.birth_year}` : '',
+                                  p.is_living ? 'Living' : 'Deceased',
+                                  p.phone_e164 || '',
+                                ]
+                                  .filter(Boolean)
+                                  .join(' • ')}
+                              </p>
+                            </div>
+
+                            <div className="flex items-center gap-1 shrink-0">
+                              {p.household_id && (
+                                <button
+                                  type="button"
+                                  title="Delete Entire Household"
+                                  onClick={() =>
+                                    setConfirmAdminDelete({
+                                      type: 'household',
+                                      id: p.household_id!,
+                                      label: hName || p.full_name,
+                                    })
+                                  }
+                                  className="px-2 py-1 text-[10px] font-semibold text-slate-600 hover:text-rose-700 bg-slate-100 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                >
+                                  Del Household
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                title="Delete Profile"
+                                onClick={() =>
+                                  setConfirmAdminDelete({
+                                    type: 'person',
+                                    id: p.id,
+                                    label: p.full_name,
+                                  })
+                                }
+                                className="p-1.5 text-rose-600 hover:text-rose-800 hover:bg-rose-50 border border-transparent hover:border-rose-200 rounded-lg transition-colors cursor-pointer"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                </div>
+              ) : (
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-2">
                   <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider">
@@ -935,7 +1240,15 @@ export const GlobalAdminModal: React.FC<GlobalAdminModalProps> = ({
                               </p>
                             </div>
 
-                            <div className="flex items-center gap-1.5 shrink-0">
+                            <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => handleInspectTree(tree.id)}
+                                className="px-2.5 py-1 text-xs font-semibold text-indigo-700 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                                <span>Members</span>
+                              </button>
                               <button
                                 type="button"
                                 onClick={() => {
@@ -1057,6 +1370,7 @@ export const GlobalAdminModal: React.FC<GlobalAdminModalProps> = ({
                   )}
                 </div>
               </div>
+              )}
             </div>
           )}
         </div>

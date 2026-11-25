@@ -180,6 +180,8 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
     const body = (await request.json()) as {
       action?: string;
       treeId?: string;
+      personId?: string;
+      householdId?: string;
       newPin?: string;
       totpCode?: string;
       secret?: string;
@@ -413,6 +415,98 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
           pukCode,
           message: 'New PUK recovery code generated successfully.',
         }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (action === 'inspect_tree') {
+      const treeId = body.treeId;
+      if (!treeId) {
+        return new Response(JSON.stringify({ error: 'Tree ID required.' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      const [tree, householdsRes, personsRes, relsRes] = await Promise.all([
+        env.DB.prepare('SELECT id, invite_code, name, created_at FROM trees WHERE id = ?').bind(treeId).first(),
+        env.DB.prepare('SELECT id, family_name, branch_color, city, country, updated_at FROM households WHERE tree_id = ? ORDER BY updated_at ASC')
+          .bind(treeId)
+          .all(),
+        env.DB.prepare('SELECT id, household_id, full_name, nickname_or_maiden, phone_e164, birth_year, death_year, is_living, role, claimed_device_id, created_by_device_id, updated_at FROM persons WHERE tree_id = ? ORDER BY updated_at ASC')
+          .bind(treeId)
+          .all(),
+        env.DB.prepare('SELECT id, person_a_id, person_b_id, rel_type FROM relationships WHERE tree_id = ?')
+          .bind(treeId)
+          .all(),
+      ]);
+
+      if (!tree) {
+        return new Response(JSON.stringify({ error: 'Family tree not found.' }), {
+          status: 404,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          tree,
+          households: householdsRes.results || [],
+          persons: personsRes.results || [],
+          relationships: relsRes.results || [],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (action === 'delete_person') {
+      const { treeId, personId } = body;
+      if (!treeId || !personId) {
+        return new Response(JSON.stringify({ error: 'Tree ID and Person ID required.' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      await env.DB.batch([
+        env.DB.prepare('DELETE FROM relationships WHERE tree_id = ? AND (person_a_id = ? OR person_b_id = ?)').bind(treeId, personId, personId),
+        env.DB.prepare('DELETE FROM persons WHERE id = ? AND tree_id = ?').bind(personId, treeId),
+      ]);
+
+      return new Response(
+        JSON.stringify({ success: true, treeId, deletedPersonId: personId }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (action === 'delete_household') {
+      const { treeId, householdId } = body;
+      if (!treeId || !householdId) {
+        return new Response(JSON.stringify({ error: 'Tree ID and Household ID required.' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      const personsInH = await env.DB.prepare('SELECT id FROM persons WHERE household_id = ? AND tree_id = ?')
+        .bind(householdId, treeId)
+        .all<{ id: string }>();
+
+      const stmts = [
+        env.DB.prepare('DELETE FROM households WHERE id = ? AND tree_id = ?').bind(householdId, treeId),
+      ];
+      for (const pRow of personsInH.results || []) {
+        stmts.push(
+          env.DB.prepare('DELETE FROM relationships WHERE tree_id = ? AND (person_a_id = ? OR person_b_id = ?)').bind(treeId, pRow.id, pRow.id),
+          env.DB.prepare('DELETE FROM persons WHERE id = ? AND tree_id = ?').bind(pRow.id, treeId)
+        );
+      }
+
+      await env.DB.batch(stmts);
+
+      return new Response(
+        JSON.stringify({ success: true, treeId, deletedHouseholdId: householdId }),
         { status: 200, headers: { 'Content-Type': 'application/json' } }
       );
     }

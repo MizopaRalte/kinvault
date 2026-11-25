@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS households (
   postal_code TEXT DEFAULT '',
   country TEXT DEFAULT '',
   family_photo_b64 TEXT DEFAULT '',
+  created_by_device_id TEXT DEFAULT '',
   updated_at INTEGER NOT NULL,
   FOREIGN KEY (tree_id) REFERENCES trees(id) ON DELETE CASCADE
 );
@@ -37,6 +38,7 @@ CREATE TABLE IF NOT EXISTS persons (
   avatar_b64 TEXT DEFAULT '',
   role TEXT NOT NULL DEFAULT 'member', -- 'super_admin' | 'branch_admin' | 'member'
   claimed_device_id TEXT DEFAULT '',
+  created_by_device_id TEXT DEFAULT '',
   updated_at INTEGER NOT NULL,
   FOREIGN KEY (tree_id) REFERENCES trees(id) ON DELETE CASCADE,
   FOREIGN KEY (household_id) REFERENCES households(id) ON DELETE SET NULL

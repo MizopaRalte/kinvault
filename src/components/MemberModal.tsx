@@ -411,7 +411,12 @@ export const MemberModal: React.FC<MemberModalProps> = ({
 
       onClose();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : t.errorOccurred);
+      const msg = err instanceof Error ? err.message : t.errorOccurred;
+      if (!_activePersonId && msg.toLowerCase().includes('permission denied')) {
+        setError(`${msg} (Tip: Claim your Admin profile or delete from Global Admin -> Members.)`);
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -429,7 +434,12 @@ export const MemberModal: React.FC<MemberModalProps> = ({
       }
       onClose();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : t.errorOccurred);
+      const msg = err instanceof Error ? err.message : t.errorOccurred;
+      if (!_activePersonId && msg.toLowerCase().includes('permission denied')) {
+        setError(`${msg} (Tip: Claim your Admin profile or delete from Global Admin -> Members.)`);
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -448,7 +458,12 @@ export const MemberModal: React.FC<MemberModalProps> = ({
       });
       onClose();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : t.errorOccurred);
+      const msg = err instanceof Error ? err.message : t.errorOccurred;
+      if (!_activePersonId && msg.toLowerCase().includes('permission denied')) {
+        setError(`${msg} (Tip: Claim your Admin profile or delete from Global Admin -> Members.)`);
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -467,7 +482,12 @@ export const MemberModal: React.FC<MemberModalProps> = ({
       }
       onClose();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : t.errorOccurred);
+      const msg = err instanceof Error ? err.message : t.errorOccurred;
+      if (!_activePersonId && msg.toLowerCase().includes('permission denied')) {
+        setError(`${msg} (Tip: Claim your Admin profile or delete from Global Admin -> Members.)`);
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
       setConfirmDelete(null);
