@@ -905,6 +905,9 @@ export const App: React.FC = () => {
         person={memberModalState.person}
         household={memberModalState.household}
         initialMode={memberModalState.initialMode}
+        allHouseholds={treeData?.households}
+        allPersons={treeData?.persons}
+        relationships={treeData?.relationships}
         t={t}
         activePersonId={session.activePersonId}
         userRole={session.role}

@@ -236,6 +236,9 @@ export interface TranslationDictionary {
   kidsCountLabel: string;
   expandKidsInTree: string;
   collapseKidsInTree: string;
+  parentsSelectLabel: string;
+  rootNoParentsOption: string;
+  addAnotherChildBtn: string;
   compareRelation: string;
   comparingFromHint: string;
   relationToYou: string;
@@ -490,6 +493,9 @@ export const translations: Record<Language, TranslationDictionary> = {
     kidsCountLabel: 'Kids',
     expandKidsInTree: 'Show Kids on Tree',
     collapseKidsInTree: 'Hide Kids on Tree',
+    parentsSelectLabel: 'Parents (Branch Placement)',
+    rootNoParentsOption: '-- Top Level / No Parents --',
+    addAnotherChildBtn: 'Add Another Child (Same Line)',
     compareRelation: 'Compare Relation',
     comparingFromHint: 'Comparing from {name} — Tap another person on the tree',
     relationToYou: 'Your Relation',
@@ -743,6 +749,9 @@ export const translations: Record<Language, TranslationDictionary> = {
     kidsCountLabel: 'Fate',
     expandKidsInTree: 'Fate Tree-ah Tilang Rawh',
     collapseKidsInTree: 'Fate Tree-ah Thup Rawh',
+    parentsSelectLabel: 'Nu leh Pa (Chhungkaw Peng)',
+    rootNoParentsOption: '-- Bul Ber / Nu & Pa Awm Lo --',
+    addAnotherChildBtn: 'Fa Dang Belh Leh Rawh',
     compareRelation: 'Inlaichinna Enna',
     comparingFromHint: '{name} aṭanga en mek — Mi dang hmet rawh',
     relationToYou: 'I Chhungkhat Nihna',
@@ -996,6 +1005,9 @@ export const translations: Record<Language, TranslationDictionary> = {
     kidsCountLabel: 'Hijos',
     expandKidsInTree: 'Mostrar Hijos en el Árbol',
     collapseKidsInTree: 'Ocultar Hijos en el Árbol',
+    parentsSelectLabel: 'Padres (Ubicación en el Árbol)',
+    rootNoParentsOption: '-- Nivel Superior / Sin Padres --',
+    addAnotherChildBtn: 'Añadir Otro Hijo (Misma Fila)',
     compareRelation: 'Comparar Parentesco',
     comparingFromHint: 'Comparando desde {name} — Toca otra persona en el árbol',
     relationToYou: 'Tu Parentesco',
@@ -1249,6 +1261,9 @@ export const translations: Record<Language, TranslationDictionary> = {
     kidsCountLabel: 'Kinder',
     expandKidsInTree: 'Kinder im Baum anzeigen',
     collapseKidsInTree: 'Kinder im Baum ausblenden',
+    parentsSelectLabel: 'Eltern (Zweig-Zuordnung)',
+    rootNoParentsOption: '-- Oberste Ebene / Keine Eltern --',
+    addAnotherChildBtn: 'Weiteres Kind hinzufügen (Gleiche Zeile)',
     compareRelation: 'Verwandtschaft prüfen',
     comparingFromHint: 'Vergleich ab {name} — Tippe auf eine andere Person',
     relationToYou: 'Beziehung zu dir',

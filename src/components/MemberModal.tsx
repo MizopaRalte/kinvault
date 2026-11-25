@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   X,
   Camera,
@@ -7,8 +7,9 @@ import {
   ShieldAlert,
   UserCheck,
   Upload,
+  Plus,
 } from 'lucide-react';
-import type { Household, Person, Role } from '../types/family';
+import type { Household, Person, Relationship, Role } from '../types/family';
 import type { TranslationDictionary } from '../locales/translations';
 import { compressAvatar, compressFamilyPhoto } from '../utils/imageCompress';
 
@@ -18,6 +19,9 @@ interface MemberModalProps {
   person?: Person;
   household?: Household;
   initialMode?: string; // 'edit_person' | 'edit_household' | 'add_child' | 'add_spouse' | 'add_ancestor' | 'add_sibling'
+  allHouseholds?: Household[];
+  allPersons?: Person[];
+  relationships?: Relationship[];
   t: TranslationDictionary;
   activePersonId?: string;
   userRole?: Role;
@@ -32,6 +36,9 @@ export const MemberModal: React.FC<MemberModalProps> = ({
   person,
   household,
   initialMode = 'edit_person',
+  allHouseholds = [],
+  allPersons = [],
+  relationships = [],
   t,
   activePersonId: _activePersonId,
   userRole,
@@ -70,6 +77,19 @@ export const MemberModal: React.FC<MemberModalProps> = ({
   const [childBirthYear, setChildBirthYear] = useState('');
   const [childAvatarB64, setChildAvatarB64] = useState('');
   const [childAvatarSizeKb, setChildAvatarSizeKb] = useState<number | null>(null);
+  const [extraChildren, setExtraChildren] = useState<Array<{ id: string; fullName: string; birthYear: string }>>([]);
+
+  // Parent reassignment state (edit_person)
+  const initialParentHouseholdId = useMemo(() => {
+    if (!person) return '';
+    const parentRel = relationships.find(
+      (r) => r.rel_type === 'parent_child' && r.person_b_id === person.id
+    );
+    if (!parentRel) return '';
+    const parentObj = allPersons.find((item) => item.id === parentRel.person_a_id);
+    return parentObj?.household_id || '';
+  }, [person, relationships, allPersons]);
+  const [selectedParentHouseholdId, setSelectedParentHouseholdId] = useState<string>('');
 
   // Add spouse state
   const [spouseFullName, setSpouseFullName] = useState('');
@@ -154,6 +174,9 @@ export const MemberModal: React.FC<MemberModalProps> = ({
     setChildBirthYear('');
     setChildAvatarB64('');
     setChildAvatarSizeKb(null);
+    setExtraChildren([]);
+    setSelectedParentHouseholdId(initialParentHouseholdId);
+
     setSpouseFullName('');
     setSpouseBirthYear('');
     setSpousePhone('');
@@ -173,7 +196,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
     setSiblingAvatarB64('');
     setSiblingAvatarSizeKb(null);
     setSiblingParentName('');
-  }, [isOpen, person, household, initialMode]);
+  }, [isOpen, person, household, initialMode, initialParentHouseholdId]);
 
   if (!isOpen) return null;
 
@@ -237,6 +260,13 @@ export const MemberModal: React.FC<MemberModalProps> = ({
           is_living: isLiving ? 1 : 0,
           avatar_b64: avatarB64,
         });
+
+        if (person?.id && selectedParentHouseholdId !== initialParentHouseholdId) {
+          await onMutate('reparent_person', {
+            personId: person.id,
+            parentHouseholdId: selectedParentHouseholdId || null,
+          });
+        }
       } else if (mode === 'edit_household') {
         if (!familyName.trim()) throw new Error(t.newFamilyName + ' is required.');
         await onMutate('upsert_household', {
@@ -254,6 +284,13 @@ export const MemberModal: React.FC<MemberModalProps> = ({
         const parentId = person?.id;
         if (!parentId) throw new Error('Parent person reference is required.');
 
+        const additionalChildren = extraChildren
+          .filter((c) => c.fullName.trim().length > 0)
+          .map((c) => ({
+            childFullName: c.fullName.trim(),
+            birthYear: c.birthYear.trim() || undefined,
+          }));
+
         await onMutate('add_child_household', {
           parentPersonId: parentId,
           familyName: `${childFullName.trim()} Family`,
@@ -264,6 +301,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
           branchColor: household?.branch_color,
           city: household?.city,
           country: household?.country,
+          additionalChildren: additionalChildren.length > 0 ? additionalChildren : undefined,
         });
       } else if (mode === 'add_spouse') {
         if (!spouseFullName.trim()) throw new Error(t.spouseName + ' is required.');
@@ -647,6 +685,36 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                   </label>
                 </div>
 
+                {/* Parent Household Selector (move / fix branch placement) */}
+                {person && allHouseholds.length > 1 && (
+                  <div className="pt-2 border-t border-slate-100">
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                      {t.parentsSelectLabel}
+                    </label>
+                    <select
+                      value={selectedParentHouseholdId}
+                      onChange={(e) => setSelectedParentHouseholdId(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900 cursor-pointer"
+                    >
+                      <option value="">{t.rootNoParentsOption}</option>
+                      {allHouseholds
+                        .filter((h) => h.id !== person.household_id)
+                        .map((h) => {
+                          const members = allPersons
+                            .filter((pItem) => pItem.household_id === h.id)
+                            .map((pItem) => pItem.full_name);
+                          const label =
+                            members.length > 0 ? `${members.join(' & ')}` : h.family_name;
+                          return (
+                            <option key={h.id} value={h.id}>
+                              {label}
+                            </option>
+                          );
+                        })}
+                    </select>
+                  </div>
+                )}
+
                 {/* Role Promotion Button */}
                 {person && canManageRole && person.role !== 'super_admin' && (
                   <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
@@ -924,6 +992,79 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
                   />
                 </div>
+
+                {/* Additional Siblings / Children on the Same Line */}
+                {extraChildren.length > 0 && (
+                  <div className="space-y-2.5 pt-2 border-t border-slate-100">
+                    {extraChildren.map((extra, idx) => (
+                      <div
+                        key={extra.id}
+                        className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 relative"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                            {t.childName} #{idx + 2}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setExtraChildren((prev) => prev.filter((item) => item.id !== extra.id))
+                            }
+                            className="p-1 text-slate-400 hover:text-rose-600 rounded-lg cursor-pointer"
+                            title={t.removePhoto}
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          <input
+                            type="text"
+                            value={extra.fullName}
+                            onChange={(e) =>
+                              setExtraChildren((prev) =>
+                                prev.map((item) =>
+                                  item.id === extra.id ? { ...item, fullName: e.target.value } : item
+                                )
+                              )
+                            }
+                            placeholder={t.childPlaceholder}
+                            className="col-span-2 px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+                          />
+                          <input
+                            type="text"
+                            maxLength={4}
+                            value={extra.birthYear}
+                            onChange={(e) =>
+                              setExtraChildren((prev) =>
+                                prev.map((item) =>
+                                  item.id === extra.id
+                                    ? { ...item, birthYear: e.target.value.replace(/\D/g, '') }
+                                    : item
+                                )
+                              )
+                            }
+                            placeholder={t.birthYearPlaceholder}
+                            className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setExtraChildren((prev) => [
+                      ...prev,
+                      { id: crypto.randomUUID(), fullName: '', birthYear: '' },
+                    ])
+                  }
+                  className="w-full py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>{t.addAnotherChildBtn}</span>
+                </button>
               </>
             )}
 

@@ -394,7 +394,8 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
     };
 
     let globalXOffset = 0;
-    const maxPossibleNodeWidth = 320;
+    const maxPossibleNodeWidth = 290;
+    const siblingGap = 36;
 
     for (const rootId of activeRoots) {
       const rootData = buildTree(rootId);
@@ -403,7 +404,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
       const d3Root = d3.hierarchy<HouseholdNodeData>(rootData);
       const treeLayout = d3
         .tree<HouseholdNodeData>()
-        .nodeSize([maxPossibleNodeWidth + HORIZONTAL_GAP, NODE_HEIGHT + VERTICAL_GAP]);
+        .nodeSize([maxPossibleNodeWidth + siblingGap, NODE_HEIGHT + VERTICAL_GAP]);
 
       treeLayout(d3Root);
 

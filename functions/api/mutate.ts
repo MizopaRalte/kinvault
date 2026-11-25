@@ -189,6 +189,14 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
         const birthYear = p.birthYear || '';
         const city = p.city || '';
         const country = p.country || '';
+        const additionalChildren = Array.isArray(p.additionalChildren)
+          ? (p.additionalChildren as Array<{
+              childFullName?: string;
+              birthYear?: string;
+              spouseFullName?: string;
+              avatarB64?: string;
+            }>).filter((c) => Boolean(c?.childFullName?.trim()))
+          : [];
 
         if (!parentPersonId || !familyName || !childFullName) {
           return new Response(JSON.stringify({ error: 'Parent ID, family name, and child name are required.' }), { status: 400 });
@@ -210,57 +218,87 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
 
         const branchColor = p.branchColor || inheritedColor;
         const childAvatarB64 = p.childAvatarB64 || p.avatarB64 || '';
-        const newHouseholdId = crypto.randomUUID();
-        const childPersonId = crypto.randomUUID();
-        const parentChildRelId = crypto.randomUUID();
 
-        const batchStatements = [
-          env.DB.prepare(
-            `INSERT INTO households (id, tree_id, family_name, branch_color, address_line, city, postal_code, country, family_photo_b64, updated_at)
-             VALUES (?, ?, ?, ?, '', ?, '', ?, '', ?)`
-          ).bind(newHouseholdId, treeId, familyName, branchColor, city, country, now),
-          env.DB.prepare(
-            `INSERT INTO persons (id, tree_id, household_id, full_name, nickname_or_maiden, phone_e164, birth_year, death_year, is_living, avatar_b64, role, claimed_device_id, updated_at)
-             VALUES (?, ?, ?, ?, '', '', ?, '', 1, ?, 'member', '', ?)`
-          ).bind(childPersonId, treeId, newHouseholdId, childFullName, birthYear, childAvatarB64, now),
-          env.DB.prepare(
-            `INSERT INTO relationships (id, tree_id, person_a_id, person_b_id, rel_type)
-             VALUES (?, ?, ?, ?, 'parent_child')`
-          ).bind(parentChildRelId, treeId, parentPersonId, childPersonId),
-        ];
-
-        // Also if parent has a spouse, link the spouse as parent_child as well
+        // Fetch spouses of parent once so all added siblings link to both parents
         const parentSpouses = await env.DB.prepare(
           `SELECT person_a_id, person_b_id FROM relationships WHERE tree_id = ? AND rel_type = 'spouse' AND (person_a_id = ? OR person_b_id = ?)`
         ).bind(treeId, parentPersonId, parentPersonId).all<{ person_a_id: string; person_b_id: string }>();
+        const otherParentIds = (parentSpouses.results || []).map((sp) =>
+          sp.person_a_id === parentPersonId ? sp.person_b_id : sp.person_a_id
+        );
 
-        if (parentSpouses.results && parentSpouses.results.length > 0) {
-          for (const sp of parentSpouses.results) {
-            const otherParentId = sp.person_a_id === parentPersonId ? sp.person_b_id : sp.person_a_id;
+        const batchStatements: D1PreparedStatement[] = [];
+        const childrenToInsert = [
+          {
+            name: childFullName,
+            hName: familyName,
+            bYear: birthYear,
+            spName: spouseFullName || '',
+            avatar: childAvatarB64,
+          },
+          ...additionalChildren.map((extra) => {
+            const name = extra.childFullName!.trim();
+            return {
+              name,
+              hName: `${name} Family`,
+              bYear: extra.birthYear?.trim() || '',
+              spName: extra.spouseFullName?.trim() || '',
+              avatar: extra.avatarB64 || '',
+            };
+          }),
+        ];
+
+        let primaryHouseholdId = '';
+        let primaryChildPersonId = '';
+        let primarySpousePersonId: string | null = null;
+
+        for (let idx = 0; idx < childrenToInsert.length; idx++) {
+          const item = childrenToInsert[idx];
+          const hId = crypto.randomUUID();
+          const cId = crypto.randomUUID();
+          if (idx === 0) {
+            primaryHouseholdId = hId;
+            primaryChildPersonId = cId;
+          }
+
+          batchStatements.push(
+            env.DB.prepare(
+              `INSERT INTO households (id, tree_id, family_name, branch_color, address_line, city, postal_code, country, family_photo_b64, updated_at)
+               VALUES (?, ?, ?, ?, '', ?, '', ?, '', ?)`
+            ).bind(hId, treeId, item.hName, branchColor, city, country, now),
+            env.DB.prepare(
+              `INSERT INTO persons (id, tree_id, household_id, full_name, nickname_or_maiden, phone_e164, birth_year, death_year, is_living, avatar_b64, role, claimed_device_id, updated_at)
+               VALUES (?, ?, ?, ?, '', '', ?, '', 1, ?, 'member', '', ?)`
+            ).bind(cId, treeId, hId, item.name, item.bYear, item.avatar, now),
+            env.DB.prepare(
+              `INSERT INTO relationships (id, tree_id, person_a_id, person_b_id, rel_type)
+               VALUES (?, ?, ?, ?, 'parent_child')`
+            ).bind(crypto.randomUUID(), treeId, parentPersonId, cId)
+          );
+
+          for (const otherParentId of otherParentIds) {
             batchStatements.push(
               env.DB.prepare(
                 `INSERT INTO relationships (id, tree_id, person_a_id, person_b_id, rel_type)
                  VALUES (?, ?, ?, ?, 'parent_child')`
-              ).bind(crypto.randomUUID(), treeId, otherParentId, childPersonId)
+              ).bind(crypto.randomUUID(), treeId, otherParentId, cId)
             );
           }
-        }
 
-        // If spouse provided for the child
-        let spousePersonId: string | null = null;
-        if (spouseFullName) {
-          spousePersonId = crypto.randomUUID();
-          const spouseRelId = crypto.randomUUID();
-          batchStatements.push(
-            env.DB.prepare(
-              `INSERT INTO persons (id, tree_id, household_id, full_name, nickname_or_maiden, phone_e164, birth_year, death_year, is_living, avatar_b64, role, claimed_device_id, updated_at)
-               VALUES (?, ?, ?, ?, '', '', '', '', 1, '', 'member', '', ?)`
-            ).bind(spousePersonId, treeId, newHouseholdId, spouseFullName, now),
-            env.DB.prepare(
-              `INSERT INTO relationships (id, tree_id, person_a_id, person_b_id, rel_type)
-               VALUES (?, ?, ?, ?, 'spouse')`
-            ).bind(spouseRelId, treeId, childPersonId, spousePersonId)
-          );
+          if (item.spName) {
+            const spId = crypto.randomUUID();
+            if (idx === 0) primarySpousePersonId = spId;
+            batchStatements.push(
+              env.DB.prepare(
+                `INSERT INTO persons (id, tree_id, household_id, full_name, nickname_or_maiden, phone_e164, birth_year, death_year, is_living, avatar_b64, role, claimed_device_id, updated_at)
+                 VALUES (?, ?, ?, ?, '', '', '', '', 1, '', 'member', '', ?)`
+              ).bind(spId, treeId, hId, item.spName, now),
+              env.DB.prepare(
+                `INSERT INTO relationships (id, tree_id, person_a_id, person_b_id, rel_type)
+                 VALUES (?, ?, ?, ?, 'spouse')`
+              ).bind(crypto.randomUUID(), treeId, cId, spId)
+            );
+          }
         }
 
         await env.DB.batch(batchStatements);
@@ -268,12 +306,107 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
         return new Response(
           JSON.stringify({
             success: true,
-            householdId: newHouseholdId,
-            childPersonId,
-            spousePersonId,
+            householdId: primaryHouseholdId,
+            childPersonId: primaryChildPersonId,
+            spousePersonId: primarySpousePersonId,
+            addedCount: childrenToInsert.length,
           }),
           { status: 201 }
         );
+      }
+
+      case 'reparent_person': {
+        const personId = p.personId as string;
+        const parentHouseholdId = (p.parentHouseholdId as string | null) || null;
+
+        if (!personId) {
+          return new Response(JSON.stringify({ error: 'Person ID is required.' }), { status: 400 });
+        }
+
+        const targetPerson = await env.DB.prepare('SELECT id, household_id FROM persons WHERE id = ? AND tree_id = ?')
+          .bind(personId, treeId)
+          .first<DbPerson>();
+
+        if (!targetPerson) {
+          return new Response(JSON.stringify({ error: 'Person not found.' }), { status: 404 });
+        }
+
+        const hasPerm = await canEditPerson(env.DB, treeId, caller, personId);
+        if (!hasPerm) {
+          return new Response(JSON.stringify({ error: 'Permission denied to update parents for this person.' }), { status: 403 });
+        }
+
+        const batchStatements: D1PreparedStatement[] = [
+          env.DB.prepare(
+            `DELETE FROM relationships WHERE tree_id = ? AND rel_type = 'parent_child' AND person_b_id = ?`
+          ).bind(treeId, personId),
+        ];
+
+        if (parentHouseholdId) {
+          if (parentHouseholdId === targetPerson.household_id) {
+            return new Response(JSON.stringify({ error: 'Cannot assign a person to their own household as parent.' }), { status: 400 });
+          }
+
+          const parentMembersRes = await env.DB.prepare(
+            'SELECT id FROM persons WHERE household_id = ? AND tree_id = ?'
+          )
+            .bind(parentHouseholdId, treeId)
+            .all<{ id: string }>();
+
+          const parentMemberIds = (parentMembersRes.results || []).map((r) => r.id);
+          if (parentMemberIds.length === 0) {
+            return new Response(JSON.stringify({ error: 'Selected parent household has no members.' }), { status: 400 });
+          }
+
+          // Guard against ancestor cycles (targetPerson or targetHousehold cannot be ancestor of parentHousehold)
+          const allPersonsRes = await env.DB.prepare('SELECT id, household_id FROM persons WHERE tree_id = ?')
+            .bind(treeId)
+            .all<{ id: string; household_id: string | null }>();
+          const allRelsRes = await env.DB.prepare(
+            `SELECT person_a_id, person_b_id FROM relationships WHERE tree_id = ? AND rel_type = 'parent_child'`
+          )
+            .bind(treeId)
+            .all<{ person_a_id: string; person_b_id: string }>();
+
+          const pHouseholdMap = new Map<string, string | null>();
+          for (const row of allPersonsRes.results || []) {
+            pHouseholdMap.set(row.id, row.household_id);
+          }
+
+          const parentsByChild = new Map<string, string[]>();
+          for (const rel of allRelsRes.results || []) {
+            const arr = parentsByChild.get(rel.person_b_id) || [];
+            arr.push(rel.person_a_id);
+            parentsByChild.set(rel.person_b_id, arr);
+          }
+
+          const queue = [...parentMemberIds];
+          const visited = new Set<string>();
+          while (queue.length > 0) {
+            const curr = queue.shift()!;
+            if (visited.has(curr)) continue;
+            visited.add(curr);
+            if (curr === personId || (targetPerson.household_id && pHouseholdMap.get(curr) === targetPerson.household_id)) {
+              return new Response(JSON.stringify({ error: 'Cannot create a circular parent-child relationship.' }), { status: 400 });
+            }
+            for (const pId of parentsByChild.get(curr) || []) {
+              queue.push(pId);
+            }
+          }
+
+          for (const parentId of parentMemberIds) {
+            batchStatements.push(
+              env.DB.prepare(
+                `INSERT INTO relationships (id, tree_id, person_a_id, person_b_id, rel_type)
+                 VALUES (?, ?, ?, ?, 'parent_child')`
+              ).bind(crypto.randomUUID(), treeId, parentId, personId)
+            );
+          }
+        }
+
+        await env.DB.batch(batchStatements);
+
+        return new Response(JSON.stringify({ success: true, personId, parentHouseholdId }), { status: 200 });
       }
 
       case 'add_spouse': {
