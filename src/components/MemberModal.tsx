@@ -91,9 +91,17 @@ export const MemberModal: React.FC<MemberModalProps> = ({
     const parentObj = allPersons.find((item) => item.id === parentRel.person_a_id);
     return parentObj?.household_id || '';
   }, [person, relationships, allPersons]);
+  const initialParentIds = useMemo(() => {
+    if (!person) return [];
+    return relationships
+      .filter((r) => r.rel_type === 'parent_child' && r.person_b_id === person.id)
+      .map((r) => r.person_a_id);
+  }, [person, relationships]);
   const [selectedParentHouseholdId, setSelectedParentHouseholdId] = useState<string>('');
+  const [selectedParentIds, setSelectedParentIds] = useState<string[]>([]);
   const [transferFromSpouse, setTransferFromSpouse] = useState<boolean>(true);
   const [targetPersonId, setTargetPersonId] = useState<string>('');
+  const [childOtherParentId, setChildOtherParentId] = useState<string>('');
 
   const householdMembersList = useMemo(() => {
     const hId = household?.id || person?.household_id;
@@ -243,6 +251,20 @@ export const MemberModal: React.FC<MemberModalProps> = ({
     setChildAvatarSizeKb(null);
     setExtraChildren([]);
     setSelectedParentHouseholdId(initialParentHouseholdId);
+    setSelectedParentIds(initialParentIds);
+    const activeRel = person
+      ? relationships.find(
+          (r) =>
+            r.rel_type === 'spouse' &&
+            (r.person_a_id === person.id || r.person_b_id === person.id)
+        )
+      : undefined;
+    const defaultOtherId = activeRel
+      ? activeRel.person_a_id === person?.id
+        ? activeRel.person_b_id
+        : activeRel.person_a_id
+      : '';
+    setChildOtherParentId(defaultOtherId);
     setTransferFromSpouse(true);
     setTargetPersonId(person?.id || '');
 
@@ -267,7 +289,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
     setSiblingAvatarB64('');
     setSiblingAvatarSizeKb(null);
     setSiblingParentName('');
-  }, [isOpen, person, household, initialMode, initialParentHouseholdId]);
+  }, [isOpen, person, household, initialMode, initialParentHouseholdId, initialParentIds, relationships]);
 
   if (!isOpen) return null;
 
@@ -332,10 +354,20 @@ export const MemberModal: React.FC<MemberModalProps> = ({
           avatar_b64: avatarB64,
         });
 
-        if (person?.id && selectedParentHouseholdId !== initialParentHouseholdId) {
+        const normalizedInitial = [...initialParentIds].sort().join(',');
+        const normalizedSelected = [...selectedParentIds].sort().join(',');
+        if (
+          person?.id &&
+          (selectedParentHouseholdId !== initialParentHouseholdId ||
+            normalizedSelected !== normalizedInitial)
+        ) {
           await onMutate('reparent_person', {
             personId: person.id,
             parentHouseholdId: selectedParentHouseholdId || null,
+            parentPersonIds:
+              selectedParentHouseholdId && selectedParentIds.length > 0
+                ? selectedParentIds
+                : undefined,
             unlinkPersonId:
               transferFromSpouse && spouseWithSelectedParents
                 ? spouseWithSelectedParents.id
@@ -356,7 +388,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
         });
       } else if (mode === 'add_child') {
         if (!childFullName.trim()) throw new Error(t.childName + ' is required.');
-        const parentId = person?.id;
+        const parentId = (householdMembersList.length > 1 ? targetPersonId : undefined) || person?.id;
         if (!parentId) throw new Error('Parent person reference is required.');
 
         const additionalChildren = extraChildren
@@ -368,6 +400,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
 
         await onMutate('add_child_household', {
           parentPersonId: parentId,
+          otherParentId: householdMembersList.length > 1 ? childOtherParentId : undefined,
           familyName: `${childFullName.trim()} Family`,
           childFullName: childFullName.trim(),
           childAvatarB64: childAvatarB64 || undefined,
@@ -814,7 +847,18 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                     </label>
                     <select
                       value={selectedParentHouseholdId}
-                      onChange={(e) => setSelectedParentHouseholdId(e.target.value)}
+                      onChange={(e) => {
+                        const newHId = e.target.value;
+                        setSelectedParentHouseholdId(newHId);
+                        if (!newHId) {
+                          setSelectedParentIds([]);
+                        } else {
+                          const hMembers = allPersons
+                            .filter((pItem) => pItem.household_id === newHId)
+                            .map((pItem) => pItem.id);
+                          setSelectedParentIds(hMembers);
+                        }
+                      }}
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900 cursor-pointer"
                     >
                       <option value="">{t.rootNoParentsOption}</option>
@@ -833,6 +877,46 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                           );
                         })}
                     </select>
+                    {(() => {
+                      const parentHouseholdMembers = selectedParentHouseholdId
+                        ? allPersons.filter((pItem) => pItem.household_id === selectedParentHouseholdId)
+                        : [];
+                      if (parentHouseholdMembers.length < 2) return null;
+                      return (
+                        <div className="mt-2.5">
+                          <span className="block text-[11px] font-bold text-slate-600 mb-1.5">
+                            {t.exactParentsLabel}
+                          </span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {parentHouseholdMembers.map((pm) => {
+                              const checked = selectedParentIds.includes(pm.id);
+                              return (
+                                <button
+                                  key={pm.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedParentIds((prev) => {
+                                      if (prev.includes(pm.id)) {
+                                        return prev.length > 1 ? prev.filter((id) => id !== pm.id) : prev;
+                                      }
+                                      return [...prev, pm.id];
+                                    });
+                                  }}
+                                  className={`px-2.5 py-1 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                                    checked
+                                      ? 'bg-slate-900 text-white border-slate-900'
+                                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                                  }`}
+                                >
+                                  {checked ? '✓ ' : ''}
+                                  {pm.full_name}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })()}
                     {spouseWithSelectedParents && (
                       <label className="mt-2 p-2.5 bg-indigo-50 border border-indigo-200 rounded-xl flex items-start gap-2 text-xs font-semibold text-indigo-900 cursor-pointer">
                         <input
@@ -1146,8 +1230,48 @@ export const MemberModal: React.FC<MemberModalProps> = ({
             {mode === 'add_child' && (
               <>
                 <p className="text-xs text-slate-500">
-                  {t.addChildNotice.replace('{name}', person?.full_name || 'parent')}
+                  {t.addChildNotice.replace('{name}', activeTargetPerson?.full_name || person?.full_name || 'parent')}
                 </p>
+
+                {householdMembersList.length > 1 && (
+                  <div className="space-y-3 p-3 bg-slate-50 border border-slate-200 rounded-2xl">
+                    {targetPersonSelector}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                        {t.otherParentLabel}
+                      </label>
+                      <div className="flex flex-wrap gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setChildOtherParentId('')}
+                          className={`px-2.5 py-1 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                            childOtherParentId === ''
+                              ? 'bg-slate-900 text-white border-slate-900'
+                              : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          {t.noOtherParentOption}
+                        </button>
+                        {householdMembersList
+                          .filter((m) => m.id !== (activeTargetPerson?.id || person?.id))
+                          .map((m) => (
+                            <button
+                              key={m.id}
+                              type="button"
+                              onClick={() => setChildOtherParentId(m.id)}
+                              className={`px-2.5 py-1 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                                childOtherParentId === m.id
+                                  ? 'bg-slate-900 text-white border-slate-900'
+                                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                              }`}
+                            >
+                              {m.full_name}
+                            </button>
+                          ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">

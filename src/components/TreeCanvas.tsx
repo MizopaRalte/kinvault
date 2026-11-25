@@ -311,7 +311,23 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
     }
 
     const positions = new Map<string, PositionedNode>();
-    const calculatedLinks: Array<{ sourceX: number; sourceY: number; targetX: number; targetY: number; color: string }> = [];
+    const calculatedLinks: Array<{
+      sourceX: number;
+      sourceY: number;
+      targetX: number;
+      targetY: number;
+      busY?: number;
+      color: string;
+    }> = [];
+
+    const childParentsMap = new Map<string, Set<string>>();
+    for (const rel of relationships) {
+      if (rel.rel_type === 'parent_child') {
+        const set = childParentsMap.get(rel.person_b_id) || new Set<string>();
+        set.add(rel.person_a_id);
+        childParentsMap.set(rel.person_b_id, set);
+      }
+    }
 
     const visited = new Set<string>();
     const hiddenByCollapse = new Set<string>();
@@ -342,6 +358,23 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
       const childIds = isCollapsed
         ? []
         : Array.from(childrenHouseholdMap.get(hId) || []).filter((cId) => householdMap.has(cId));
+
+      if (childIds.length > 1 && members.length > 1) {
+        const arrangedParent = arrangeMembers(members);
+        const getOrderScore = (cId: string) => {
+          const cMembers = householdMembers.get(cId) || [];
+          const matched: number[] = [];
+          for (let i = 0; i < arrangedParent.length; i++) {
+            const pId = arrangedParent[i].id;
+            if (cMembers.some((cm) => childParentsMap.get(cm.id)?.has(pId))) {
+              matched.push(i);
+            }
+          }
+          if (matched.length === 0) return (arrangedParent.length - 1) / 2;
+          return matched.reduce((sum, idx) => sum + idx, 0) / matched.length;
+        };
+        childIds.sort((a, b) => getOrderScore(a) - getOrderScore(b));
+      }
 
       const childNodes: HouseholdNodeData[] = [];
       for (const cId of childIds) {
@@ -581,15 +614,60 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
         });
       });
 
+      const sourceAnchorBuckets = new Map<string, number[]>();
+
       d3Root.links().forEach((link) => {
         const sourcePos = positions.get(link.source.data.id);
         const targetPos = positions.get(link.target.data.id);
         if (sourcePos && targetPos) {
+          let sourceX = sourcePos.outgoingX;
+          let sourceY = sourcePos.outgoingY;
+
+          const matchedIndices: number[] = [];
+          for (let i = 0; i < sourcePos.members.length; i++) {
+            const pId = sourcePos.members[i].id;
+            if (targetPos.members.some((cm) => childParentsMap.get(cm.id)?.has(pId))) {
+              matchedIndices.push(i);
+            }
+          }
+
+          if (matchedIndices.length === 2) {
+            const avgCenter =
+              (sourcePos.personCentersX[matchedIndices[0]] +
+                sourcePos.personCentersX[matchedIndices[1]]) /
+              2;
+            sourceX = sourcePos.x + avgCenter;
+            sourceY = sourcePos.y + AVATAR_SIZE / 2 + 14;
+          } else if (matchedIndices.length === 1) {
+            const pIdx = matchedIndices[0];
+            const isIntactCouple =
+              sourcePos.members.length === 2 &&
+              sourcePos.pairConnectors.length === 1 &&
+              !sourcePos.pairConnectors[0].isDivorced;
+            if (!isIntactCouple && sourcePos.personCentersX[pIdx] !== undefined) {
+              sourceX = sourcePos.x + sourcePos.personCentersX[pIdx];
+              sourceY = sourcePos.y + NODE_HEIGHT;
+            }
+          }
+
+          const parentKey = sourcePos.household.id;
+          const anchors = sourceAnchorBuckets.get(parentKey) || [];
+          const roundedX = Math.round(sourceX);
+          if (!anchors.includes(roundedX)) {
+            anchors.push(roundedX);
+            anchors.sort((a, b) => a - b);
+            sourceAnchorBuckets.set(parentKey, anchors);
+          }
+
           calculatedLinks.push({
-            sourceX: sourcePos.outgoingX,
-            sourceY: sourcePos.outgoingY,
+            sourceX,
+            sourceY,
             targetX: targetPos.incomingX,
             targetY: targetPos.y,
+            busY:
+              anchors.length > 1
+                ? targetPos.y - VERTICAL_GAP * (0.5 - anchors.indexOf(roundedX) * 0.1)
+                : undefined,
             color: targetPos.household.branch_color || '#94A3B8',
           });
         }
@@ -1065,7 +1143,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
         <svg className="absolute top-0 left-0 w-[12000px] h-[12000px] pointer-events-none overflow-visible">
           {links.map((link, idx) => {
             // Compute clean orthogonal horizontal bus midway between outgoing parent point and child top
-            const busY = link.targetY - VERTICAL_GAP * 0.48;
+            const busY = link.busY ?? link.targetY - VERTICAL_GAP * 0.48;
             const pathData = `M ${link.sourceX} ${link.sourceY} V ${busY} H ${link.targetX} V ${link.targetY}`;
             return (
               <g key={`link-${idx}`}>

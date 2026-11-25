@@ -219,13 +219,26 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
         const branchColor = p.branchColor || inheritedColor;
         const childAvatarB64 = p.childAvatarB64 || p.avatarB64 || '';
 
-        // Fetch spouses of parent once so all added siblings link to both parents
-        const parentSpouses = await env.DB.prepare(
-          `SELECT person_a_id, person_b_id FROM relationships WHERE tree_id = ? AND rel_type = 'spouse' AND (person_a_id = ? OR person_b_id = ?)`
-        ).bind(treeId, parentPersonId, parentPersonId).all<{ person_a_id: string; person_b_id: string }>();
-        const otherParentIds = (parentSpouses.results || []).map((sp) =>
-          sp.person_a_id === parentPersonId ? sp.person_b_id : sp.person_a_id
-        );
+        // Determine co-parent(s): explicit selection if provided, else active spouses
+        let otherParentIds: string[] = [];
+        if (Object.prototype.hasOwnProperty.call(p, 'otherParentId')) {
+          if (typeof p.otherParentId === 'string' && p.otherParentId.trim()) {
+            const otherId = p.otherParentId.trim();
+            if (otherId !== parentPersonId) {
+              const validOther = await env.DB.prepare('SELECT id FROM persons WHERE id = ? AND tree_id = ?')
+                .bind(otherId, treeId)
+                .first<{ id: string }>();
+              if (validOther) otherParentIds = [validOther.id];
+            }
+          }
+        } else {
+          const parentSpouses = await env.DB.prepare(
+            `SELECT person_a_id, person_b_id FROM relationships WHERE tree_id = ? AND rel_type = 'spouse' AND (person_a_id = ? OR person_b_id = ?)`
+          ).bind(treeId, parentPersonId, parentPersonId).all<{ person_a_id: string; person_b_id: string }>();
+          otherParentIds = (parentSpouses.results || []).map((sp) =>
+            sp.person_a_id === parentPersonId ? sp.person_b_id : sp.person_a_id
+          );
+        }
 
         const batchStatements: D1PreparedStatement[] = [];
         const childrenToInsert = [
@@ -354,9 +367,21 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
             .bind(parentHouseholdId, treeId)
             .all<{ id: string }>();
 
-          const parentMemberIds = (parentMembersRes.results || []).map((r) => r.id);
-          if (parentMemberIds.length === 0) {
+          const allHouseholdMemberIds = (parentMembersRes.results || []).map((r) => r.id);
+          if (allHouseholdMemberIds.length === 0) {
             return new Response(JSON.stringify({ error: 'Selected parent household has no members.' }), { status: 400 });
+          }
+
+          let parentMemberIds = allHouseholdMemberIds;
+          if (Array.isArray(p.parentPersonIds)) {
+            const allowedSet = new Set(allHouseholdMemberIds);
+            const filtered = p.parentPersonIds.filter(
+              (id: unknown): id is string => typeof id === 'string' && allowedSet.has(id)
+            );
+            if (filtered.length === 0) {
+              return new Response(JSON.stringify({ error: 'Select at least one parent in the chosen household.' }), { status: 400 });
+            }
+            parentMemberIds = Array.from(new Set(filtered));
           }
 
           // Guard against ancestor cycles (targetPerson or targetHousehold cannot be ancestor of parentHousehold)

@@ -241,6 +241,9 @@ export interface TranslationDictionary {
   collapseKidsInTree: string;
   parentsSelectLabel: string;
   rootNoParentsOption: string;
+  exactParentsLabel: string;
+  otherParentLabel: string;
+  noOtherParentOption: string;
   addAnotherChildBtn: string;
   connectTargetPersonLabel: string;
   transferParentsFromSpouse: string;
@@ -524,6 +527,9 @@ export const translations: Record<Language, TranslationDictionary> = {
     collapseKidsInTree: 'Hide Kids on Tree',
     parentsSelectLabel: 'Parents (Branch Placement)',
     rootNoParentsOption: '-- Top Level / No Parents --',
+    exactParentsLabel: 'Specific Parents in Household',
+    otherParentLabel: 'Other Parent (Optional)',
+    noOtherParentOption: 'Only selected parent',
     addAnotherChildBtn: 'Add Another Child (Same Line)',
     connectTargetPersonLabel: 'Connect to which person?',
     transferParentsFromSpouse: 'Move parent line from {name} onto this profile',
@@ -806,6 +812,9 @@ export const translations: Record<Language, TranslationDictionary> = {
     collapseKidsInTree: 'Fate Tree-ah Thup Rawh',
     parentsSelectLabel: 'Nu leh Pa (Chhungkaw Peng)',
     rootNoParentsOption: '-- Bul Ber / Nu & Pa Awm Lo --',
+    exactParentsLabel: 'Nu leh Pa Thlan Bik (He chhungkuaah)',
+    otherParentLabel: 'Nu / Pa Dang Telh (A duh tan)',
+    noOtherParentOption: 'He mi chauh hi',
     addAnotherChildBtn: 'Fa Dang Belh Leh Rawh',
     connectTargetPersonLabel: 'Tu tan nge kan zawm ang?',
     transferParentsFromSpouse: '{name} aṭangin nu leh pa inzawmna he profile-ah sawn rawh',
@@ -1088,6 +1097,9 @@ export const translations: Record<Language, TranslationDictionary> = {
     collapseKidsInTree: 'Ocultar Hijos en el Árbol',
     parentsSelectLabel: 'Padres (Ubicación en el Árbol)',
     rootNoParentsOption: '-- Nivel Superior / Sin Padres --',
+    exactParentsLabel: 'Padres Específicos del Hogar',
+    otherParentLabel: 'Otro Padre / Madre (Opcional)',
+    noOtherParentOption: 'Solo el padre/madre seleccionado',
     addAnotherChildBtn: 'Añadir Otro Hijo (Misma Fila)',
     connectTargetPersonLabel: '¿Conectar a qué persona?',
     transferParentsFromSpouse: 'Mover línea de padres de {name} a este perfil',
@@ -1370,6 +1382,9 @@ export const translations: Record<Language, TranslationDictionary> = {
     collapseKidsInTree: 'Kinder im Baum ausblenden',
     parentsSelectLabel: 'Eltern (Zweig-Zuordnung)',
     rootNoParentsOption: '-- Oberste Ebene / Keine Eltern --',
+    exactParentsLabel: 'Konkrete Elternteile im Haushalt',
+    otherParentLabel: 'Anderer Elternteil (Optional)',
+    noOtherParentOption: 'Nur ausgewählter Elternteil',
     addAnotherChildBtn: 'Weiteres Kind hinzufügen (Gleiche Zeile)',
     connectTargetPersonLabel: 'Mit welcher Person verbinden?',
     transferParentsFromSpouse: 'Elternlinie von {name} auf dieses Profil übertragen',
