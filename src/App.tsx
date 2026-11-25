@@ -12,6 +12,8 @@ import {
   UserCheck,
   Check,
   ShieldAlert,
+  Menu,
+  X,
 } from 'lucide-react';
 
 import type { Language, TranslationDictionary } from './locales/translations';
@@ -81,6 +83,7 @@ export const App: React.FC = () => {
 
   // Global Admin and live telemetry state
   const [adminModalOpen, setAdminModalOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [globalStats, setGlobalStats] = useState<{ totalTrees: number; totalPersons: number } | null>(null);
 
   // Load telemetry stats on mount
@@ -362,12 +365,12 @@ export const App: React.FC = () => {
 
   // 3. MAIN DASHBOARD VIEW
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
+    <div className={activeTab === 'tree' ? 'h-dvh flex flex-col overflow-hidden bg-slate-50' : 'min-h-dvh flex flex-col bg-slate-50'}>
       {/* Top Main Navigation Header */}
-      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 sm:px-6 py-2.5">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 px-3 sm:px-6 py-2.5 shrink-0">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-3">
           {/* Logo & Tree Info */}
-          <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1 md:flex-initial">
             <div className="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
               KV
             </div>
@@ -388,27 +391,27 @@ export const App: React.FC = () => {
                     <UserCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                     <span className="truncate">{activeProfile.full_name}</span>
                     {activeProfile.role === 'super_admin' && (
-                      <span className="text-[10px] text-amber-700 font-bold bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">
+                      <span className="text-[10px] text-amber-700 font-bold bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200 shrink-0">
                         Admin
                       </span>
                     )}
                     {activeProfile.role === 'branch_admin' && (
-                      <span className="text-[10px] text-sky-700 font-bold bg-sky-50 px-1.5 py-0.2 rounded border border-sky-200">
+                      <span className="text-[10px] text-sky-700 font-bold bg-sky-50 px-1.5 py-0.2 rounded border border-sky-200 shrink-0">
                         Branch Admin
                       </span>
                     )}
                   </span>
                 ) : (
-                  <span className="text-slate-400 italic text-[11px]">
-                    Guest Device (Claim a profile below)
+                  <span className="text-slate-400 italic text-[11px] truncate">
+                    Guest Device
                   </span>
                 )}
               </div>
             </div>
           </div>
 
-          {/* Center Tabs: Family Tree & Directory */}
-          <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200 shadow-2xs">
+          {/* Center Tabs (Desktop & Tablet) */}
+          <div className="hidden md:flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200 shadow-2xs">
             <button
               type="button"
               onClick={() => setActiveTab('tree')}
@@ -419,7 +422,7 @@ export const App: React.FC = () => {
               }`}
             >
               <FolderTree className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{t.treeTab}</span>
+              <span>{t.treeTab}</span>
             </button>
             <button
               type="button"
@@ -431,13 +434,12 @@ export const App: React.FC = () => {
               }`}
             >
               <Search className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{t.directoryTab}</span>
+              <span>{t.directoryTab}</span>
             </button>
           </div>
 
-          {/* Right Action Icons & Controls */}
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            {/* Live Registration Telemetry Count */}
+          {/* Right Action Icons (Desktop) */}
+          <div className="hidden md:flex items-center gap-1.5">
             {globalStats && (
               <button
                 type="button"
@@ -450,7 +452,6 @@ export const App: React.FC = () => {
               </button>
             )}
 
-            {/* Refresh button */}
             <button
               type="button"
               onClick={() => loadTreeData(session, false)}
@@ -461,7 +462,6 @@ export const App: React.FC = () => {
               <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
             </button>
 
-            {/* Share / Invite */}
             <button
               type="button"
               onClick={() => setShareModalOpen(true)}
@@ -471,7 +471,6 @@ export const App: React.FC = () => {
               <Share2 className="w-4 h-4" />
             </button>
 
-            {/* Export Vector PDF */}
             <button
               type="button"
               onClick={handleExportPdf}
@@ -482,7 +481,6 @@ export const App: React.FC = () => {
               <Download className={`w-4 h-4 ${pdfExporting ? 'animate-bounce text-sky-600' : ''}`} />
             </button>
 
-            {/* Backup & Vault (.fam) */}
             <button
               type="button"
               onClick={() => setBackupModalOpen(true)}
@@ -492,7 +490,6 @@ export const App: React.FC = () => {
               <Shield className="w-4 h-4" />
             </button>
 
-            {/* App Lock Settings */}
             <button
               type="button"
               onClick={() => setLockSettingsModalOpen(true)}
@@ -504,7 +501,6 @@ export const App: React.FC = () => {
               <Lock className="w-4 h-4" />
             </button>
 
-            {/* Global Admin Portal */}
             <button
               type="button"
               onClick={() => setAdminModalOpen(true)}
@@ -514,14 +510,13 @@ export const App: React.FC = () => {
               <ShieldAlert className="w-4 h-4" />
             </button>
 
-            {/* Language Selector Pill */}
-            <div className="hidden md:flex items-center bg-slate-100 rounded-xl p-1 text-[11px] font-bold">
+            <div className="flex items-center bg-slate-100 rounded-xl p-1 text-[11px] font-bold">
               {(['en', 'mz', 'es', 'de'] as Language[]).map((l) => (
                 <button
                   key={l}
                   type="button"
                   onClick={() => handleLanguageChange(l)}
-                  className={`px-2 py-1 rounded-lg transition-all ${
+                  className={`px-2 py-1 rounded-lg transition-all cursor-pointer ${
                     lang === l ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500 hover:text-slate-900'
                   }`}
                 >
@@ -530,7 +525,6 @@ export const App: React.FC = () => {
               ))}
             </div>
 
-            {/* Sign Out */}
             <button
               type="button"
               onClick={handleSignOut}
@@ -540,7 +534,168 @@ export const App: React.FC = () => {
               <LogOut className="w-4 h-4" />
             </button>
           </div>
+
+          {/* Right Quick Actions (Mobile < md) */}
+          <div className="flex md:hidden items-center gap-1 shrink-0">
+            <button
+              type="button"
+              onClick={() => loadTreeData(session, false)}
+              disabled={refreshing}
+              title="Refresh"
+              className="p-2 text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
+            >
+              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setShareModalOpen(true)}
+              title={t.shareTab}
+              className="p-2 text-slate-700 hover:bg-slate-100 rounded-xl cursor-pointer"
+            >
+              <Share2 className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen((v) => !v)}
+              aria-label="Menu"
+              className="p-2 text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-xl cursor-pointer"
+            >
+              {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+            </button>
+          </div>
         </div>
+
+        {/* Mobile Secondary Tab Bar (< md) */}
+        <div className="grid grid-cols-2 gap-1 p-1 bg-slate-100 rounded-xl border border-slate-200 mt-2 md:hidden">
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('tree');
+              setMobileMenuOpen(false);
+            }}
+            className={`flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+              activeTab === 'tree' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600'
+            }`}
+          >
+            <FolderTree className="w-3.5 h-3.5" />
+            <span className="truncate">{t.treeTab}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('directory');
+              setMobileMenuOpen(false);
+            }}
+            className={`flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+              activeTab === 'directory' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600'
+            }`}
+          >
+            <Search className="w-3.5 h-3.5" />
+            <span className="truncate">{t.directoryTab}</span>
+          </button>
+        </div>
+
+        {/* Mobile Overflow Drawer (< md) */}
+        {mobileMenuOpen && (
+          <div className="md:hidden mt-2 pt-3 pb-1 border-t border-slate-200 space-y-3">
+            {/* Code & Live Stats */}
+            <div className="flex items-center justify-between gap-2 text-xs">
+              <span className="font-mono font-bold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
+                Code: {session.inviteCode}
+              </span>
+              {globalStats && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    setAdminModalOpen(true);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 border border-slate-200 rounded-lg text-[11px] font-semibold text-slate-700"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>{globalStats.totalPersons} Members • {globalStats.totalTrees} Trees</span>
+                </button>
+              )}
+            </div>
+
+            {/* Language Selector */}
+            <div className="grid grid-cols-4 gap-1 bg-slate-100 p-1 rounded-xl">
+              {(['en', 'mz', 'es', 'de'] as Language[]).map((l) => (
+                <button
+                  key={l}
+                  type="button"
+                  onClick={() => handleLanguageChange(l)}
+                  className={`py-1.5 text-xs font-bold rounded-lg transition-all ${
+                    lang === l ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'
+                  }`}
+                >
+                  {l.toUpperCase()}
+                </button>
+              ))}
+            </div>
+
+            {/* Action Grid */}
+            <div className="grid grid-cols-2 gap-2 text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  handleExportPdf();
+                }}
+                disabled={pdfExporting || !treeData}
+                className="flex items-center gap-2 px-3 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-800 disabled:opacity-50"
+              >
+                <Download className="w-4 h-4 text-slate-600 shrink-0" />
+                <span className="truncate">{t.exportPdfBtn}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  setBackupModalOpen(true);
+                }}
+                className="flex items-center gap-2 px-3 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-800"
+              >
+                <Shield className="w-4 h-4 text-slate-600 shrink-0" />
+                <span className="truncate">{t.backupTab}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  setLockSettingsModalOpen(true);
+                }}
+                className="flex items-center gap-2 px-3 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-800"
+              >
+                <Lock className="w-4 h-4 text-slate-600 shrink-0" />
+                <span className="truncate">{t.lockTab}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  setAdminModalOpen(true);
+                }}
+                className="flex items-center gap-2 px-3 py-2 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl text-amber-900"
+              >
+                <ShieldAlert className="w-4 h-4 text-amber-700 shrink-0" />
+                <span className="truncate">{t.globalAdminTitle}</span>
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="w-full flex items-center justify-center gap-2 py-2 text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded-xl"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Sign Out</span>
+            </button>
+          </div>
+        )}
 
         {/* Offline / Cached Notice Banner */}
         {(!isOnline || isOfflineSnapshot) && (
@@ -549,7 +704,7 @@ export const App: React.FC = () => {
               <Network className="w-3.5 h-3.5 text-amber-600" />
               <span>{isOfflineSnapshot ? t.cachedOffline : t.offlineMode}</span>
             </div>
-            <span className="text-[10px] text-amber-700 font-normal">
+            <span className="text-[10px] text-amber-700 font-normal hidden sm:inline">
               IndexedDB local storage active
             </span>
           </div>
@@ -557,7 +712,7 @@ export const App: React.FC = () => {
       </header>
 
       {/* Main Viewport Content */}
-      <main className="flex-1 relative">
+      <main className="flex-1 relative min-h-0">
         {loading ? (
           <div className="absolute inset-0 flex items-center justify-center p-8 bg-slate-50/80 backdrop-blur-xs z-20">
             <div className="flex flex-col items-center gap-3">

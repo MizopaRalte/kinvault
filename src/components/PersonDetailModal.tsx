@@ -206,7 +206,7 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
         </div>
 
         {/* Body */}
-        <div className="px-6 py-4 space-y-4 max-h-[68vh] overflow-y-auto">
+        <div className="px-5 sm:px-6 py-4 space-y-4 max-h-[70dvh] overflow-y-auto">
           {/* Contact & Address Information */}
           <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 space-y-3">
             {/* Telephone */}
@@ -394,7 +394,7 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
             <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-2">
               {t.treeTab}
             </p>
-            <div className="grid grid-cols-4 gap-1.5 text-[11px] font-bold">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs sm:text-[11px] font-bold">
               <button
                 type="button"
                 onClick={() => {
@@ -447,7 +447,7 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
         </div>
 
         {/* Footer Edit & Focus Actions */}
-        <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-2">
+        <div className="px-5 sm:px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <button
               type="button"

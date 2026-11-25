@@ -528,16 +528,20 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
       if (n.y + n.height > maxY) maxY = n.y + n.height;
     });
 
-    const treeW = maxX - minX + 180;
-    const treeH = maxY - minY + 180;
+    const isMobile = clientWidth < 640;
+    const topReserve = isMobile ? 96 : 40;
+    const availH = Math.max(240, clientHeight - topReserve);
+
+    const treeW = maxX - minX + (isMobile ? 80 : 180);
+    const treeH = maxY - minY + (isMobile ? 120 : 180);
 
     const newScale = Math.min(
-      Math.max(0.35, Math.min(clientWidth / treeW, clientHeight / treeH)),
+      Math.max(0.35, Math.min(clientWidth / treeW, availH / treeH)),
       1.05
     );
 
-    const newX = (clientWidth - treeW * newScale) / 2 - minX * newScale + 90 * newScale;
-    const newY = (clientHeight - treeH * newScale) / 2 - minY * newScale + 90 * newScale;
+    const newX = (clientWidth - treeW * newScale) / 2 - minX * newScale + (isMobile ? 40 : 90) * newScale;
+    const newY = topReserve + (availH - treeH * newScale) / 2 - minY * newScale + (isMobile ? 35 : 90) * newScale;
 
     setScale(newScale);
     setTranslate({ x: newX, y: newY });
@@ -642,32 +646,56 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      className={`relative w-full h-[calc(100vh-64px)] overflow-hidden bg-slate-50/70 select-none ${
+      className={`relative w-full h-full overflow-hidden bg-slate-50/70 select-none touch-none ${
         isDragging ? 'cursor-grabbing' : 'cursor-grab'
       }`}
       style={{
+        touchAction: 'none',
         backgroundImage: `radial-gradient(#CBD5E1 1px, transparent 1px)`,
         backgroundSize: '26px 26px',
       }}
     >
       {/* Top-Left Tree Title & Drill-Down Bar */}
-      <div className="absolute top-4 left-4 z-10 flex flex-col gap-2 max-w-xs sm:max-w-sm">
-        <div className="bg-slate-900 text-white rounded-2xl px-4 py-3 shadow-lg flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
-            <Trees className="w-5 h-5 text-sky-300" />
+      <div className="absolute top-3 left-3 right-3 sm:right-auto sm:top-4 sm:left-4 z-10 flex flex-col gap-2 max-w-full sm:max-w-sm pointer-events-none">
+        <div className="bg-slate-900/95 backdrop-blur-xs text-white rounded-2xl px-3.5 py-2 sm:px-4 sm:py-3 shadow-lg flex items-center justify-between sm:justify-start gap-2.5 sm:gap-3 pointer-events-auto">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
+              <Trees className="w-4 h-4 sm:w-5 sm:h-5 text-sky-300" />
+            </div>
+            <div className="min-w-0">
+              <h2 className="font-extrabold text-xs sm:text-sm tracking-tight truncate">{tree.name}</h2>
+              <p className="text-[10px] sm:text-[11px] text-slate-300 font-medium">
+                {persons.length} {t.membersCount} • {households.length} {t.statsHouseholds}
+              </p>
+            </div>
           </div>
-          <div className="min-w-0">
-            <h2 className="font-extrabold text-sm tracking-tight truncate">{tree.name}</h2>
-            <p className="text-[11px] text-slate-300 font-medium">
-              {persons.length} {t.membersCount} • {households.length} {t.statsHouseholds}
-            </p>
-          </div>
+
+          {households.length > 2 && (
+            <div className="flex sm:hidden items-center gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={handleExpandAll}
+                title={t.expandAll}
+                className="p-1.5 bg-white/15 hover:bg-white/25 rounded-lg text-white cursor-pointer"
+              >
+                <ChevronsUpDown className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={handleCompactView}
+                title={t.compactView}
+                className="p-1.5 bg-white/15 hover:bg-white/25 rounded-lg text-white cursor-pointer"
+              >
+                <ChevronsDownUp className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* Drill-Down Controls */}
-        <div className="flex flex-wrap items-center gap-1.5">
+        {/* Drill-Down Controls (Desktop / Focus Reset on Mobile) */}
+        <div className="flex flex-wrap items-center gap-1.5 pointer-events-auto">
           {households.length > 2 && (
-            <>
+            <div className="hidden sm:flex items-center gap-1.5">
               <button
                 type="button"
                 onClick={handleExpandAll}
@@ -685,7 +713,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
                 <ChevronsDownUp className="w-3.5 h-3.5 text-slate-500" />
                 <span>{t.compactView}</span>
               </button>
-            </>
+            </div>
           )}
 
           {focusedHouseholdId && (
@@ -899,7 +927,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
                       : 'opacity-0 group-hover:opacity-100 focus-within:opacity-100'
                   }`}
                 >
-                  <div className="bg-white/95 backdrop-blur-xs border border-slate-200 rounded-full px-2 py-1 shadow-md flex items-center gap-1 text-[10px] font-bold">
+                  <div className="bg-white/95 backdrop-blur-xs border border-slate-200 rounded-2xl sm:rounded-full px-2 py-1 shadow-md flex flex-wrap sm:flex-nowrap items-center justify-center gap-1 text-[10px] font-bold">
                     <button
                       type="button"
                       onClick={() => onOpenMemberModal(members[0], h, 'add_ancestor')}
@@ -940,12 +968,12 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
       </div>
 
       {/* Floating Canvas Zoom Controls */}
-      <div className="absolute bottom-6 right-6 flex flex-col gap-1.5 bg-white/95 backdrop-blur-sm border border-slate-200 rounded-2xl p-1.5 shadow-lg z-10">
+      <div className="absolute bottom-4 right-4 sm:bottom-6 sm:right-6 flex flex-col gap-1.5 bg-white/95 backdrop-blur-sm border border-slate-200 rounded-2xl p-1.5 shadow-lg z-10">
         <button
           type="button"
           onClick={() => setScale((s) => Math.min(2.2, s * 1.15))}
           title={t.zoomIn}
-          className="p-2 text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+          className="p-2.5 sm:p-2 text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
         >
           <ZoomIn className="w-4 h-4" />
         </button>
@@ -953,7 +981,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
           type="button"
           onClick={() => setScale((s) => Math.max(0.2, s * 0.85))}
           title={t.zoomOut}
-          className="p-2 text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+          className="p-2.5 sm:p-2 text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
         >
           <ZoomOut className="w-4 h-4" />
         </button>
@@ -962,7 +990,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
           type="button"
           onClick={resetFit}
           title={t.resetView}
-          className="p-2 text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+          className="p-2.5 sm:p-2 text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
         >
           <RotateCcw className="w-4 h-4" />
         </button>

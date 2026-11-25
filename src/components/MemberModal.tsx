@@ -479,7 +479,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
             </div>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+          <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-4 max-h-[78dvh] overflow-y-auto">
             {/* 1. EDIT PERSON MODE */}
             {mode === 'edit_person' && (
               <>
