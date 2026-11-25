@@ -588,6 +588,7 @@ export const App: React.FC = () => {
               t={t}
               activePersonId={session.activePersonId}
               userRole={session.role}
+              deviceId={deviceId}
               onOpenMemberModal={(p, h, mode) => {
                 const targetPerson = p || (h ? treeData?.persons.find((item) => item.household_id === h.id) : undefined);
                 setMemberModalState({

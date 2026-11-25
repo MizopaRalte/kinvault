@@ -124,6 +124,21 @@ export interface TranslationDictionary {
   addSpouseNotice: string;
   addAncestorNotice: string;
 
+  // Flowchart & Person Details
+  present: string;
+  expandAll: string;
+  compactView: string;
+  focusBranch: string;
+  showFullTree: string;
+  parentsLabel: string;
+  spouseLabel: string;
+  siblingsLabel: string;
+  childrenLabel: string;
+  addressLabel: string;
+  noPhone: string;
+  noAddress: string;
+  clickPersonHint: string;
+
   // Share
   shareTitle: string;
   shareSubtitle: string;
@@ -322,6 +337,20 @@ export const translations: Record<Language, TranslationDictionary> = {
     addSpouseNotice: 'Add a spouse to {name}.',
     addAncestorNotice: 'Add missing parent(s) above {name}. A new ancestor household will be created above.',
 
+    present: 'Present',
+    expandAll: 'Expand All',
+    compactView: 'Compact (2 Gen)',
+    focusBranch: 'Focus Branch',
+    showFullTree: 'Show Full Tree',
+    parentsLabel: 'Parents',
+    spouseLabel: 'Spouse',
+    siblingsLabel: 'Siblings',
+    childrenLabel: 'Children',
+    addressLabel: 'Address',
+    noPhone: 'No phone added',
+    noAddress: 'No address added',
+    clickPersonHint: 'Tap any person portrait to view phone, address & family details',
+
     shareTitle: 'Invite Your Family',
     shareSubtitle: 'Relatives need the 8-character code and 6-digit PIN to join.',
     copyInviteLink: 'Copy Direct Link',
@@ -511,6 +540,20 @@ export const translations: Record<Language, TranslationDictionary> = {
     addChildNotice: '{name} hnuaiah fa thar belhna (chhungkaw peng thar a siam ang).',
     addSpouseNotice: '{name} kawppui belhna.',
     addAncestorNotice: '{name} chungah a nu leh pa (thlahtute) belhna.',
+
+    present: 'Tun thleng',
+    expandAll: 'Tizau Vek Rawh',
+    compactView: 'Chhui Tawi (Chhuan 2)',
+    focusBranch: 'He Peng Chauh Enna',
+    showFullTree: 'Chhungkua Zawng Zawng Enna',
+    parentsLabel: 'Nu & Pa',
+    spouseLabel: 'Kawppui',
+    siblingsLabel: 'Unau',
+    childrenLabel: 'Fate',
+    addressLabel: 'Chenna Hmun',
+    noPhone: 'Phone dah loh',
+    noAddress: 'Address dah loh',
+    clickPersonHint: 'Mi thlalak/hming hmet la, phone leh chenna a lang ang',
 
     shareTitle: 'Chhungte Sâwmna',
     shareSubtitle: 'Code hawrawp 8 leh PIN number 6 hmangin chhungkua an zawm thei ang.',
@@ -702,6 +745,20 @@ export const translations: Record<Language, TranslationDictionary> = {
     addSpouseNotice: 'Agregar pareja a {name}.',
     addAncestorNotice: 'Agregar padres arriba de {name}. Se creará un hogar de antepasados arriba.',
 
+    present: 'Presente',
+    expandAll: 'Expandir Todo',
+    compactView: 'Compacto (2 Gen)',
+    focusBranch: 'Enfocar Rama',
+    showFullTree: 'Ver Árbol Completo',
+    parentsLabel: 'Padres',
+    spouseLabel: 'Pareja',
+    siblingsLabel: 'Hermanos',
+    childrenLabel: 'Hijos',
+    addressLabel: 'Dirección',
+    noPhone: 'Sin teléfono',
+    noAddress: 'Sin dirección',
+    clickPersonHint: 'Toca cualquier persona para ver su teléfono y dirección',
+
     shareTitle: 'Invitar a la Familia',
     shareSubtitle: 'Tus familiares necesitan el código de 8 caracteres y el PIN de 6 dígitos.',
     copyInviteLink: 'Copiar Enlace Directo',
@@ -891,6 +948,20 @@ export const translations: Record<Language, TranslationDictionary> = {
     addChildNotice: 'Fügen Sie ein Kind unter {name} hinzu, um einen neuen Zweig zu erstellen.',
     addSpouseNotice: 'Partner für {name} hinzufügen.',
     addAncestorNotice: 'Fügen Sie fehlende Eltern über {name} hinzu. Oben wird ein neuer Haushalt erstellt.',
+
+    present: 'Heute',
+    expandAll: 'Alle ausklappen',
+    compactView: 'Kompakt (2 Gen.)',
+    focusBranch: 'Zweig fokussieren',
+    showFullTree: 'Ganzen Baum zeigen',
+    parentsLabel: 'Eltern',
+    spouseLabel: 'Partner',
+    siblingsLabel: 'Geschwister',
+    childrenLabel: 'Kinder',
+    addressLabel: 'Adresse',
+    noPhone: 'Keine Nummer',
+    noAddress: 'Keine Adresse',
+    clickPersonHint: 'Auf eine Person tippen für Telefon, Adresse & Details',
 
     shareTitle: 'Familie einladen',
     shareSubtitle: 'Verwandte benötigen den 8-stelligen Code und die 6-stellige PIN zum Beitreten.',
