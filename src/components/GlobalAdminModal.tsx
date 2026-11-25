@@ -12,6 +12,7 @@ import {
   Check,
   CheckCircle2,
   Lock,
+  Trash2,
 } from 'lucide-react';
 import type { TranslationDictionary } from '../locales/translations';
 
@@ -60,7 +61,7 @@ export const GlobalAdminModal: React.FC<GlobalAdminModalProps> = ({
   // Action states
   const [resetPinValue, setResetPinValue] = useState('');
   const [activeActionTreeId, setActiveActionTreeId] = useState<string | null>(null);
-  const [actionType, setActionType] = useState<'reset_pin' | 'puk' | null>(null);
+  const [actionType, setActionType] = useState<'reset_pin' | 'puk' | 'delete' | null>(null);
   const [generatedPuk, setGeneratedPuk] = useState<string | null>(null);
   const [copiedPuk, setCopiedPuk] = useState(false);
 
@@ -201,6 +202,37 @@ export const GlobalAdminModal: React.FC<GlobalAdminModalProps> = ({
       loadTrees(adminSecret, searchQuery);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error generating PUK');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteTree = async (treeId: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/admin/trees', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Admin-Secret': adminSecret,
+        },
+        body: JSON.stringify({
+          action: 'delete_tree',
+          treeId,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete tree');
+
+      setActiveActionTreeId(null);
+      setActionType(null);
+      setSuccessMsg('Tree deleted permanently.');
+      setTimeout(() => setSuccessMsg(null), 3000);
+      await Promise.all([loadStats(adminSecret), loadTrees(adminSecret, searchQuery)]);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Error deleting tree');
     } finally {
       setLoading(false);
     }
@@ -469,6 +501,17 @@ export const GlobalAdminModal: React.FC<GlobalAdminModalProps> = ({
                               >
                                 {t.generateNewPukBtn}
                               </button>
+                              <button
+                                type="button"
+                                title="Delete Tree"
+                                onClick={() => {
+                                  setActiveActionTreeId(isActionOpen && actionType === 'delete' ? null : tree.id);
+                                  setActionType('delete');
+                                }}
+                                className="p-1.5 text-rose-600 hover:text-rose-800 hover:bg-rose-50 border border-transparent hover:border-rose-200 rounded-lg transition-colors cursor-pointer"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
                             </div>
                           </div>
 
@@ -520,6 +563,31 @@ export const GlobalAdminModal: React.FC<GlobalAdminModalProps> = ({
                                     >
                                       {copiedPuk ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                                       <span>{copiedPuk ? t.pukCopied : 'Copy'}</span>
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+
+                              {actionType === 'delete' && (
+                                <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-xs flex items-center justify-between gap-3">
+                                  <span className="font-semibold text-rose-900">
+                                    Delete &ldquo;{tree.name}&rdquo; ({tree.member_count} members)? This cannot be undone.
+                                  </span>
+                                  <div className="flex items-center gap-1.5 shrink-0">
+                                    <button
+                                      type="button"
+                                      disabled={loading}
+                                      onClick={() => handleDeleteTree(tree.id)}
+                                      className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold cursor-pointer disabled:opacity-50"
+                                    >
+                                      Confirm Delete
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setActiveActionTreeId(null)}
+                                      className="px-2.5 py-1 text-xs text-slate-600 hover:text-slate-900 cursor-pointer"
+                                    >
+                                      Cancel
                                     </button>
                                   </div>
                                 </div>

@@ -597,6 +597,20 @@ async function run() {
     assert(adminGenPukRes.status === 200, 'Admin can generate new PUK HTTP 200');
     assert(!!adminPukData.pukCode && adminPukData.pukCode.startsWith('KV-'), 'Admin receives newly generated PUK code');
 
+    // Clean up temporary E2E test tree so production counts stay accurate
+    const cleanupRes = await fetch(`${BASE_URL}/api/admin/trees`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Admin-Secret': adminSecret,
+      },
+      body: JSON.stringify({
+        action: 'delete_tree',
+        treeId,
+      }),
+    });
+    assert(cleanupRes.status === 200, 'Automated test tree cleaned up after E2E suite');
+
     console.log(`\n========================================`);
     console.log(`E2E TEST SUITE FINISHED`);
     console.log(`Passed: ${passed} | Failed: ${failed}`);

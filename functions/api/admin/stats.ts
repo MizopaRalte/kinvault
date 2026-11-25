@@ -35,7 +35,7 @@ export const onRequestGet = async ({ request, env }: { request: Request; env: En
         status: 200,
         headers: {
           'Content-Type': 'application/json',
-          'Cache-Control': 'public, max-age=15', // 15-second caching for telemetry
+          'Cache-Control': 'no-store',
         },
       }
     );

@@ -163,6 +163,32 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
       );
     }
 
+    if (action === 'delete_tree') {
+      const treeId = body.treeId;
+      if (!treeId) {
+        return new Response(JSON.stringify({ error: 'Tree ID required.' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      await env.DB.batch([
+        env.DB.prepare('DELETE FROM relationships WHERE tree_id = ?').bind(treeId),
+        env.DB.prepare('DELETE FROM persons WHERE tree_id = ?').bind(treeId),
+        env.DB.prepare('DELETE FROM households WHERE tree_id = ?').bind(treeId),
+        env.DB.prepare('DELETE FROM trees WHERE id = ?').bind(treeId),
+      ]);
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          treeId,
+          message: 'Tree and all associated records deleted successfully.',
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
     return new Response(JSON.stringify({ error: `Unsupported action: ${action}` }), {
       status: 400,
       headers: { 'Content-Type': 'application/json' },
