@@ -254,6 +254,10 @@ export interface TranslationDictionary {
   kinshipFormerSpouse: string;
   inviteBranchAdminBtn: string;
   invitingBranchAdminSubtitle: string;
+  findOnTreeBtn: string;
+  jumpToPersonPlaceholder: string;
+  centerOnMeBtn: string;
+  locateOnTreeBtn: string;
   compareRelation: string;
   comparingFromHint: string;
   relationToYou: string;
@@ -526,6 +530,10 @@ export const translations: Record<Language, TranslationDictionary> = {
     kinshipFormerSpouse: 'Former Spouse (Divorced)',
     inviteBranchAdminBtn: 'Invite (Branch Admin)',
     invitingBranchAdminSubtitle: 'Personal 1-tap invite for {name} — automatically links their profile as Branch Admin of their family line.',
+    findOnTreeBtn: 'Find',
+    jumpToPersonPlaceholder: 'Jump to family member...',
+    centerOnMeBtn: 'Me',
+    locateOnTreeBtn: 'Show in Tree',
     compareRelation: 'Compare Relation',
     comparingFromHint: 'Comparing from {name} — Tap another person on the tree',
     relationToYou: 'Your Relation',
@@ -797,6 +805,10 @@ export const translations: Record<Language, TranslationDictionary> = {
     kinshipFormerSpouse: 'Nupui / Pasal Hlui (Inṭhen Tawh)',
     inviteBranchAdminBtn: 'Sâwmna (Peng Admin)',
     invitingBranchAdminSubtitle: '{name} tana sâwmna link bik — a lut rualin amah leh a chhungkaw peng Admin-ah a inthlunzawm nghal ang.',
+    findOnTreeBtn: 'Zawng',
+    jumpToPersonPlaceholder: 'Chhungkhat hming zawng rawh...',
+    centerOnMeBtn: 'Keimah',
+    locateOnTreeBtn: 'Tree-ah En',
     compareRelation: 'Inlaichinna Enna',
     comparingFromHint: '{name} aṭanga en mek — Mi dang hmet rawh',
     relationToYou: 'I Chhungkhat Nihna',
@@ -1068,6 +1080,10 @@ export const translations: Record<Language, TranslationDictionary> = {
     kinshipFormerSpouse: 'Ex-Cónyuge (Divorciado/a)',
     inviteBranchAdminBtn: 'Invitar (Admin de Rama)',
     invitingBranchAdminSubtitle: 'Enlace personal para {name}: vincula su perfil automáticamente como Administrador de su rama familiar.',
+    findOnTreeBtn: 'Buscar',
+    jumpToPersonPlaceholder: 'Ir a un familiar...',
+    centerOnMeBtn: 'Yo',
+    locateOnTreeBtn: 'Ver en Árbol',
     compareRelation: 'Comparar Parentesco',
     comparingFromHint: 'Comparando desde {name} — Toca otra persona en el árbol',
     relationToYou: 'Tu Parentesco',
@@ -1339,6 +1355,10 @@ export const translations: Record<Language, TranslationDictionary> = {
     kinshipFormerSpouse: 'Ex-Partner (Geschieden)',
     inviteBranchAdminBtn: 'Einladen (Zweig-Admin)',
     invitingBranchAdminSubtitle: 'Persönlicher 1-Klick-Link für {name} – verknüpft das Profil automatisch als Zweig-Admin.',
+    findOnTreeBtn: 'Suchen',
+    jumpToPersonPlaceholder: 'Zu Person springen...',
+    centerOnMeBtn: 'Ich',
+    locateOnTreeBtn: 'Im Baum zeigen',
     compareRelation: 'Verwandtschaft prüfen',
     comparingFromHint: 'Vergleich ab {name} — Tippe auf eine andere Person',
     relationToYou: 'Beziehung zu dir',

@@ -207,21 +207,21 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto"
+      className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 overflow-y-auto"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full overflow-hidden my-8"
+        className="bg-white rounded-t-3xl sm:rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full overflow-hidden my-0 sm:my-8 max-h-[92dvh] flex flex-col"
         onClick={(e) => {
           e.stopPropagation();
           if (photoMenuOpen) setPhotoMenuOpen(false);
         }}
       >
         {/* Top Accent Banner */}
-        <div className="h-3 w-full" style={{ backgroundColor: branchColor }} />
+        <div className="h-2.5 sm:h-3 w-full shrink-0" style={{ backgroundColor: branchColor }} />
 
         {/* Header & Close */}
-        <div className="px-6 pt-4 pb-2 flex items-start justify-between gap-3">
+        <div className="px-5 sm:px-6 pt-3.5 sm:pt-4 pb-2 flex items-start justify-between gap-3 shrink-0">
           <div className="flex items-center gap-4">
             <div className="relative shrink-0">
               <button
@@ -387,7 +387,7 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
         </div>
 
         {/* Body */}
-        <div className="px-5 sm:px-6 py-4 space-y-4 max-h-[70dvh] overflow-y-auto">
+        <div className="px-5 sm:px-6 py-4 space-y-4 flex-1 overflow-y-auto">
           {photoError && (
             <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2 font-medium">
               {photoError}

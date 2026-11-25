@@ -14,6 +14,8 @@ import {
   ChevronsUpDown,
   X,
   GitCompare,
+  Search,
+  LocateFixed,
 } from 'lucide-react';
 import type { Household, Person, Relationship, Tree, Role } from '../types/family';
 import type { TranslationDictionary } from '../locales/translations';
@@ -30,6 +32,7 @@ interface TreeCanvasProps {
   activePersonId?: string;
   userRole?: Role;
   deviceId: string;
+  focusPersonRequest?: { personId: string; nonce: number } | null;
   onOpenMemberModal: (person?: Person, household?: Household, initialMode?: string) => void;
   onUpdatePersonAvatar?: (person: Person, avatarB64: string) => Promise<void>;
   onToggleSpouseStatus?: (relationshipId: string, status: 'spouse' | 'former_spouse') => Promise<void>;
@@ -71,13 +74,16 @@ interface PositionedNode {
   hasChildren: boolean;
 }
 
-const AVATAR_SIZE = 76;
-const PERSON_COL_WIDTH = 122;
-const COUPLE_GAP = 46;
-const SINGLE_NODE_WIDTH = 156;
-const NODE_HEIGHT = 138;
-const HORIZONTAL_GAP = 48;
-const VERTICAL_GAP = 92;
+const AVATAR_SIZE = 64;
+const PERSON_COL_WIDTH = 96;
+const COUPLE_GAP = 28;
+const SINGLE_NODE_WIDTH = 112;
+const NODE_HEIGHT = 118;
+const HORIZONTAL_GAP = 28;
+const VERTICAL_GAP = 72;
+const SIBLING_GAP = 22;
+const SUBTREE_GAP = 28;
+const D3_UNIT_X = 20;
 
 export const TreeCanvas: React.FC<TreeCanvasProps> = ({
   tree,
@@ -88,6 +94,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
   activePersonId,
   userRole,
   deviceId,
+  focusPersonRequest,
   onOpenMemberModal,
   onUpdatePersonAvatar,
   onToggleSpouseStatus,
@@ -117,6 +124,15 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
     result: KinshipResult;
   } | null>(null);
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
+
+  // Quick Find / Jump & Highlight navigation state
+  const [findOpen, setFindOpen] = useState(false);
+  const [findQuery, setFindQuery] = useState('');
+  const [highlightedPersonId, setHighlightedPersonId] = useState<string | null>(null);
+  const pendingFocusPersonIdRef = useRef<string | null>(null);
+  const skipAutoFitUntilRef = useRef(0);
+  const lastHandledFocusNonceRef = useRef<number | null>(null);
+  const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Group persons by household
   const householdMembers = useMemo(() => {
@@ -469,20 +485,13 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
       };
     };
 
-    let maxRenderedWidth = 290;
-    for (const h of householdMap.values()) {
-      const mCount = (householdMembers.get(h.id) || []).length;
-      if (mCount >= 3) {
-        maxRenderedWidth = Math.max(
-          maxRenderedWidth,
-          mCount * PERSON_COL_WIDTH + (mCount - 1) * COUPLE_GAP
-        );
-      }
-    }
+    const getMembersWidth = (members: Person[]) => {
+      const c = members.length;
+      if (c <= 1) return SINGLE_NODE_WIDTH;
+      return c * PERSON_COL_WIDTH + (c - 1) * COUPLE_GAP;
+    };
 
     let globalXOffset = 0;
-    const maxPossibleNodeWidth = maxRenderedWidth;
-    const siblingGap = 36;
 
     for (const rootId of activeRoots) {
       const rootData = buildTree(rootId);
@@ -491,16 +500,24 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
       const d3Root = d3.hierarchy<HouseholdNodeData>(rootData);
       const treeLayout = d3
         .tree<HouseholdNodeData>()
-        .nodeSize([maxPossibleNodeWidth + siblingGap, NODE_HEIGHT + VERTICAL_GAP]);
+        .nodeSize([D3_UNIT_X, NODE_HEIGHT + VERTICAL_GAP])
+        .separation((a, b) => {
+          const gap = a.parent === b.parent ? SIBLING_GAP : SUBTREE_GAP;
+          const wA = getMembersWidth(a.data.members);
+          const wB = getMembersWidth(b.data.members);
+          return ((wA + wB) / 2 + gap) / D3_UNIT_X;
+        });
 
       treeLayout(d3Root);
 
       let localMinX = Infinity;
       let localMaxX = -Infinity;
       d3Root.each((d) => {
-        const x = d.x ?? 0;
-        if (x < localMinX) localMinX = x;
-        if (x > localMaxX) localMaxX = x;
+        const halfW = getMembersWidth(d.data.members) / 2;
+        const leftEdge = (d.x ?? 0) - halfW;
+        const rightEdge = (d.x ?? 0) + halfW;
+        if (leftEdge < localMinX) localMinX = leftEdge;
+        if (rightEdge > localMaxX) localMaxX = rightEdge;
       });
 
       const shiftX = globalXOffset - localMinX;
@@ -509,8 +526,8 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
         const h = d.data.household;
         const members = d.data.members;
         const geom = getNodeGeometry(h, members);
-        // Center node around d.x
-        const posX = (d.x ?? 0) + shiftX + (maxPossibleNodeWidth - geom.width) / 2;
+        // Center node cleanly around its D3 x coordinate
+        const posX = (d.x ?? 0) + shiftX - geom.width / 2;
         const posY = d.y ?? 0;
 
         const childrenCount = childrenHouseholdMap.get(h.id)?.size || 0;
@@ -551,7 +568,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
         }
       });
 
-      globalXOffset += (localMaxX - localMinX) + maxPossibleNodeWidth + HORIZONTAL_GAP * 2;
+      globalXOffset += Math.max(0, localMaxX - localMinX) + HORIZONTAL_GAP * 2;
     }
 
     // Disconnected fallback (skip nodes intentionally hidden under collapsed parent branches)
@@ -633,7 +650,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
     const treeH = maxY - minY + (isMobile ? 120 : 180);
 
     const newScale = Math.min(
-      Math.max(0.35, Math.min(clientWidth / treeW, availH / treeH)),
+      Math.max(0.25, Math.min(clientWidth / treeW, availH / treeH)),
       1.05
     );
 
@@ -644,12 +661,159 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
     setTranslate({ x: newX, y: newY });
   }, [nodePositions]);
 
+  const scaleRef = useRef(scale);
+  useEffect(() => {
+    scaleRef.current = scale;
+  }, [scale]);
+
+  useEffect(() => {
+    return () => {
+      if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+    };
+  }, []);
+
+  const panToNodePerson = useCallback(
+    (targetPersonId: string): boolean => {
+      const hId = personToHousehold.get(targetPersonId);
+      const node = hId ? nodePositions.get(hId) : undefined;
+      if (!node || !containerRef.current) return false;
+
+      const memberIdx = node.members.findIndex((m) => m.id === targetPersonId);
+      const centerOffsetX =
+        memberIdx >= 0 ? (node.personCentersX[memberIdx] ?? node.width / 2) : node.width / 2;
+      const personCenterX = node.x + centerOffsetX;
+      const personCenterY = node.y + NODE_HEIGHT / 2;
+
+      const { clientWidth, clientHeight } = containerRef.current;
+      const minComfortScale = clientWidth < 640 ? 0.85 : 0.95;
+      const targetScale = Math.min(2.2, Math.max(scaleRef.current, minComfortScale));
+
+      setScale(targetScale);
+      setTranslate({
+        x: clientWidth / 2 - personCenterX * targetScale,
+        y: clientHeight / 2 - personCenterY * targetScale,
+      });
+
+      setHighlightedPersonId(targetPersonId);
+      if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+      highlightTimerRef.current = setTimeout(() => {
+        setHighlightedPersonId((prev) => (prev === targetPersonId ? null : prev));
+      }, 2400);
+
+      return true;
+    },
+    [nodePositions, personToHousehold]
+  );
+
+  const focusOnPerson = useCallback(
+    (targetPersonId: string) => {
+      const hId = personToHousehold.get(targetPersonId);
+      if (!hId) return;
+
+      const ancestorsToExpand: string[] = [];
+      const queue = [hId];
+      const seen = new Set<string>([hId]);
+      while (queue.length > 0) {
+        const curr = queue.shift()!;
+        const parents = parentHouseholdMap.get(curr);
+        if (parents) {
+          for (const pId of parents) {
+            if (!seen.has(pId)) {
+              seen.add(pId);
+              ancestorsToExpand.push(pId);
+              queue.push(pId);
+            }
+          }
+        }
+      }
+
+      const needsUnfocus = focusedHouseholdId !== null;
+      const needsExpand = ancestorsToExpand.some((id) => collapsedBranchIds.has(id));
+
+      if (needsUnfocus || needsExpand) {
+        pendingFocusPersonIdRef.current = targetPersonId;
+        skipAutoFitUntilRef.current = Date.now() + 600;
+        if (needsUnfocus) setFocusedHouseholdId(null);
+        if (needsExpand) {
+          setCollapsedBranchIds((prev) => {
+            const next = new Set(prev);
+            for (const id of ancestorsToExpand) next.delete(id);
+            return next;
+          });
+        }
+        return;
+      }
+
+      if (!panToNodePerson(targetPersonId)) {
+        pendingFocusPersonIdRef.current = targetPersonId;
+        skipAutoFitUntilRef.current = Date.now() + 600;
+      }
+    },
+    [personToHousehold, parentHouseholdMap, focusedHouseholdId, collapsedBranchIds, panToNodePerson]
+  );
+
+  // Fulfill pending focus once nodePositions updates after branch expansion, or incoming directory request
+  useEffect(() => {
+    const incomingNonce = focusPersonRequest?.nonce;
+    const incomingPersonId = focusPersonRequest?.personId;
+
+    if (
+      incomingNonce !== undefined &&
+      incomingPersonId &&
+      incomingNonce !== lastHandledFocusNonceRef.current
+    ) {
+      skipAutoFitUntilRef.current = Date.now() + 600;
+      const raf = requestAnimationFrame(() => {
+        lastHandledFocusNonceRef.current = incomingNonce;
+        focusOnPerson(incomingPersonId);
+      });
+      return () => cancelAnimationFrame(raf);
+    }
+
+    if (pendingFocusPersonIdRef.current) {
+      const pendingId = pendingFocusPersonIdRef.current;
+      const raf = requestAnimationFrame(() => {
+        if (panToNodePerson(pendingId)) {
+          pendingFocusPersonIdRef.current = null;
+          skipAutoFitUntilRef.current = Date.now() + 400;
+        }
+      });
+      return () => cancelAnimationFrame(raf);
+    }
+  }, [focusPersonRequest, nodePositions, focusOnPerson, panToNodePerson]);
+
+  const filteredFindPersons = useMemo(() => {
+    const q = findQuery.trim().toLowerCase();
+    const sorted = [...persons].sort((a, b) => a.full_name.localeCompare(b.full_name));
+    if (!q) return sorted.slice(0, 20);
+    return sorted
+      .filter(
+        (p) =>
+          p.full_name.toLowerCase().includes(q) ||
+          (p.nickname_or_maiden && p.nickname_or_maiden.toLowerCase().includes(q))
+      )
+      .slice(0, 25);
+  }, [persons, findQuery]);
+
+  const householdNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const h of households) map.set(h.id, h.family_name);
+    return map;
+  }, [households]);
+
   useEffect(() => {
     const timer = setTimeout(() => {
+      if (
+        pendingFocusPersonIdRef.current ||
+        Date.now() < skipAutoFitUntilRef.current ||
+        (focusPersonRequest && focusPersonRequest.nonce !== lastHandledFocusNonceRef.current)
+      ) {
+        return;
+      }
       resetFit();
     }, 80);
     return () => clearTimeout(timer);
-  }, [resetFit]);
+  }, [resetFit, focusPersonRequest]);
 
   // Mouse pan handlers
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -978,12 +1142,16 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
                           type="button"
                           onClick={() => handlePersonClick(person, h)}
                           className={`relative rounded-full bg-white shadow-md hover:shadow-xl hover:scale-105 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-slate-900 ${
-                            compareSource?.person.id === person.id ? 'ring-4 ring-indigo-500 ring-offset-2' : ''
+                            compareSource?.person.id === person.id
+                              ? 'ring-4 ring-indigo-500 ring-offset-2'
+                              : highlightedPersonId === person.id
+                              ? 'ring-4 ring-sky-500 ring-offset-2 scale-105'
+                              : ''
                           }`}
                           style={{
                             width: `${AVATAR_SIZE}px`,
                             height: `${AVATAR_SIZE}px`,
-                            border: `3.5px solid ${branchColor}`,
+                            border: `3px solid ${branchColor}`,
                             padding: '2px',
                           }}
                           title={`${person.full_name} — ${t.clickPersonHint}`}
@@ -996,7 +1164,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
                                 className="w-full h-full object-cover"
                               />
                             ) : (
-                              <span className="text-xl font-extrabold text-slate-500">
+                              <span className="text-lg font-extrabold text-slate-500">
                                 {person.full_name.slice(0, 1).toUpperCase()}
                               </span>
                             )}
@@ -1005,7 +1173,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
                           {/* Subtle You / Active Indicator */}
                           {(isSelf || isClaimed) && (
                             <span
-                              className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-emerald-500 border-2 border-white shadow-xs"
+                              className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white shadow-xs"
                               title={t.claimedByYou}
                             />
                           )}
@@ -1015,13 +1183,13 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
                         <button
                           type="button"
                           onClick={() => handlePersonClick(person, h)}
-                          className="mt-2 px-1.5 py-0.5 rounded-lg hover:bg-white/90 transition-colors cursor-pointer max-w-full"
+                          className="mt-1.5 px-1 py-0.5 rounded-lg hover:bg-white/90 transition-colors cursor-pointer max-w-full"
                         >
-                          <p className="text-xs font-extrabold text-slate-900 leading-tight line-clamp-2">
+                          <p className="text-[11px] font-extrabold text-slate-900 leading-tight line-clamp-2">
                             {person.full_name}
                           </p>
                           <p
-                            className="text-[10px] font-semibold mt-0.5 truncate"
+                            className="text-[9.5px] font-semibold mt-0.5 truncate"
                             style={{ color: person.is_living ? branchColor : '#64748B' }}
                           >
                             {formatYearSpan(person)}
@@ -1049,7 +1217,7 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
                     top: isCollapsed
                       ? `${NODE_HEIGHT + 2}px`
                       : node.isCouple
-                      ? `${AVATAR_SIZE / 2 + 22}px`
+                      ? `${AVATAR_SIZE / 2 + 18}px`
                       : `${NODE_HEIGHT - 8}px`,
                   }}
                 >
@@ -1116,6 +1284,107 @@ export const TreeCanvas: React.FC<TreeCanvasProps> = ({
             </div>
           );
         })}
+      </div>
+
+      {/* Bottom-Left Quick Navigation Dock (Find Relative + Center on Me) */}
+      <div className="absolute bottom-4 left-3 sm:bottom-6 sm:left-6 z-20">
+        {findOpen && (
+          <div className="absolute bottom-full left-0 mb-2 w-64 sm:w-72 bg-white/95 backdrop-blur-md border border-slate-200 rounded-2xl shadow-2xl overflow-hidden">
+            <div className="p-2 border-b border-slate-100 flex items-center gap-1.5">
+              <Search className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-1" />
+              <input
+                type="text"
+                autoFocus
+                value={findQuery}
+                onChange={(e) => setFindQuery(e.target.value)}
+                placeholder={t.jumpToPersonPlaceholder}
+                className="flex-1 text-xs font-medium text-slate-800 placeholder:text-slate-400 bg-transparent focus:outline-none py-1"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setFindOpen(false);
+                  setFindQuery('');
+                }}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
+                aria-label={t.close}
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <div className="max-h-56 overflow-y-auto divide-y divide-slate-100">
+              {filteredFindPersons.length === 0 ? (
+                <p className="px-3 py-4 text-center text-[11px] text-slate-400 font-medium">
+                  {t.noMembersFound}
+                </p>
+              ) : (
+                filteredFindPersons.map((p) => {
+                  const hName = p.household_id ? householdNameMap.get(p.household_id) : '';
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => {
+                        setFindOpen(false);
+                        setFindQuery('');
+                        focusOnPerson(p.id);
+                      }}
+                      className="w-full px-3 py-2 flex items-center gap-2.5 hover:bg-slate-50 active:bg-slate-100 text-left transition-colors cursor-pointer"
+                    >
+                      <div className="w-7 h-7 rounded-full bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center shrink-0 text-[11px] font-extrabold text-slate-600">
+                        {p.avatar_b64 ? (
+                          <img src={p.avatar_b64} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          p.full_name.slice(0, 1).toUpperCase()
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold text-slate-900 truncate">{p.full_name}</p>
+                        <p className="text-[10px] text-slate-500 truncate">
+                          {[hName, formatYearSpan(p)].filter(Boolean).join(' • ')}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="flex items-center gap-1 bg-white/95 backdrop-blur-sm border border-slate-200 rounded-2xl p-1 shadow-lg">
+          <button
+            type="button"
+            onClick={() => setFindOpen((prev) => !prev)}
+            className={`px-3 py-2 sm:py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
+              findOpen
+                ? 'bg-slate-900 text-white'
+                : 'text-slate-700 hover:bg-slate-100'
+            }`}
+            title={t.findOnTreeBtn}
+          >
+            <Search className="w-3.5 h-3.5 shrink-0" />
+            <span>{t.findOnTreeBtn}</span>
+          </button>
+
+          {activePersonId && (
+            <>
+              <div className="w-px h-5 bg-slate-200" />
+              <button
+                type="button"
+                onClick={() => {
+                  setFindOpen(false);
+                  focusOnPerson(activePersonId);
+                }}
+                className="px-3 py-2 sm:py-1.5 rounded-xl text-xs font-bold text-emerald-700 hover:bg-emerald-50 flex items-center gap-1.5 transition-colors cursor-pointer"
+                title={t.centerOnMeBtn}
+              >
+                <LocateFixed className="w-3.5 h-3.5 shrink-0" />
+                <span>{t.centerOnMeBtn}</span>
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Floating Canvas Zoom Controls */}

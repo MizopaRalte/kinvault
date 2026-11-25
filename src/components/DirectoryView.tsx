@@ -9,6 +9,7 @@ import {
   UserCheck,
   ShieldCheck,
   ShieldAlert,
+  Trees,
 } from 'lucide-react';
 import type { Household, Person, Role } from '../types/family';
 import type { TranslationDictionary } from '../locales/translations';
@@ -19,6 +20,7 @@ interface DirectoryViewProps {
   t: TranslationDictionary;
   activePersonId?: string;
   userRole?: Role;
+  onLocateOnTree?: (person: Person) => void;
   onOpenMemberModal: (person?: Person, household?: Household, mode?: string) => void;
 }
 
@@ -28,6 +30,7 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
   t,
   activePersonId,
   userRole: _userRole,
+  onLocateOnTree,
   onOpenMemberModal,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -280,15 +283,28 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
                       </div>
                     </div>
 
-                    {/* Edit button */}
-                    <button
-                      type="button"
-                      onClick={() => onOpenMemberModal(person, household, 'edit_person')}
-                      title={t.editProfile}
-                      className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors shrink-0"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
+                    {/* Quick Actions: Show in Tree & Edit */}
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      {onLocateOnTree && (
+                        <button
+                          type="button"
+                          onClick={() => onLocateOnTree(person)}
+                          title={t.locateOnTreeBtn}
+                          aria-label={t.locateOnTreeBtn}
+                          className="p-1.5 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
+                        >
+                          <Trees className="w-4 h-4" />
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => onOpenMemberModal(person, household, 'edit_person')}
+                        title={t.editProfile}
+                        className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
 
                   {/* Badges / Dates / Address details */}

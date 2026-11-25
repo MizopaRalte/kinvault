@@ -119,8 +119,12 @@ export const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isOfflineSnapshot, setIsOfflineSnapshot] = useState<boolean>(false);
 
-  // Active view tab
+  // Active view tab & focus target on tree
   const [activeTab, setActiveTab] = useState<'tree' | 'directory'>('tree');
+  const [focusPersonRequest, setFocusPersonRequest] = useState<{
+    personId: string;
+    nonce: number;
+  } | null>(null);
 
   // App Lock PIN state
   const [lockPin, setLockPin] = useState<string | null>(null);
@@ -915,6 +919,7 @@ export const App: React.FC = () => {
               activePersonId={session.activePersonId}
               userRole={session.role}
               deviceId={deviceId}
+              focusPersonRequest={focusPersonRequest}
               onOpenMemberModal={(p, h, mode) => {
                 const targetPerson = p || (h ? treeData?.persons.find((item) => item.household_id === h.id) : undefined);
                 setMemberModalState({
@@ -962,6 +967,13 @@ export const App: React.FC = () => {
               t={t}
               activePersonId={session.activePersonId}
               userRole={session.role}
+              onLocateOnTree={(person) => {
+                setFocusPersonRequest((prev) => ({
+                  personId: person.id,
+                  nonce: (prev?.nonce ?? 0) + 1,
+                }));
+                setActiveTab('tree');
+              }}
               onOpenMemberModal={(p, h, mode) => {
                 const targetPerson = p || (h ? treeData?.persons.find((item) => item.household_id === h.id) : undefined);
                 setMemberModalState({
